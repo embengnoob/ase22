@@ -14,7 +14,7 @@ TRACK2_IMG_PER_LAP = 1870
 TRACK3_IMG_PER_LAP = 1375
 
 # self-driving car model settings
-SDC_MODELS_DIR = "trained-sdc-models/"  # self-driving car models
+SDC_MODELS_DIR = "models/"  # self-driving car models
 SDC_MODEL_NAME = "dave2-mc-053.h5"  # self-driving car model "dave2"|"chauffeur"|"epoch"|"commaai"
 NUM_EPOCHS_SDC_MODEL = 500  # training epochs for the self-driving car model
 # SAMPLES_PER_EPOCH = 100  # number of samples to process before going to the next epoch
