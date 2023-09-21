@@ -30,8 +30,8 @@ from tensorflow.keras.models import load_model
 from utils import rmse, resize
 from selforacle.vae import VAE, normalize_and_reshape
 
-sio = socketio.Server()
-app = Flask(__name__)
+sio = socketio.Server() # Socket.IO is a library that enables low-latency, bidirectional and event-based communication between a client and a server. It is built on top of the WebSocket protocol and provides additional guarantees like fallback to HTTP long-polling or automatic reconnection.
+app = Flask(__name__) # Flask is a lightweight Python web framework that provides useful tools and features for creating web applications in the Python Language. 
 model = None
 
 prev_image_array = None
@@ -184,15 +184,18 @@ def send_control(steering_angle, throttle, confidence, loss, max_laps, uncertain
 
 if __name__ == '__main__':
 
+    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
     cfg = Config()
     cfg.from_pyfile("config_my.py")
 
     # load the self-driving car model
     model_path = Path(os.path.join(cfg.SDC_MODELS_DIR, cfg.SDC_MODEL_NAME))
+    print(model_path)
     if "chauffeur" in cfg.SDC_MODEL_NAME:
         model = load_model(model_path, custom_objects={"rmse": rmse})
     elif "dave2" in cfg.SDC_MODEL_NAME or "epoch" in cfg.SDC_MODEL_NAME or "commaai" in cfg.SDC_MODEL_NAME:
         model = load_model(model_path)
+        model.summary()
     else:
         print("cfg.SDC_MODEL_NAME option unknown. Exiting...")
         exit()
