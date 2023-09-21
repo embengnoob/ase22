@@ -10,7 +10,7 @@ from sklearn.utils import shuffle
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.optimizers import Adam
 
-from config import Config
+from config import Config, load_config
 from self_driving_car_batch_generator import Generator
 from utils import get_driving_styles
 from utils_models import *
@@ -22,10 +22,6 @@ def load_data(cfg):
     """
     Load training data_nominal and split it into training and validation set
     """
-    drive = get_driving_styles(cfg)
-
-    print("Loading training set " + str(cfg.TRACK) + str(drive))
-
     start = time.time()
 
     x = None
@@ -36,23 +32,26 @@ def load_data(cfg):
     x_test = None
     y_test = None
 
-    for drive_style in drive:
-        try:
-            path = os.path.join(cfg.TRAINING_DATA_DIR,
-                                cfg.TRAINING_SET_DIR,
-                                cfg.TRACK,
-                                drive_style,
-                                'driving_log.csv')
-            data_df = pd.read_csv(path)
-            if x is None:
-                x = data_df[['center', 'left', 'right']].values
-                y = data_df['steering'].values
-            else:
-                x = np.concatenate((x, data_df[['center', 'left', 'right']].values), axis=0)
-                y = np.concatenate((y, data_df['steering'].values), axis=0)
-        except FileNotFoundError:
-            print("Unable to read file %s" % path)
-            continue
+    for track in cfg.TRACK:
+        drive = get_driving_styles(cfg, track)
+        print("Loading training set " + track + str(drive))
+        for drive_style in drive:
+            try:
+                path = os.path.join(cfg.TRAINING_DATA_DIR,
+                                    cfg.TRAINING_SET_DIR,
+                                    track,
+                                    drive_style,
+                                    'driving_log.csv')
+                data_df = pd.read_csv(path)
+                if x is None:
+                    x = data_df[['center', 'left', 'right']].values
+                    y = data_df['steering'].values
+                else:
+                    x = np.concatenate((x, data_df[['center', 'left', 'right']].values), axis=0)
+                    y = np.concatenate((y, data_df['steering'].values), axis=0)
+            except FileNotFoundError:
+                print("Unable to read file %s" % path)
+                continue
 
     if x is None:
         print("No driving data_nominal were provided for training. Provide correct paths to the driving_log.csv files")
@@ -77,12 +76,24 @@ def train_model(model, cfg, x_train, x_test, y_train, y_test):
     """
     Train the self-driving car model
     """
+    tracks_used = 'track'
+    if len(cfg.TRACK)==3:
+        tracks_used = 'all_tracks-'
+    else:
+        for track in cfg.TRACK:
+            if '1' in track:
+                tracks_used += '1-'
+            elif '2' in track:
+                tracks_used += '2-'
+            elif '3' in track:
+                tracks_used += '3-'
+    
     if cfg.USE_PREDICTIVE_UNCERTAINTY:
         name = os.path.join(cfg.SDC_MODELS_DIR,
-                            cfg.TRACK + '-' + cfg.SDC_MODEL_NAME.replace('.h5', '') + '-mc' + '-{epoch:03d}.h5')
+                            tracks_used + cfg.SDC_MODEL_NAME.replace('.h5', '') + '-mc' + '-{epoch:03d}.h5')
     else:
         name = os.path.join(cfg.SDC_MODELS_DIR,
-                            cfg.TRACK + '-' + cfg.SDC_MODEL_NAME.replace('.h5', '') + '-{epoch:03d}.h5')
+                            tracks_used + cfg.SDC_MODEL_NAME.replace('.h5', '') + '-{epoch:03d}.h5')
 
     checkpoint = ModelCheckpoint(
         name,
@@ -95,8 +106,13 @@ def train_model(model, cfg, x_train, x_test, y_train, y_test):
                                                min_delta=.0005,
                                                patience=10,
                                                mode='auto')
+    # early_stop = keras.callbacks.EarlyStopping(monitor='val_loss',
+    #                                            min_delta=.0005,
+    #                                            patience=10,
+    #                                            verbose=1,
+    #                                            mode='auto')    
 
-    model.compile(loss='mean_squared_error', optimizer=Adam(lr=cfg.LEARNING_RATE))
+    model.compile(loss='mean_squared_error', optimizer=Adam(learning_rate=cfg.LEARNING_RATE))
 
     x_train, y_train = shuffle(x_train, y_train, random_state=0)
     x_test, y_test = shuffle(x_test, y_test, random_state=0)
@@ -107,7 +123,7 @@ def train_model(model, cfg, x_train, x_test, y_train, y_test):
     history = model.fit(train_generator,
                         validation_data=val_generator,
                         epochs=cfg.NUM_EPOCHS_SDC_MODEL,
-                        callbacks=[checkpoint, early_stop],
+                        callbacks=[checkpoint],
                         verbose=1)
 
     # summarize history for loss
@@ -119,11 +135,23 @@ def train_model(model, cfg, x_train, x_test, y_train, y_test):
     plt.legend(['train', 'val'], loc='upper left')
     plt.show()
 
+    tracks_used = 'track'
+    if len(cfg.TRACK)==3:
+        tracks_used = 'all_tracks-'
+    else:
+        for track in cfg.TRACK:
+            if '1' in track:
+                tracks_used += '1-'
+            elif '2' in track:
+                tracks_used += '2-'
+            elif '3' in track:
+                tracks_used += '3-'
+
     if cfg.USE_PREDICTIVE_UNCERTAINTY:
         name = os.path.join(cfg.SDC_MODELS_DIR,
-                            cfg.TRACK + '-' + cfg.SDC_MODEL_NAME.replace('.h5', '') + '-mc-final.h5')
+                            tracks_used + cfg.SDC_MODEL_NAME.replace('.h5', '') + '-mc-final.h5')
     else:
-        name = os.path.join(cfg.SDC_MODELS_DIR, cfg.TRACK + '-' + cfg.SDC_MODEL_NAME.replace('.h5', '') + '-final.h5')
+        name = os.path.join(cfg.SDC_MODELS_DIR, tracks_used + cfg.SDC_MODEL_NAME.replace('.h5', '') + '-final.h5')
 
     # save the last model anyway (might not be the best)
     model.save(name)
