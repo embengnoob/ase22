@@ -14,6 +14,7 @@ from config import Config, load_config
 from self_driving_car_batch_generator import Generator
 from utils import get_driving_styles
 from utils_models import *
+import argparse
 
 np.random.seed(0)
 
@@ -72,7 +73,7 @@ def load_data(cfg):
     return x_train, x_test, y_train, y_test
 
 
-def train_model(model, cfg, x_train, x_test, y_train, y_test):
+def train_model(model, cfg, x_train, x_test, y_train, y_test, early_stopping):
     """
     Train the self-driving car model
     """
@@ -102,15 +103,22 @@ def train_model(model, cfg, x_train, x_test, y_train, y_test):
         save_best_only=True,
         mode='auto')
 
-    early_stop = keras.callbacks.EarlyStopping(monitor='loss',
-                                               min_delta=.0005,
-                                               patience=10,
-                                               mode='auto')
-    # early_stop = keras.callbacks.EarlyStopping(monitor='val_loss',
-    #                                            min_delta=.0005,
-    #                                            patience=10,
-    #                                            verbose=1,
-    #                                            mode='auto')    
+    if early_stopping:
+        # early_stop = keras.callbacks.EarlyStopping(monitor='val_loss',
+        #                                            min_delta=.0005,
+        #                                            patience=10,
+        #                                            verbose=1,
+        #                                            mode='auto') 
+        early_stop = keras.callbacks.EarlyStopping(monitor='loss',
+                                                min_delta=.0005,
+                                                patience=10,
+                                                mode='auto')
+        callbacks=[checkpoint, early_stop]
+        
+        print("Early stopping active")
+    else:
+        callbacks=[checkpoint]
+        print("Without Early stopping")   
 
     model.compile(loss='mean_squared_error', optimizer=Adam(learning_rate=cfg.LEARNING_RATE))
 
@@ -123,7 +131,7 @@ def train_model(model, cfg, x_train, x_test, y_train, y_test):
     history = model.fit(train_generator,
                         validation_data=val_generator,
                         epochs=cfg.NUM_EPOCHS_SDC_MODEL,
-                        callbacks=[checkpoint],
+                        callbacks=callbacks,
                         verbose=1)
 
     # summarize history for loss
@@ -158,6 +166,9 @@ def train_model(model, cfg, x_train, x_test, y_train, y_test):
 
 
 def main():
+    parser = argparse.ArgumentParser(description='Remote Driving - Model Training')
+    parser.add_argument('-es', help='with or without early-stopping', dest='early_stopping', type=bool, default=False)
+    args = parser.parse_args()
     """
     Load train/validation data_nominal set and train the model
     """
@@ -168,7 +179,7 @@ def main():
 
     model = build_model(cfg.SDC_MODEL_NAME, cfg.USE_PREDICTIVE_UNCERTAINTY)
 
-    train_model(model, cfg, x_train, x_test, y_train, y_test)
+    train_model(model, cfg, x_train, x_test, y_train, y_test, args.early_stopping)
 
 
 if __name__ == '__main__':
