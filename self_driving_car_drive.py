@@ -95,8 +95,15 @@ def telemetry(sid, data):
             image_copy = normalize_and_reshape(image_copy)
             loss = anomaly_detection.test_on_batch(image_copy)[2]
 
+            # get model size to check if was trained 1/4 the size (new version) or not (old version)
+            model_size = os. path. getsize(model_path)
+            if model_size < 5000000:
+                old_model = False
+            else:
+                old_model = True
+
             # apply the pre-processing
-            image = utils.preprocess(image)
+            image = utils.preprocess(image, old_model)
 
             # the model expects 4D array
             image = np.array([image])
@@ -190,7 +197,7 @@ if __name__ == '__main__':
 
     # load the self-driving car model
     model_path = Path(os.path.join(cfg.SDC_MODELS_DIR, cfg.SDC_MODEL_NAME))
-    print(model_path)
+    print(f"Model path: {model_path}")
     if "chauffeur" in cfg.SDC_MODEL_NAME:
         model = load_model(model_path, custom_objects={"rmse": rmse})
     elif "dave2" in cfg.SDC_MODEL_NAME or "epoch" in cfg.SDC_MODEL_NAME or "commaai" in cfg.SDC_MODEL_NAME:

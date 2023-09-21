@@ -50,9 +50,16 @@ def crop(image):
 
 def resize(image):
     """
-    Resize the image to the input_image shape used by the network model
+    Resize the image to the input_image shape used by the network model (1/4 of the simulator image size)
     """
     return cv2.resize(image, (RESIZED_IMAGE_WIDTH, RESIZED_IMAGE_HEIGHT), cv2.INTER_AREA)
+
+
+def resize_original_size(image):
+    """
+    Resize the image to the input_image shape used by the network model (the original size of the simulator)
+    """
+    return cv2.resize(image, (IMAGE_WIDTH, IMAGE_HEIGHT), cv2.INTER_AREA)
 
 
 def rgb2yuv(image):
@@ -62,12 +69,15 @@ def rgb2yuv(image):
     return cv2.cvtColor(image.astype('uint8') * 255, cv2.COLOR_RGB2YUV)
 
 
-def preprocess(image):
+def preprocess(image, old_model):
     """
     Combine all preprocess functions into one
     """
     image = crop(image)
-    image = resize(image)
+    if old_model:
+        image = resize_original_size(image)
+    else:
+        image = resize(image)
     image = rgb2yuv(image)
     return image
 
