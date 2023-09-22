@@ -7,8 +7,7 @@ def main():
 
     cfg = Config()
     cfg.from_pyfile("config_my.py")
-    # model_path = os.path.join(cfg.SDC_MODELS_DIR, cfg.SDC_MODEL_NAME)
-    model_path = os.path.join(cfg.SDC_MODELS_DIR, "dave2-mc-053.h5")
+    model_path = os.path.join(cfg.SDC_MODELS_DIR, cfg.SDC_MODEL_NAME)
     print(f"Model path: {model_path}")
     # Get the creation and modification datetime of the file
     stat_info = os.stat(model_path)
