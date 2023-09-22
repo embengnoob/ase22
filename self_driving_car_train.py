@@ -89,11 +89,11 @@ def train_model(model, cfg, x_train, x_test, y_train, y_test, early_stopping):
                 tracks_used += '3-'
     
     if cfg.USE_PREDICTIVE_UNCERTAINTY:
-        name = os.path.join(cfg.SDC_MODELS_DIR,
-                            tracks_used + cfg.SDC_MODEL_NAME.replace('.h5', '') + '-mc' + '-{epoch:03d}.h5')
+        name = os.path.join(cfg.SDC_TRAINING_MODELS_DIR,
+                            tracks_used + cfg.SDC_TRAINING_MODEL_NAME.replace('.h5', '') + '-mc' + '-{epoch:03d}.h5')
     else:
-        name = os.path.join(cfg.SDC_MODELS_DIR,
-                            tracks_used + cfg.SDC_MODEL_NAME.replace('.h5', '') + '-{epoch:03d}.h5')
+        name = os.path.join(cfg.SDC_TRAINING_MODELS_DIR,
+                            tracks_used + cfg.SDC_TRAINING_MODEL_NAME.replace('.h5', '') + '-{epoch:03d}.h5')
 
     checkpoint = ModelCheckpoint(
         name,
@@ -155,10 +155,10 @@ def train_model(model, cfg, x_train, x_test, y_train, y_test, early_stopping):
                 tracks_used += '3-'
 
     if cfg.USE_PREDICTIVE_UNCERTAINTY:
-        name = os.path.join(cfg.SDC_MODELS_DIR,
-                            tracks_used + cfg.SDC_MODEL_NAME.replace('.h5', '') + '-mc-final.h5')
+        name = os.path.join(cfg.SDC_TRAINING_MODELS_DIR,
+                            tracks_used + cfg.SDC_TRAINING_MODEL_NAME.replace('.h5', '') + '-mc-final.h5')
     else:
-        name = os.path.join(cfg.SDC_MODELS_DIR, tracks_used + cfg.SDC_MODEL_NAME.replace('.h5', '') + '-final.h5')
+        name = os.path.join(cfg.SDC_TRAINING_MODELS_DIR, tracks_used + cfg.SDC_TRAINING_MODEL_NAME.replace('.h5', '') + '-final.h5')
 
     # save the last model anyway (might not be the best)
     model.save(name)
@@ -176,7 +176,7 @@ def main():
 
     x_train, x_test, y_train, y_test = load_data(cfg)
 
-    model = build_model(cfg.SDC_MODEL_NAME, cfg.USE_PREDICTIVE_UNCERTAINTY)
+    model = build_model(cfg.SDC_TRAINING_MODEL_NAME, cfg.USE_PREDICTIVE_UNCERTAINTY)
 
     train_model(model, cfg, x_train, x_test, y_train, y_test, args.early_stopping)
 

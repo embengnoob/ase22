@@ -15,13 +15,15 @@ TRACK3_IMG_PER_LAP = 1375
 
 # self-driving car model settings
 SDC_MODELS_DIR = "models/"  # self-driving car models
-SDC_MODEL_NAME = "dave2-mc-053.h5"  # self-driving car model "dave2"|"chauffeur"|"epoch"|"commaai"
+SDC_MODEL_NAME = "track1-dave2-mc-maxspeed30-NoES-mc-211.h5"  # self-driving car model "dave2"|"chauffeur"|"epoch"|"commaai"
+SDC_TRAINING_MODELS_DIR = "models/training/" # Training directory for new models   
+SDC_TRAINING_MODEL_NAME = "dave2-mc-maxspeed30-withES.h5" # base model name for new models to be trained
 NUM_EPOCHS_SDC_MODEL = 500  # training epochs for the self-driving car model
 # SAMPLES_PER_EPOCH = 100  # number of samples to process before going to the next epoch
 BATCH_SIZE = 128  # number of samples per gradient update
 SAVE_BEST_ONLY = True  # only saves when the model is considered the "best" according to the quantity monitored
 LEARNING_RATE = 1.0e-4  # amount that the weights are updated during training
-USE_PREDICTIVE_UNCERTAINTY = False  # use MC-Dropout model
+USE_PREDICTIVE_UNCERTAINTY = True  # use MC-Dropout model
 NUM_SAMPLES_MC_DROPOUT = 20
 
 # Udacity simulation settings
