@@ -33,26 +33,25 @@ def load_data(cfg):
     x_test = None
     y_test = None
 
-    for track in cfg.TRACK:
-        drive = get_driving_styles(cfg, track)
-        print("Loading training set " + track + str(drive))
-        for drive_style in drive:
-            try:
-                path = os.path.join(cfg.TRAINING_DATA_DIR,
-                                    cfg.TRAINING_SET_DIR,
-                                    track,
-                                    drive_style,
-                                    'driving_log.csv')
-                data_df = pd.read_csv(path)
-                if x is None:
-                    x = data_df[['center', 'left', 'right']].values
-                    y = data_df['steering'].values
-                else:
-                    x = np.concatenate((x, data_df[['center', 'left', 'right']].values), axis=0)
-                    y = np.concatenate((y, data_df['steering'].values), axis=0)
-            except FileNotFoundError:
-                print("Unable to read file %s" % path)
-                continue
+    drive = get_driving_styles(cfg)
+    print("Loading training set " + cfg.TRACK + str(drive))
+    for drive_style in drive:
+        try:
+            path = os.path.join(cfg.TRAINING_DATA_DIR,
+                                cfg.TRAINING_SET_DIR,
+                                cfg.TRACK,
+                                drive_style,
+                                'driving_log.csv')
+            data_df = pd.read_csv(path)
+            if x is None:
+                x = data_df[['center', 'left', 'right']].values
+                y = data_df['steering'].values
+            else:
+                x = np.concatenate((x, data_df[['center', 'left', 'right']].values), axis=0)
+                y = np.concatenate((y, data_df['steering'].values), axis=0)
+        except FileNotFoundError:
+            print("Unable to read file %s" % path)
+            continue
 
     if x is None:
         print("No driving data_nominal were provided for training. Provide correct paths to the driving_log.csv files")

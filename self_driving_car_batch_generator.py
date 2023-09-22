@@ -34,7 +34,7 @@ class Generator(Sequence):
                 image = load_image(self.cfg.TRAINING_DATA_DIR + os.path.sep + self.cfg.TRAINING_SET_DIR, center)
 
             # add the image and steering angle to the batch
-            images[i] = preprocess(image)
+            images[i] = preprocess(image, False)
             steers[i] = steering_angle
 
         return images, steers
