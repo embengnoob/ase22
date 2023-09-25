@@ -1,7 +1,7 @@
 import csv
 import gc
 import os
-
+import logging
 import numpy as np
 import pandas as pd
 from keras import backend as K
@@ -33,11 +33,15 @@ def evaluate_failure_prediction(cfg, heatmap_type, simulation_name, summary_type
                         cfg.SIMULATION_NAME,
                         'htm-' + heatmap_type + '-scores' + summary_type + '.npy')
     original_losses = np.load(path)
-
+    
     path = os.path.join(cfg.TESTING_DATA_DIR,
                         cfg.SIMULATION_NAME,
                         'heatmaps-' + heatmap_type,
                         'driving_log.csv')
+    # path = os.path.join(cfg.TESTING_DATA_DIR,
+    #                     cfg.SIMULATION_NAME,
+    #                     'driving_log.csv')
+    logging.warning(f"Path for data_df_nominal: {path}")
     data_df_nominal = pd.read_csv(path)
 
     data_df_nominal['loss'] = original_losses
@@ -47,12 +51,17 @@ def evaluate_failure_prediction(cfg, heatmap_type, simulation_name, summary_type
     path = os.path.join(cfg.TESTING_DATA_DIR,
                         simulation_name,
                         'htm-' + heatmap_type + '-scores' + summary_type + '.npy')
+    
     anomalous_losses = np.load(path)
 
     path = os.path.join(cfg.TESTING_DATA_DIR,
                         simulation_name,
                         'heatmaps-' + heatmap_type,
                         'driving_log.csv')
+    # path = os.path.join(cfg.TESTING_DATA_DIR,
+    #                     cfg.SIMULATION_NAME,
+    #                     'driving_log.csv')
+    logging.warning(f"Path for data_df_anomalous: {path}")
     data_df_anomalous = pd.read_csv(path)
     data_df_anomalous['loss'] = anomalous_losses
 
@@ -209,7 +218,7 @@ def compute_tp_and_fn(data_df_anomalous, losses_on_anomalous, threshold, seconds
             undetectable_windows += 1
         else:
             crashed_anomalous_in_anomalous_conditions.loc[item - frames_to_reassign: item - frames_to_reassign_2] = 1
-            reaction_window = reaction_window.append(
+            reaction_window = reaction_window._append(
                 crashed_anomalous_in_anomalous_conditions[item - frames_to_reassign: item - frames_to_reassign_2])
 
             print("frames between %d and %d have been labelled as 1" % (
