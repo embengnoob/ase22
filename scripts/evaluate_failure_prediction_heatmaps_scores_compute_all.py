@@ -30,18 +30,24 @@ if __name__ == '__main__':
         cfg = load_config("config_my.py")
     # cfg.from_pyfile("config_my.py")
 
-    # check whether nominal simulation and the corresponding heatmaps are already generated, generate them otherwise
-    simExists(cfg, cfg.TESTING_DATA_DIR, SIMULATION_NAME="gauss-journal-track1-nominal", attention_type="SmoothGrad")   
-    # check whether the heatmaps are already generated, generate them otherwise
-    simExists(cfg, cfg.TESTING_DATA_DIR, cfg.SIMULATION_NAME, attention_type="SmoothGrad")
-    
+    SIMULATION_NAME_ANOMALOUS = cfg.SIMULATION_NAME
+    SIMULATION_NAME_NOMINAL = "gauss-journal-track1-nominal"
 
+    # check whether nominal simulation and the corresponding heatmaps are already generated, generate them otherwise
+    simExists(cfg, cfg.TESTING_DATA_DIR, SIMULATION_NAME=SIMULATION_NAME_NOMINAL, attention_type="SmoothGrad")   
+    # check whether the heatmaps are already generated, generate them otherwise
+    simExists(cfg, cfg.TESTING_DATA_DIR, SIMULATION_NAME=SIMULATION_NAME_ANOMALOUS, attention_type="SmoothGrad")
+    
+    counter = 0
     for ht in ['smoothgrad']:
         for st in ['-avg', '-avg-grad']:
             for am in ['mean', 'max']:
+                counter += 1
+                print(f'########### using aggregation method >>{am}<< run number {counter} ###########')
                 evaluate_failure_prediction(cfg,
                                             heatmap_type=ht,
-                                            simulation_name=cfg.SIMULATION_NAME,
+                                            anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
+                                            nominal_simulation_name=SIMULATION_NAME_NOMINAL,
                                             summary_type=st,
                                             aggregation_method=am,
                                             condition='ood')

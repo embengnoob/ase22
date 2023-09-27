@@ -22,45 +22,38 @@ def get_threshold(losses, conf_level=0.95):
     return t
 
 
-def evaluate_failure_prediction(cfg, heatmap_type, simulation_name, summary_type, aggregation_method, condition):
+def evaluate_failure_prediction(cfg, heatmap_type, anomalous_simulation_name, nominal_simulation_name, summary_type, aggregation_method, condition):
     print("Using summarization average" if summary_type is '-avg' else "Using summarization gradient")
     print("Using aggregation mean" if aggregation_method is 'mean' else "Using aggregation max")
 
     # 1. load heatmap scores in nominal conditions
 
-    cfg.SIMULATION_NAME = 'gauss-journal-track1-nominal'
     path = os.path.join(cfg.TESTING_DATA_DIR,
-                        cfg.SIMULATION_NAME,
+                        nominal_simulation_name,
                         'htm-' + heatmap_type + '-scores' + summary_type + '.npy')
     original_losses = np.load(path)
     
     path = os.path.join(cfg.TESTING_DATA_DIR,
-                        cfg.SIMULATION_NAME,
+                        nominal_simulation_name,
                         'heatmaps-' + heatmap_type,
                         'driving_log.csv')
-    # path = os.path.join(cfg.TESTING_DATA_DIR,
-    #                     cfg.SIMULATION_NAME,
-    #                     'driving_log.csv')
+
     logging.warning(f"Path for data_df_nominal: {path}")
     data_df_nominal = pd.read_csv(path)
 
     data_df_nominal['loss'] = original_losses
 
     # 2. load heatmap scores in anomalous conditions
-
     path = os.path.join(cfg.TESTING_DATA_DIR,
-                        simulation_name,
+                        anomalous_simulation_name,
                         'htm-' + heatmap_type + '-scores' + summary_type + '.npy')
     
     anomalous_losses = np.load(path)
-
     path = os.path.join(cfg.TESTING_DATA_DIR,
-                        simulation_name,
+                        anomalous_simulation_name,
                         'heatmaps-' + heatmap_type,
                         'driving_log.csv')
-    # path = os.path.join(cfg.TESTING_DATA_DIR,
-    #                     cfg.SIMULATION_NAME,
-    #                     'driving_log.csv')
+
     logging.warning(f"Path for data_df_anomalous: {path}")
     data_df_anomalous = pd.read_csv(path)
     data_df_anomalous['loss'] = anomalous_losses
@@ -124,7 +117,7 @@ def evaluate_failure_prediction(cfg, heatmap_type, simulation_name, summary_type
                     ["heatmap_type", "summarization_method", "aggregation_type", "simulation_name", "failures",
                      "detected", "undetected", "undetectable", "ttm", 'accuracy', "fpr", "precision", "recall",
                      "f3"])
-                writer.writerow([heatmap_type, summary_type[1:], aggregation_method, simulation_name,
+                writer.writerow([heatmap_type, summary_type[1:], aggregation_method, anomalous_simulation_name,
                                  str(true_positive_windows + false_negative_windows),
                                  str(true_positive_windows),
                                  str(false_negative_windows),
@@ -144,7 +137,7 @@ def evaluate_failure_prediction(cfg, heatmap_type, simulation_name, summary_type
                                     quotechar='"',
                                     quoting=csv.QUOTE_MINIMAL,
                                     lineterminator='\n')
-                writer.writerow([heatmap_type, summary_type[1:], aggregation_method, simulation_name,
+                writer.writerow([heatmap_type, summary_type[1:], aggregation_method, anomalous_simulation_name,
                                  str(true_positive_windows + false_negative_windows),
                                  str(true_positive_windows),
                                  str(false_negative_windows),
@@ -223,13 +216,14 @@ def compute_tp_and_fn(data_df_anomalous, losses_on_anomalous, threshold, seconds
 
             print("frames between %d and %d have been labelled as 1" % (
                 item - frames_to_reassign, item - frames_to_reassign_2))
-            print("reaction frames size is %d" % len(reaction_window))
+            print("reaction frames size is %d \n" % len(reaction_window))
 
             sma_anomalous = pd.Series(losses_on_anomalous)
             sma_anomalous = sma_anomalous.iloc[reaction_window.index.to_list()]
             assert len(reaction_window) == len(sma_anomalous)
 
             # print(sma_anomalous)
+            print('>>>>>>>>>>>>>>> aggregation_method: ' + aggregation_method + ' <<<<<<<<<<<<<<<<<')
 
             aggregated_score = None
             if aggregation_method == "mean":
@@ -240,6 +234,7 @@ def compute_tp_and_fn(data_df_anomalous, losses_on_anomalous, threshold, seconds
             print("threshold %s\tmean: %s\tmax: %s" % (
                 str(threshold), str(sma_anomalous.mean()), str(sma_anomalous.max())))
 
+            print(f"aggregated_score >= threshold: {aggregated_score} >= {threshold}")
             if aggregated_score >= threshold:
                 true_positive_windows += 1
             elif aggregated_score < threshold:
