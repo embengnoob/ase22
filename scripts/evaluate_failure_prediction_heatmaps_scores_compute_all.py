@@ -43,7 +43,7 @@ if __name__ == '__main__':
         for st in ['-avg', '-avg-grad']:
             for am in ['mean', 'max']:
                 counter += 1
-                print(f'########### using aggregation method >>{am}<< run number {counter} ###########')
+                print(f'\n########### using aggregation method >>{am}<< run number {counter} ###########')
                 evaluate_failure_prediction(cfg,
                                             heatmap_type=ht,
                                             anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
