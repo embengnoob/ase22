@@ -4,6 +4,7 @@ import os
 import logging
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from keras import backend as K
 from scipy.stats import gamma
 
@@ -21,13 +22,32 @@ def get_threshold(losses, conf_level=0.95):
     print('threshold: ' + str(t))
     return t
 
+def get_crash_frames(data_df_anomalous, number_frames_anomalous):
+    crashed_anomalous = data_df_anomalous['crashed']
+    crashed_anomalous.is_copy = None
+    crashed_anomalous_in_anomalous_conditions = crashed_anomalous.copy()
 
-def evaluate_failure_prediction(cfg, heatmap_type, anomalous_simulation_name, nominal_simulation_name, summary_type, aggregation_method, condition):
+    # creates the ground truth
+    all_first_frame_position_crashed_sequences = []
+    for idx, item in enumerate(crashed_anomalous_in_anomalous_conditions):
+        if idx == number_frames_anomalous:  # we have reached the end of the file
+            continue
+
+        if crashed_anomalous_in_anomalous_conditions[idx] == 0 and crashed_anomalous_in_anomalous_conditions[idx + 1] == 1: # if next frame is a crash
+            first_crash_index = idx + 1
+            all_first_frame_position_crashed_sequences.append(first_crash_index) # makes a list of all frames where crash first happened
+            # print("first_crash_index: %d" % first_crash_index) 
+    return all_first_frame_position_crashed_sequences
+
+def evaluate_failure_prediction(cfg, heatmap_type, anomalous_simulation_name, nominal_simulation_name, summary_type,
+                                aggregation_method, condition, fig,
+                                axs,
+                                subplot_counter, number_of_crashes, run_counter):
     print("Using summarization average" if summary_type is '-avg' else "Using summarization gradient")
     print("Using aggregation mean" if aggregation_method is 'mean' else "Using aggregation max")
 
+    # 0. 
     # 1. load heatmap scores in nominal conditions
-
     path = os.path.join(cfg.TESTING_DATA_DIR,
                         nominal_simulation_name,
                         'htm-' + heatmap_type + '-scores' + summary_type + '.npy')
@@ -62,15 +82,21 @@ def evaluate_failure_prediction(cfg, heatmap_type, anomalous_simulation_name, no
     false_positive_windows, true_negative_windows, threshold = compute_fp_and_tn(data_df_nominal,
                                                                                  aggregation_method,
                                                                                  condition)
-
+    
     # 4. compute TP and FN using different time to misbehaviour windows
     for seconds in range(1, 4):
-        true_positive_windows, false_negative_windows, undetectable_windows = compute_tp_and_fn(data_df_anomalous,
-                                                                                                anomalous_losses,
-                                                                                                threshold,
-                                                                                                seconds,
-                                                                                                aggregation_method,
-                                                                                                condition)
+        true_positive_windows, false_negative_windows, undetectable_windows, subplot_counter = compute_tp_and_fn(data_df_anomalous,
+                                                                                                                anomalous_losses,
+                                                                                                                threshold,
+                                                                                                                seconds,
+                                                                                                                fig,
+                                                                                                                axs,
+                                                                                                                subplot_counter,
+                                                                                                                number_of_crashes,
+                                                                                                                run_counter,
+                                                                                                                summary_type,
+                                                                                                                aggregation_method,
+                                                                                                                condition)
 
         if true_positive_windows != 0:
             precision = true_positive_windows / (true_positive_windows + false_positive_windows)
@@ -151,11 +177,14 @@ def evaluate_failure_prediction(cfg, heatmap_type, anomalous_simulation_name, no
 
     K.clear_session()
     gc.collect()
+    return subplot_counter
 
 
-def compute_tp_and_fn(data_df_anomalous, losses_on_anomalous, threshold, seconds_to_anticipate,
-                      aggregation_method='mean', cond='ood'):
-    print("time to misbehaviour (s): %d" % seconds_to_anticipate)
+def compute_tp_and_fn(data_df_anomalous, losses_on_anomalous, threshold, seconds_to_anticipate, fig,
+                      axs,
+                      subplot_counter,
+                      number_of_crashes, run_counter, summary_type, aggregation_method='mean', cond='ood'):
+    print("\n&&&&&&&&&&&&&&&&&&&&&&&&&&&& time to misbehaviour (s): %d &&&&&&&&&&&&&&&&&&&&&&&&&&&&" % seconds_to_anticipate)
 
     # only occurring when conditions == unexpected
     true_positive_windows = 0
@@ -178,28 +207,33 @@ def compute_tp_and_fn(data_df_anomalous, losses_on_anomalous, threshold, seconds
     crashed_anomalous_in_anomalous_conditions = crashed_anomalous.copy()
 
     # creates the ground truth
-    all_first_frame_position_crashed_sequences = []
-    for idx, item in enumerate(crashed_anomalous_in_anomalous_conditions):
-        if idx == number_frames_anomalous:  # we have reached the end of the file
-            continue
+    all_first_frame_position_crashed_sequences = get_crash_frames(data_df_anomalous, number_frames_anomalous)
+    # all_first_frame_position_crashed_sequences = []
+    # for idx, item in enumerate(crashed_anomalous_in_anomalous_conditions):
+    #     if idx == number_frames_anomalous:  # we have reached the end of the file
+    #         continue
 
-        if crashed_anomalous_in_anomalous_conditions[idx] == 0 and crashed_anomalous_in_anomalous_conditions[
-            idx + 1] == 1:
-            first_index_crash = idx + 1
-            all_first_frame_position_crashed_sequences.append(first_index_crash)
-            # print("first_index_crash: %d" % first_index_crash)
-
+    #     if crashed_anomalous_in_anomalous_conditions[idx] == 0 and crashed_anomalous_in_anomalous_conditions[idx + 1] == 1: # if next frame is a crash
+    #         first_crash_index = idx + 1
+    #         all_first_frame_position_crashed_sequences.append(first_crash_index) # makes a list of all frames where crash first happened
+    #         # print("first_crash_index: %d" % first_crash_index)
     print("identified %d crash(es)" % len(all_first_frame_position_crashed_sequences))
     print(all_first_frame_position_crashed_sequences)
-    frames_to_reassign = fps_anomalous * seconds_to_anticipate  # start of the sequence
+    frames_to_reassign = fps_anomalous * seconds_to_anticipate  # start of the sequence / length of time window (seconds to anticipate) in terms of number of frames
 
+    # first frame n seconds before the failure / length of time window one second shorter
+    # than seconds_to_anticipate in terms of number of frame
+    frames_to_reassign_2 = fps_anomalous * (seconds_to_anticipate - 1)
     # frames_to_reassign_2 = 1  # first frame before the failure
-    frames_to_reassign_2 = fps_anomalous * (seconds_to_anticipate - 1)  # first frame n seconds before the failure
 
     reaction_window = pd.Series()
 
+    crash_counter = 0
+    (reaction_window_x_min, reaction_window_x_max) = (0,0)
+
     for item in all_first_frame_position_crashed_sequences:
-        print("analysing failure %d" % item)
+        print("\n(((((((((((((((((((((((analysing failure %d))))))))))))))))))))))))))" % item)
+        # for the first frames smaller than a window
         if item - frames_to_reassign < 0:
             undetectable_windows += 1
             continue
@@ -211,6 +245,8 @@ def compute_tp_and_fn(data_df_anomalous, losses_on_anomalous, threshold, seconds
             undetectable_windows += 1
         else:
             crashed_anomalous_in_anomalous_conditions.loc[item - frames_to_reassign: item - frames_to_reassign_2] = 1
+            # if crash_counter == 1:
+            (reaction_window_x_min, reaction_window_x_max) = (crashed_anomalous_in_anomalous_conditions[item - frames_to_reassign: item - frames_to_reassign_2].index[0], crashed_anomalous_in_anomalous_conditions[item - frames_to_reassign: item - frames_to_reassign_2].index[-1])
             reaction_window = reaction_window._append(
                 crashed_anomalous_in_anomalous_conditions[item - frames_to_reassign: item - frames_to_reassign_2])
 
@@ -219,20 +255,25 @@ def compute_tp_and_fn(data_df_anomalous, losses_on_anomalous, threshold, seconds
             print("reaction frames size is %d \n" % len(reaction_window))
 
             sma_anomalous = pd.Series(losses_on_anomalous)
-            sma_anomalous = sma_anomalous.iloc[reaction_window.index.to_list()]
-            assert len(reaction_window) == len(sma_anomalous)
+            
+            # print(f'Thresholds======================================================================================================>>>>>>{threshold}')
 
-            # print(sma_anomalous)
+            sma_anomalous_cut = sma_anomalous.iloc[reaction_window.index.to_list()]
+            assert len(reaction_window) == len(sma_anomalous_cut)
+            # print(type(sma_anomalous_cut))
+            # print(sma_anomalous_cut)
             print('>>>>>>>>>>>>>>> aggregation_method: ' + aggregation_method + ' <<<<<<<<<<<<<<<<<')
+            # print(sma_anomalous_cut.idxmax(axis=0))
+            # print(type(sma_anomalous_cut.index[-1]))
 
             aggregated_score = None
             if aggregation_method == "mean":
-                aggregated_score = sma_anomalous.mean()
+                aggregated_score = sma_anomalous_cut.mean()
             elif aggregation_method == "max":
-                aggregated_score = sma_anomalous.max()
+                aggregated_score = sma_anomalous_cut.max()
 
             print("threshold %s\tmean: %s\tmax: %s" % (
-                str(threshold), str(sma_anomalous.mean()), str(sma_anomalous.max())))
+                str(threshold), str(sma_anomalous_cut.mean()), str(sma_anomalous_cut.max())))
 
             print(f"aggregated_score >= threshold: {aggregated_score} >= {threshold}")
             if aggregated_score >= threshold:
@@ -240,12 +281,30 @@ def compute_tp_and_fn(data_df_anomalous, losses_on_anomalous, threshold, seconds
             elif aggregated_score < threshold:
                 false_negative_windows += 1
 
+            # print(f'****************{reaction_window_x_min}*{reaction_window_x_max}***********************')
+            axs[run_counter-1].hlines(y= aggregated_score, xmin=reaction_window_x_min, xmax=reaction_window_x_max, color='lime', linewidth=3)
+
+            subplot_counter += 1
+            if subplot_counter % 9 == 0:
+                #print(subplot_counter)
+                ax = axs[run_counter-1]
+                for crash_frame in all_first_frame_position_crashed_sequences:
+                    ax.axvline(x = crash_frame, color = 'teal', linestyle = '--')
+                ax.axhline(y = threshold, color = 'r', linestyle = '--')
+                ax.plot(pd.Series(data_df_anomalous['frameId']), sma_anomalous, label='sma_anomalous', linewidth= 0.5, linestyle = 'dotted')
+                # ax.hlines(y= aggregated_score, xmin=reaction_window_x_min, xmax=reaction_window_x_max, color='r')
+                title = f"{aggregation_method} && {summary_type}"
+                ax.set_title(title)
+                ax.set_ylabel("heatmap scores")
+                ax.set_xlabel("frame number")
+                ax.legend(loc='upper left')
+
         print("failure: %d - true positives: %d - false negatives: %d - undetectable: %d" % (
             item, true_positive_windows, false_negative_windows, undetectable_windows))
 
     assert len(all_first_frame_position_crashed_sequences) == (
             true_positive_windows + false_negative_windows + undetectable_windows)
-    return true_positive_windows, false_negative_windows, undetectable_windows
+    return true_positive_windows, false_negative_windows, undetectable_windows, subplot_counter
 
 
 def compute_fp_and_tn(data_df_nominal, aggregation_method, condition):
@@ -254,20 +313,27 @@ def compute_fp_and_tn(data_df_nominal, aggregation_method, condition):
     if condition == "icse20":
         fps_nominal = 15  # only for icse20 configurations
     else:
-        number_frames_nominal = pd.Series.max(data_df_nominal['frameId'])
-        simulation_time_nominal = pd.Series.max(data_df_nominal['time'])
-        fps_nominal = number_frames_nominal // simulation_time_nominal
+        number_frames_nominal = pd.Series.max(data_df_nominal['frameId']) # number of total frames in nominal simulation
+        simulation_time_nominal = pd.Series.max(data_df_nominal['time']) # total simulation time
+        fps_nominal = number_frames_nominal // simulation_time_nominal # fps of nominal simulation
 
+    # calculate simulation time window and cut extra samples
     num_windows_nominal = len(data_df_nominal) // fps_nominal
     if len(data_df_nominal) % fps_nominal != 0:
         num_to_delete = len(data_df_nominal) - (num_windows_nominal * fps_nominal) - 1
         data_df_nominal = data_df_nominal[:-num_to_delete]
 
+    # taking a rolling window average over heatmap scores (loss)
     losses = pd.Series(data_df_nominal['loss'])
     sma_nominal = losses.rolling(fps_nominal, min_periods=1).mean()
+    # print(f"len(losses) ==================================> {len(losses)}")
+    # print(f"len(sma_nominal) ==================================> {len(sma_nominal)}")
 
     list_aggregated = []
+    list_aggregated_indexes = []
 
+    # print(f"fps_nominal ==================================> {fps_nominal}")
+    # calculate mean or max of windows the length of fps_nominal starting from idx-fps_nominal to idx
     for idx, loss in enumerate(sma_nominal):
 
         if idx > 0 and idx % fps_nominal == 0:
@@ -275,10 +341,10 @@ def compute_fp_and_tn(data_df_nominal, aggregation_method, condition):
             aggregated_score = None
             if aggregation_method == "mean":
                 aggregated_score = pd.Series(sma_nominal.iloc[idx - fps_nominal:idx]).mean()
-
             elif aggregation_method == "max":
                 aggregated_score = pd.Series(sma_nominal.iloc[idx - fps_nominal:idx]).max()
 
+            list_aggregated_indexes.append(idx)
             list_aggregated.append(aggregated_score)
 
         elif idx == len(sma_nominal) - 1:
@@ -289,9 +355,12 @@ def compute_fp_and_tn(data_df_nominal, aggregation_method, condition):
             elif aggregation_method == "max":
                 aggregated_score = pd.Series(sma_nominal.iloc[idx - fps_nominal:idx]).max()
 
+            list_aggregated_indexes.append(idx)
             list_aggregated.append(aggregated_score)
 
     assert len(list_aggregated) == num_windows_nominal
+
+    # calculate threshold
     threshold = get_threshold(list_aggregated, conf_level=0.95)
 
     false_positive_windows = len([i for i in list_aggregated if i > threshold])
