@@ -55,15 +55,15 @@ if __name__ == '__main__':
     print("identified %d crash(es)" % number_of_crashes)
 
 
-    fig, axs = plt.subplots(4, 1, figsize=(15, 12))
-    plt.subplots_adjust(hspace=0.55)
-    plt.suptitle("Heatmap scores and thresholds", fontsize=18, y=0.95)
+    fig, axs = plt.subplots(6, 1, figsize=(15, 12))
+    plt.subplots_adjust(hspace=0.69)
+    plt.suptitle("Heatmap scores and thresholds", fontsize=15, y=0.95)
 
     run_counter = 0
     subplot_counter = 0
     for ht in ['smoothgrad']:
         for st in ['-avg', '-avg-grad']:
-            for am in ['mean', 'max']:
+            for am in ['mean', 'max', 'both']:
                 run_counter += 1
                 print(f'\n########### using aggregation method >>{am}<< run number {run_counter} ###########')
                 subplot_counter = evaluate_failure_prediction(cfg,

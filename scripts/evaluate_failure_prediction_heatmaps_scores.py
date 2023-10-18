@@ -252,6 +252,10 @@ def compute_tp_and_fn(data_df_anomalous, losses_on_anomalous, threshold, seconds
                     aggregated_score = pd.Series(sma_anomalous_all_win.iloc[idx - fps_anomalous:idx]).mean()
                 elif aggregation_method == "max":
                     aggregated_score = pd.Series(sma_anomalous_all_win.iloc[idx - fps_anomalous:idx]).max()
+                elif aggregation_method == "both":
+                    aggregated_score_max = pd.Series(sma_anomalous_all_win.iloc[idx - fps_anomalous:idx]).max()
+                    aggregated_score_mean = pd.Series(sma_anomalous_all_win.iloc[idx - fps_anomalous:idx]).mean()
+                    aggregated_score = (aggregated_score_mean + aggregated_score_max)/2
 
                 list_aggregated_indexes.append(idx)
                 list_aggregated.append(aggregated_score)
@@ -263,7 +267,11 @@ def compute_tp_and_fn(data_df_anomalous, losses_on_anomalous, threshold, seconds
                     aggregated_score = pd.Series(sma_anomalous_all_win.iloc[idx - fps_anomalous:idx]).mean()
                 elif aggregation_method == "max":
                     aggregated_score = pd.Series(sma_anomalous_all_win.iloc[idx - fps_anomalous:idx]).max()
-
+                elif aggregation_method == "both":
+                    aggregated_score_mean = pd.Series(sma_anomalous_all_win.iloc[idx - fps_anomalous:idx]).mean()
+                    aggregated_score_max = pd.Series(sma_anomalous_all_win.iloc[idx - fps_anomalous:idx]).max()
+                    aggregated_score = (aggregated_score_mean + aggregated_score_max)/2
+                
                 list_aggregated_indexes.append(idx)
                 list_aggregated.append(aggregated_score)
         
@@ -319,6 +327,8 @@ def compute_tp_and_fn(data_df_anomalous, losses_on_anomalous, threshold, seconds
                 aggregated_score = sma_anomalous_cut.mean()
             elif aggregation_method == "max":
                 aggregated_score = sma_anomalous_cut.max()
+            elif aggregation_method == "both":
+                aggregated_score = (sma_anomalous_cut.mean() + sma_anomalous_cut.max())/2
 
             print("threshold %s\tmean: %s\tmax: %s" % (
                 str(threshold), str(sma_anomalous_cut.mean()), str(sma_anomalous_cut.max())))
@@ -392,6 +402,10 @@ def compute_fp_and_tn(data_df_nominal, aggregation_method, condition,fig,axs,sub
                 aggregated_score = pd.Series(sma_nominal.iloc[idx - fps_nominal:idx]).mean()
             elif aggregation_method == "max":
                 aggregated_score = pd.Series(sma_nominal.iloc[idx - fps_nominal:idx]).max()
+            elif aggregation_method == "both":
+                aggregated_score_mean = pd.Series(sma_nominal.iloc[idx - fps_nominal:idx]).mean()
+                aggregated_score_max = pd.Series(sma_nominal.iloc[idx - fps_nominal:idx]).max()
+                aggregated_score = (aggregated_score_mean + aggregated_score_max)/2
 
             list_aggregated_indexes.append(idx)
             list_aggregated.append(aggregated_score)
@@ -403,7 +417,11 @@ def compute_fp_and_tn(data_df_nominal, aggregation_method, condition,fig,axs,sub
                 aggregated_score = pd.Series(sma_nominal.iloc[idx - fps_nominal:idx]).mean()
             elif aggregation_method == "max":
                 aggregated_score = pd.Series(sma_nominal.iloc[idx - fps_nominal:idx]).max()
-
+            elif aggregation_method == "both":
+                aggregated_score_mean = pd.Series(sma_nominal.iloc[idx - fps_nominal:idx]).mean()
+                aggregated_score_max = pd.Series(sma_nominal.iloc[idx - fps_nominal:idx]).max()
+                aggregated_score = (aggregated_score_mean + aggregated_score_max)//2.0
+    
             list_aggregated_indexes.append(idx)
             list_aggregated.append(aggregated_score)
 
@@ -425,7 +443,6 @@ def compute_fp_and_tn(data_df_nominal, aggregation_method, condition,fig,axs,sub
         # ax.hlines(y= aggregated_score, xmin=reaction_window_x_min, xmax=reaction_window_x_max, color='r')
         ax.legend(loc='upper left')
 #############################################################################################################################################################
-
     assert false_positive_windows + true_negative_windows == num_windows_nominal
     print("false positives: %d - true negatives: %d" % (false_positive_windows, true_negative_windows))
 
