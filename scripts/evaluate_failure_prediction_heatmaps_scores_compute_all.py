@@ -77,7 +77,7 @@ if __name__ == '__main__':
         for st in summary_types:
             for am in aggregation_methods:
                 run_counter += 1
-                print(f'\n########### using aggregation method >>{am}<< run number {run_counter} ###########')
+                print(f'\n########### using aggregation method >>{am}<< run number {run_counter} ########### {subplot_counter} ####################################################################################################################################################################################################################################################################################################################')
                 subplot_counter = evaluate_failure_prediction(cfg,
                                                             heatmap_type=ht,
                                                             anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
