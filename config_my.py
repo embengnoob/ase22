@@ -26,7 +26,7 @@ NUM_SAMPLES_MC_DROPOUT = 20
 
 # Udacity simulation settings
 ANOMALY_DETECTOR_NAME = "track1-MSE-latent2"
-SIMULATION_NAME = "gauss-journal-track1-day-night-fog" # gauss-journal-track1-nominal gauss-journal-track1-rain2
+SIMULATION_NAME = "gauss-journal-track1-day-night" # gauss-journal-track1-nominal gauss-journal-track1-rain2
 TESTING_DATA_DIR = "simulations"  # Udacity simulations logs - "simulations"
 MAX_SPEED = 30  # car's max speed, capped at 35 mph (default)
 MIN_SPEED = 10  # car's min speed, capped at 10 mph (default)

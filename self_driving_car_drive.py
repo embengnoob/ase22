@@ -78,10 +78,11 @@ def telemetry(sid, data):
         image = Image.open(BytesIO(base64.b64decode(data["image"])))
 
         # save frame
+        global frame_id
         image_path = ''
         if cfg.TESTING_DATA_DIR != '':
             timestamp = datetime.utcnow().strftime('%Y_%m_%d_%H_%M_%S_%f')[:-3]
-            image_filename = os.path.join(cfg.TESTING_DATA_DIR, cfg.SIMULATION_NAME, "IMG", timestamp)
+            image_filename = os.path.join(cfg.TESTING_DATA_DIR, cfg.SIMULATION_NAME, "IMG", timestamp + "_FID_" + str(frame_id))
             image_path = '{}.jpg'.format(image_filename)
             image.save(image_path)
 
@@ -146,7 +147,7 @@ def telemetry(sid, data):
 
             throttle = 1.0 - steering_angle ** 2 - (speed / speed_limit) ** 2
 
-            global frame_id
+            # global frame_id
 
             send_control(steering_angle, throttle, confidence, loss, cfg.MAX_LAPS, uncertainty)
 
