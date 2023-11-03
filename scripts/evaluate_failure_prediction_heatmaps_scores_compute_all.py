@@ -54,16 +54,28 @@ if __name__ == '__main__':
     number_of_crashes = len(all_first_frame_position_crashed_sequences)
     print("identified %d crash(es)" % number_of_crashes)
 
+    heatmap_types = ['smoothgrad']
+    summary_types = ['-avg', '-avg-grad']
+    aggregation_methods = ['mean', 'max']
 
-    fig, axs = plt.subplots(6, 1, figsize=(15, 12))
-    plt.subplots_adjust(hspace=0.69)
+    if len(aggregation_methods) == 3:
+        figsize = (15, 12)
+        hspace = 0.69
+    elif len(aggregation_methods) == 2:
+        figsize = (15, 10)
+        hspace = 0.44
+    else:
+        raise ValueError("No predefined settings for this number of aggregation methods.")
+    
+    fig, axs = plt.subplots(len(aggregation_methods)*2, 1, figsize=figsize)
+    plt.subplots_adjust(hspace=hspace)
     plt.suptitle("Heatmap scores and thresholds", fontsize=15, y=0.95)
 
     run_counter = 0
     subplot_counter = 0
-    for ht in ['smoothgrad']:
-        for st in ['-avg', '-avg-grad']:
-            for am in ['mean', 'max', 'both']:
+    for ht in heatmap_types:
+        for st in summary_types:
+            for am in aggregation_methods:
                 run_counter += 1
                 print(f'\n########### using aggregation method >>{am}<< run number {run_counter} ###########')
                 subplot_counter = evaluate_failure_prediction(cfg,
