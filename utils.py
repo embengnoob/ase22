@@ -24,7 +24,7 @@ csv_fieldnames_improved_simulator = ["frameId", "model", "anomaly_detector", "th
                                      "uncertainty",  # newly added
                                      "cte", "steering_angle", "throttle", "speed", "brake", "crashed",
                                      "distance", "time", "ang_diff",  # newly added
-                                     "center", "tot_OBEs", "tot_crashes"]
+                                     "center", "tot_OBEs", "tot_crashes", "car_position"]
 
 
 def load_image(data_dir, image_file):

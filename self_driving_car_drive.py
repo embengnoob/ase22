@@ -61,6 +61,10 @@ def telemetry(sid, data):
         # the distance driven by the car
         distance = float(data["distance"])
 
+        # the current position of the car
+        vector_str = data["position"].strip("()")
+        position = np.fromstring(vector_str, dtype=float, sep=',')
+
         # the time driven by the car
         sim_time = int(data["sim_time"])
 
@@ -77,8 +81,10 @@ def telemetry(sid, data):
         # The current image from the center camera of the car
         image = Image.open(BytesIO(base64.b64decode(data["image"])))
 
-        # save frame
+        # global frame_id
         global frame_id
+        
+        # save frame
         image_path = ''
         if cfg.TESTING_DATA_DIR != '':
             timestamp = datetime.utcnow().strftime('%Y_%m_%d_%H_%M_%S_%f')[:-3]
@@ -147,8 +153,6 @@ def telemetry(sid, data):
 
             throttle = 1.0 - steering_angle ** 2 - (speed / speed_limit) ** 2
 
-            # global frame_id
-
             send_control(steering_angle, throttle, confidence, loss, cfg.MAX_LAPS, uncertainty)
 
             if cfg.TESTING_DATA_DIR:
@@ -159,7 +163,7 @@ def telemetry(sid, data):
                                       uncertainty,  # new metrics
                                       cte, steering_angle, throttle, speed, brake, isCrash,
                                       distance, sim_time, ang_diff,  # new metrics
-                                      image_path, number_obe, number_crashes])
+                                      image_path, number_obe, number_crashes, position])
 
                 frame_id = frame_id + 1
 
