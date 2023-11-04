@@ -10,7 +10,7 @@ try:
     from config import load_config
 except:
     from config import Config
-from evaluate_failure_prediction_heatmaps_scores import evaluate_failure_prediction, get_crash_frames
+from evaluate_failure_prediction_heatmaps_scores import evaluate_failure_prediction, get_OOT_frames
 
 def simExists(cfg, TESTING_DATA_DIR, SIMULATION_NAME, attention_type):
     SIM_PATH = os.path.join(TESTING_DATA_DIR, SIMULATION_NAME)
@@ -50,9 +50,9 @@ if __name__ == '__main__':
     crashed_anomalous = data_df_anomalous['crashed']
     crashed_anomalous.is_copy = None
     crashed_anomalous_in_anomalous_conditions = crashed_anomalous.copy()
-    all_first_frame_position_crashed_sequences = get_crash_frames(data_df_anomalous, number_frames_anomalous)
-    number_of_crashes = len(all_first_frame_position_crashed_sequences)
-    print("identified %d crash(es)" % number_of_crashes)
+    all_first_frame_position_crashed_sequences = get_OOT_frames(data_df_anomalous, number_frames_anomalous)
+    number_of_OOTs = len(all_first_frame_position_crashed_sequences)
+    print("identified %d crash(es)" % number_of_OOTs)
 
     heatmap_types = ['smoothgrad']
     summary_types = ['-avg', '-avg-grad']
@@ -88,7 +88,7 @@ if __name__ == '__main__':
                                                             fig=fig,
                                                             axs=axs,
                                                             subplot_counter=subplot_counter,
-                                                            number_of_crashes=number_of_crashes,
+                                                            number_of_OOTs=number_of_OOTs,
                                                             run_counter=run_counter)
     plt.show()
     print(subplot_counter)                 

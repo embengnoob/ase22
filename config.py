@@ -29,7 +29,9 @@ class Config:
         self.TRACK = None
         self.LOSS_SAO_MODEL = None
         self.PLOT_NOMINAL = None
+        self.PLOT_NOMINAL_ALL = None
         self.PLOT_ANOMALOUS_ALL_WINDOWS = None
+        self.PLOT_THIRDEYE = None
 
     def from_pyfile(self, filename, silent=False):
         # filename = os.path.join(self.root_path, filename)
