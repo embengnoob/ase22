@@ -80,7 +80,9 @@ def compute_heatmap(cfg, simulation_name, attention_type="SmoothGrad"):
         saliency_map = None
         if attention_type == "SmoothGrad":
             saliency_map = saliency(score_when_decrease, x, smooth_samples=20, smooth_noise=0.20)
-
+        elif attention_type == "GradCam++":
+            saliency_map = saliency(score_when_decrease, x, penultimate_layer=-1)
+        
         # compute average of the heatmap
         average = np.average(saliency_map)
 

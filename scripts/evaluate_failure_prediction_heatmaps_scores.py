@@ -266,9 +266,15 @@ def compute_tp_and_fn(data_df_anomalous, losses_on_anomalous, threshold, seconds
         num_windows_anomalous = len(data_df_anomalous) // fps_anomalous
         if len(data_df_anomalous) % fps_anomalous != 0:
             num_to_delete = len(data_df_anomalous) - (num_windows_anomalous * fps_anomalous) - 1
-            sma_anomalous_all_win = sma_anomalous[:-num_to_delete]
-            cte_anomalous_all_win = cte_anomalous[:-num_to_delete]
-            speed_anomalous_all_win = speed_anomalous[:-num_to_delete]
+    
+            if num_to_delete != 0:
+                sma_anomalous_all_win = sma_anomalous[:-num_to_delete]
+                cte_anomalous_all_win = cte_anomalous[:-num_to_delete]
+                speed_anomalous_all_win = speed_anomalous[:-num_to_delete]
+            else:
+                sma_anomalous_all_win = sma_anomalous
+                cte_anomalous_all_win = cte_anomalous
+                speed_anomalous_all_win = speed_anomalous
 
         list_aggregated = []
         list_aggregated_indexes = []
