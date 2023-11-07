@@ -42,19 +42,19 @@ if __name__ == '__main__':
     simExists(cfg, cfg.TESTING_DATA_DIR, SIMULATION_NAME=SIMULATION_NAME_ANOMALOUS, attention_type="SmoothGrad")
     simExists(cfg, cfg.TESTING_DATA_DIR, SIMULATION_NAME=SIMULATION_NAME_ANOMALOUS, attention_type="GradCam++")
     
-    # get number of crashes
+    # get number of OOTs
     path = os.path.join(cfg.TESTING_DATA_DIR,
                     SIMULATION_NAME_ANOMALOUS,
                     'heatmaps-' + 'smoothgrad',
                     'driving_log.csv')
     data_df_anomalous = pd.read_csv(path)
     number_frames_anomalous = pd.Series.max(data_df_anomalous['frameId'])
-    crashed_anomalous = data_df_anomalous['crashed']
-    crashed_anomalous.is_copy = None
-    crashed_anomalous_in_anomalous_conditions = crashed_anomalous.copy()
-    all_first_frame_position_crashed_sequences = get_OOT_frames(data_df_anomalous, number_frames_anomalous)
-    number_of_OOTs = len(all_first_frame_position_crashed_sequences)
-    print("identified %d crash(es)" % number_of_OOTs)
+    OOT_anomalous = data_df_anomalous['crashed']
+    OOT_anomalous.is_copy = None
+    OOT_anomalous_in_anomalous_conditions = OOT_anomalous.copy()
+    all_first_frame_position_OOT_sequences = get_OOT_frames(data_df_anomalous, number_frames_anomalous)
+    number_of_OOTs = len(all_first_frame_position_OOT_sequences)
+    print("identified %d OOT(s)" % number_of_OOTs)
 
     heatmap_types = ['smoothgrad']
     summary_types = ['-avg', '-avg-grad']
