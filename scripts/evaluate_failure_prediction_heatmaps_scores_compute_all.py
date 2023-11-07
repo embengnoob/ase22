@@ -33,12 +33,14 @@ if __name__ == '__main__':
     # cfg.from_pyfile("config_my.py")
 
     SIMULATION_NAME_ANOMALOUS = cfg.SIMULATION_NAME
-    SIMULATION_NAME_NOMINAL = "gauss-journal-track1-nominal"
+    SIMULATION_NAME_NOMINAL = cfg.SIMULATION_NAME_NOMINAL
 
     # check whether nominal simulation and the corresponding heatmaps are already generated, generate them otherwise
-    simExists(cfg, cfg.TESTING_DATA_DIR, SIMULATION_NAME=SIMULATION_NAME_NOMINAL, attention_type="SmoothGrad")   
+    simExists(cfg, cfg.TESTING_DATA_DIR, SIMULATION_NAME=SIMULATION_NAME_NOMINAL, attention_type="SmoothGrad")
+    simExists(cfg, cfg.TESTING_DATA_DIR, SIMULATION_NAME=SIMULATION_NAME_NOMINAL, attention_type="GradCam++")    
     # check whether the heatmaps are already generated, generate them otherwise
     simExists(cfg, cfg.TESTING_DATA_DIR, SIMULATION_NAME=SIMULATION_NAME_ANOMALOUS, attention_type="SmoothGrad")
+    simExists(cfg, cfg.TESTING_DATA_DIR, SIMULATION_NAME=SIMULATION_NAME_ANOMALOUS, attention_type="GradCam++")
     
     # get number of crashes
     path = os.path.join(cfg.TESTING_DATA_DIR,

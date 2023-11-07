@@ -19,6 +19,7 @@ class Config:
         self.MAX_SPEED = None
         self.MIN_SPEED = None
         self.SIMULATION_NAME = None
+        self.SIMULATION_NAME_NOMINAL = None
         self.SAO_THRESHOLD = None
         self.MAX_LAPS = None
         self.USE_PREDICTIVE_UNCERTAINTY = None
