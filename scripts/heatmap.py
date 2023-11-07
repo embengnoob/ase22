@@ -140,7 +140,7 @@ def compute_heatmap(cfg, simulation_name, attention_type="SmoothGrad"):
                         simulation_name,
                         'driving_log.csv')
     data_df = pd.read_csv(path)
-    data = data_df[["frameId", "time", "crashed", "cte", "speed"]]
+    data = data_df[["frameId", "time", "crashed", "cte", "speed", "position"]]
     # data = data_df[["frameId", "crashed"]]
 
     # copy frame id, simulation time and crashed information from simulation's csv
@@ -152,6 +152,7 @@ def compute_heatmap(cfg, simulation_name, attention_type="SmoothGrad"):
     df['crashed'] = data['crashed'].copy()
     df['cte'] = data['cte'].copy()
     df['speed'] = data['speed'].copy()
+    df['position'] = data['position'].copy()
 
     # save it as a separate csv
     df.to_csv(os.path.join(cfg.TESTING_DATA_DIR,
