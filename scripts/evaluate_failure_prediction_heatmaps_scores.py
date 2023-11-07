@@ -401,7 +401,7 @@ def compute_tp_and_fn(data_df_anomalous, losses_on_anomalous, threshold, seconds
                     # cte > 4: reaching the borders of the track: yellow
                     # 5> cte > 7: on the borders of the track (partial crossing): orange
                     # cte > 7: out of track (full crossing): red
-                    yellow_condition = (abs(cte_anomalous_all_win)>4.0)&(abs(cte_anomalous_all_win)<5.0)
+                    yellow_condition = (abs(cte_anomalous_all_win)>3.6)&(abs(cte_anomalous_all_win)<5.0)
                     orange_condition = (abs(cte_anomalous_all_win)>5.0)&(abs(cte_anomalous_all_win)<7.0)
                     red_condition = (abs(cte_anomalous_all_win)>7.0)
                     yellow_ranges = get_ranges(yellow_condition)
