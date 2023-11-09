@@ -2,11 +2,14 @@ import csv
 import gc
 import os
 import logging
+import math
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from keras import backend as K
 from scipy.stats import gamma
+from sklearn.metrics import pairwise_distances_argmin_min
+from tqdm import tqdm
 
 
 def get_threshold(losses, conf_level=0.95):
@@ -77,7 +80,6 @@ def evaluate_failure_prediction(cfg, heatmap_type, anomalous_simulation_name, no
     print("Using summarization average" if summary_type is '-avg' else "Using summarization gradient")
     print("Using aggregation mean" if aggregation_method is 'mean' else "Using aggregation max")
 
-    # 0. 
     # 1. load heatmap scores in nominal conditions
     path = os.path.join(cfg.TESTING_DATA_DIR,
                         nominal_simulation_name,
@@ -460,7 +462,6 @@ def compute_tp_and_fn(data_df_anomalous, losses_on_anomalous, threshold, seconds
 
 def compute_fp_and_tn(data_df_nominal, aggregation_method, condition,fig,axs,subplot_counter,run_counter, PLOT_NOMINAL, PLOT_NOMINAL_ALL):
     # when conditions == nominal I count only FP and TN
-
     if condition == "icse20":
         fps_nominal = 15  # only for icse20 configurations
     else:
@@ -540,3 +541,69 @@ def compute_fp_and_tn(data_df_nominal, aggregation_method, condition,fig,axs,sub
     print("false positives: %d - true negatives: %d" % (false_positive_windows, true_negative_windows))
 
     return false_positive_windows, true_negative_windows, threshold, subplot_counter
+
+
+def evaluate_p2p_failure_prediction(cfg, heatmap_type, anomalous_simulation_name, nominal_simulation_name,
+                                    distance_method, dimension, fig, axs, subplot_counter, run_counter):
+    
+    print("Using distance method ...." if distance_method is '...' else "Using distance method ....")
+    print(f"Calculating with {dimension} dimension(s).")
+
+    # 1. find the closest frame from anomalous sim to the frame in nominal sim (comparing car position)
+    nom_path = os.path.join(cfg.TESTING_DATA_DIR,
+                            nominal_simulation_name,
+                            'heatmaps-' + heatmap_type,
+                            'driving_log.csv')
+    logging.warning(f"Path for data_df_nominal: {nom_path}")
+    data_df_nominal = pd.read_csv(nom_path)
+
+    ano_path = os.path.join(cfg.TESTING_DATA_DIR,
+                            anomalous_simulation_name,
+                            'heatmaps-' + heatmap_type,
+                            'driving_log.csv')
+    logging.warning(f"Path for data_df_anomalous: {ano_path}")
+    data_df_anomalous = pd.read_csv(ano_path)
+
+    # car position in nominal simulation
+    pos_nominal = pd.DataFrame(data_df_nominal['frameId'].copy(), columns=['frameId'])
+    pos_nominal['position'] = data_df_nominal['position'].copy()
+    # total number of nominal frames
+    num_nominal_frames = pd.Series.max(pos_nominal['frameId'])
+    # car position in anomalous mode
+    pos_anomalous = pd.DataFrame(data_df_nominal['frameId'].copy(), columns=['frameId'])
+    pos_anomalous['position'] = data_df_anomalous['position'].copy()
+    # total number of anomalous frames
+    num_anomalous_frames = pd.Series.max(pos_anomalous['frameId'])
+    # path to csv file containing mapped positions
+    pos_map_path = os.path.join(cfg.TESTING_DATA_DIR,
+                                    anomalous_simulation_name,
+                                    "heatmaps-" + heatmap_type,
+                                    'pos_mappings_' + nominal_simulation_name + '.csv')
+    # check if positional mapping list file in csv format already exists 
+    if not os.path.exists(pos_map_path):
+        print(f"Positional mapping list does not exist. Generating list ...")
+        pos_mappings = np.zeros(num_anomalous_frames, dtype=float)
+        nominal_positions = np.zeros((num_nominal_frames, 3), dtype=float)
+        # cluster of all nominal positions
+        for nominal_frame in range(num_nominal_frames):
+            vector = string_to_np_array(pos_nominal.iloc[nominal_frame, 1])
+            nominal_positions[nominal_frame] = vector
+        # compare each anomalous position with the nominal cluster and find the closest nom position (mapping)
+        for anomalous_frame in tqdm(range(num_anomalous_frames)):
+            vector = string_to_np_array(pos_anomalous.iloc[anomalous_frame, 1])
+            sample_point = vector.reshape(1, -1)
+            closest, _ = pairwise_distances_argmin_min(sample_point, nominal_positions)
+            pos_mappings[anomalous_frame] = closest
+        # save list of positional mappings
+        np.savetxt(pos_map_path, pos_mappings, delimiter=",")
+    else:
+        print(f"Positional mapping list exists.")
+        # load list of mapped positions
+        pos_mappings = np.loadtxt(pos_map_path, dtype='int')
+        print(pos_mappings)
+
+def string_to_np_array(vector_string):
+    vector_string = ' '.join(vector_string.split())
+    vector_string = vector_string.strip("[]").strip().replace(' ', ',')
+    vector = np.fromstring(vector_string, dtype=float, sep=',')
+    return vector
