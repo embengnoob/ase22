@@ -33,6 +33,8 @@ class Config:
         self.PLOT_NOMINAL_ALL = None
         self.PLOT_ANOMALOUS_ALL_WINDOWS = None
         self.PLOT_THIRDEYE = None
+        self.PLOT_POINT_TO_POINT = None
+        self.METHOD = None
 
     def from_pyfile(self, filename, silent=False):
         # filename = os.path.join(self.root_path, filename)

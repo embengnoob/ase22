@@ -3,6 +3,7 @@ TRAINING_DATA_DIR = "datasets"  # root folder for all driving training sets
 TRAINING_SET_DIR = "dataset5"  # the driving training set to use
 SAO_MODELS_DIR = "sao"  # autoencoder-based self-assessment oracle models
 TEST_SIZE = 0.2  # split of training data used for the validation set (keep it low)
+METHOD = 'p2p' # 'thirdeye', 'p2p', 'p2c'
 
 # simulations settings
 TRACK = "track3"  # ["track1"|"track2"|"track3"|"track1","track2","track3"] the race track to use
@@ -53,3 +54,4 @@ PLOT_NOMINAL = True
 PLOT_NOMINAL_ALL = False
 PLOT_ANOMALOUS_ALL_WINDOWS = True
 PLOT_THIRDEYE = False
+PLOT_POINT_TO_POINT = True
