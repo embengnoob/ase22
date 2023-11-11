@@ -4,7 +4,8 @@ import sys
 sys.path.append("..")
 import matplotlib.pyplot as plt
 import pandas as pd
-from natsort import natsorted
+# from natsort import natsorted
+from colorama import Fore
 from heatmap import compute_heatmap
 try:
     from config import load_config
@@ -16,12 +17,12 @@ def simExists(cfg, TESTING_DATA_DIR, SIMULATION_NAME, attention_type):
     SIM_PATH = os.path.join(TESTING_DATA_DIR, SIMULATION_NAME)
     HEATMAP_PATH = os.path.join(SIM_PATH, "heatmaps-" + attention_type.lower())
     if not os.path.exists(SIM_PATH):
-        raise ValueError(f"The provided simulation path does not exist: {SIM_PATH}")
+        raise ValueError(Fore.RED + f"The provided simulation path does not exist: {SIM_PATH}" + Fore.RESET)
     elif (not os.path.exists(HEATMAP_PATH)) or (os.path.exists(HEATMAP_PATH) and len(os.listdir(os.path.join(HEATMAP_PATH, "IMG")))==0):
-        print(f"Simulation folder exists. Generating heatmaps ...")
+        print(Fore.BLUE + f"Simulation folder exists. Generating heatmaps ..." + Fore.RESET)
         compute_heatmap(cfg, SIMULATION_NAME, attention_type=attention_type)
     else:
-        print(f"Simulation path and heatmap scores for {SIMULATION_NAME} exist.")
+        print(Fore.GREEN + f"Simulation path and heatmap scores for {SIMULATION_NAME} exist." + Fore.RESET)
 
 if __name__ == '__main__':
     os.chdir(os.getcwd().replace('scripts', ''))
@@ -82,7 +83,7 @@ if __name__ == '__main__':
             for st in summary_types:
                 for am in aggregation_methods:
                     run_counter += 1
-                    print(f'\n########### using aggregation method >>{am}<< run number {run_counter} ########### {subplot_counter} ####################################################################################################################################################################################################################################################################################################################')
+                    print(Fore.YELLOW + f'\n########### using aggregation method >>{am}<< run number {run_counter} ########### {subplot_counter} ###########' + Fore.RESET)
                     subplot_counter = evaluate_failure_prediction(cfg,
                                                                 heatmap_type=ht,
                                                                 anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
@@ -110,7 +111,7 @@ if __name__ == '__main__':
             for dm in distance_methods:
                 for dim in dimensions:
                     run_counter += 1
-                    print(f'\n########### using distance method >>{dm}<< run number {run_counter} ########### {subplot_counter} ####################################################################################################################################################################################################################################################################################################################')
+                    print(Fore.YELLOW + f'\n########### using distance method >>{dm}<< run number {run_counter} ########### {subplot_counter} ##############' + Fore.RESET)
                     evaluate_p2p_failure_prediction(cfg,
                                                     heatmap_type=ht, 
                                                     anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,

@@ -5,6 +5,7 @@ import logging
 import math
 import numpy as np
 import pandas as pd
+from colorama import Fore
 import matplotlib.pyplot as plt
 from keras import backend as K
 from scipy.stats import gamma
@@ -597,7 +598,7 @@ def evaluate_p2p_failure_prediction(cfg, heatmap_type, anomalous_simulation_name
         # save list of positional mappings
         np.savetxt(pos_map_path, pos_mappings, delimiter=",")
     else:
-        print(f"Positional mapping list exists.")
+        print(Fore.GREEN + f"Positional mapping list exists." + Fore.RESET)
         # load list of mapped positions
         pos_mappings = np.loadtxt(pos_map_path, dtype='int')
         print(pos_mappings)
