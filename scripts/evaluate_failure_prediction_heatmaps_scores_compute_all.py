@@ -11,7 +11,7 @@ try:
     from config import load_config
 except:
     from config import Config
-from evaluate_failure_prediction_heatmaps_scores import evaluate_failure_prediction, evaluate_p2p_failure_prediction, get_OOT_frames
+from evaluate_failure_prediction_heatmaps_scores import evaluate_failure_prediction, evaluate_p2p_failure_prediction, get_OOT_frames, test
 
 def simExists(cfg, TESTING_DATA_DIR, SIMULATION_NAME, attention_type):
     SIM_PATH = os.path.join(TESTING_DATA_DIR, SIMULATION_NAME)
@@ -43,11 +43,18 @@ if __name__ == '__main__':
     simExists(cfg, cfg.TESTING_DATA_DIR, SIMULATION_NAME=SIMULATION_NAME_ANOMALOUS, attention_type="SmoothGrad")
     simExists(cfg, cfg.TESTING_DATA_DIR, SIMULATION_NAME=SIMULATION_NAME_ANOMALOUS, attention_type="GradCam++")
 
-    heatmap_types = ['smoothgrad']
+    heatmap_types = ['smoothgrad'] #gradcam++, smoothgrad
     summary_types = ['-avg', '-avg-grad']
     aggregation_methods = ['mean', 'max']
-    distance_methods = ['euclidean']
-    dimensions = [1]
+    # distance_methods = ['pairwise_distance',
+    #                     'cosine_similarity',
+    #                     'polynomial_kernel',
+    #                     'sigmoid_kernel',
+    #                     'rbf_kernel',
+    #                     'laplacian_kernel'] #'chi2_kernel'
+    distance_methods = ['pairwise_distance'] #'chi2_kernel'
+    abstraction_methods = ['avg', 'variance']
+    pca_dimensions = [2, 3]
 
     if cfg.METHOD == 'thirdeye':
         # get number of OOTs
@@ -102,28 +109,40 @@ if __name__ == '__main__':
     elif cfg.METHOD == 'p2p':
         figsize = (15, 12)
         hspace = 0.69
-        fig, axs = plt.subplots(1, 1, figsize=figsize)
+        fig, axs = plt.subplots(len(abstraction_methods)*len(pca_dimensions)*len(heatmap_types), 1, figsize=figsize)
         plt.subplots_adjust(hspace=hspace)
         plt.suptitle("P2P Heatmap Distances", fontsize=15, y=0.95)
-        run_counter = 0
-        subplot_counter = 0
         for ht in heatmap_types:
-            for dm in distance_methods:
-                for dim in dimensions:
-                    run_counter += 1
-                    print(Fore.YELLOW + f'\n########### using distance method >>{dm}<< run number {run_counter} ########### {subplot_counter} ##############' + Fore.RESET)
-                    evaluate_p2p_failure_prediction(cfg,
-                                                    heatmap_type=ht, 
-                                                    anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
-                                                    nominal_simulation_name=SIMULATION_NAME_NOMINAL,
-                                                    distance_method=dm,
-                                                    dimension=dim,
-                                                    fig=fig,
-                                                    axs=axs,
-                                                    subplot_counter=subplot_counter,
-                                                    run_counter=run_counter)
-        #plt.show()
-        print(subplot_counter)
+            for am in abstraction_methods:
+                for dim in pca_dimensions:
+                    for dm in distance_methods:
+                        print(Fore.YELLOW + f'\n########### using distance method >>{dm}<< ########### pca dimension {dim} ##############' + Fore.RESET)
+                        evaluate_p2p_failure_prediction(cfg,
+                                                        heatmap_type=ht,
+                                                        heatmap_types = heatmap_types,
+                                                        anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
+                                                        nominal_simulation_name=SIMULATION_NAME_NOMINAL,
+                                                        distance_method=dm,
+                                                        distance_methods = distance_methods,
+                                                        pca_dimension=dim,
+                                                        pca_dimensions = pca_dimensions,
+                                                        abstraction_method = am,
+                                                        abstraction_methods = abstraction_methods,
+                                                        fig=fig,
+                                                        axs=axs)
+        plt.show()
+    elif cfg.METHOD == 'test':
+        test(cfg,
+            heatmap_type='smoothgrad',
+            heatmap_types = heatmap_types,
+            anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
+            nominal_simulation_name=SIMULATION_NAME_NOMINAL,
+            distance_method='pairwise_distance',
+            distance_methods = distance_methods,
+            pca_dimension=3,
+            pca_dimensions = pca_dimensions,
+            abstraction_method = 'avg',
+            abstraction_methods = abstraction_methods)
 
 
 
