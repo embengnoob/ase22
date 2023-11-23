@@ -1,6 +1,7 @@
 import csv
 import gc
 import os
+import sys
 import logging
 import math
 import numpy as np
@@ -9,6 +10,7 @@ from colorama import Fore
 import matplotlib.pyplot as plt
 from keras import backend as K
 from scipy.stats import gamma
+from sklearn import preprocessing
 from sklearn.metrics import pairwise_distances_argmin_min, pairwise_distances, pairwise
 from sklearn.decomposition import PCA
 from tqdm import tqdm
@@ -608,9 +610,14 @@ def evaluate_p2p_failure_prediction(cfg, heatmap_type, heatmap_types, anomalous_
             # convert to grayscale
             x_ano = cv2.cvtColor(ano_img, cv2.COLOR_BGR2GRAY)
             x_nom = cv2.cvtColor(closest_nom_img, cv2.COLOR_BGR2GRAY)
-            # PCA conversion
-            pca_ano = pca.fit_transform(x_ano)
-            pca_nom = pca.fit_transform(x_nom)
+            # standardization and normalization
+            ano_std_scale = preprocessing.StandardScaler().fit(x_ano)
+            x_ano_std = ano_std_scale.transform(x_ano)
+            nom_std_scale = preprocessing.StandardScaler().fit(x_nom)
+            x_nom_std = nom_std_scale.transform(x_nom)
+            # PCA conversion (row to point)
+            pca_ano = pca.fit_transform(x_ano_std)
+            pca_nom = pca.fit_transform(x_nom_std)
 
             # 3. Using different pairwise distance methods to calculate distance between two anomalous and nominal pca clusters
             if distance_method == 'pairwise_distance':
@@ -883,15 +890,49 @@ def test(cfg, heatmap_type, heatmap_types, anomalous_simulation_name, nominal_si
         ano_img = mpimg.imread(ano_img_address)
         closest_nom_img = mpimg.imread(closest_nom_img_address)
         print(ano_img.shape)
-        # convert to grayscale
-        x_ano = cv2.cvtColor(ano_img, cv2.COLOR_BGR2GRAY)
-        x_nom = cv2.cvtColor(closest_nom_img, cv2.COLOR_BGR2GRAY)
+        # convert to grayscale and flatten
+        x_ano = cv2.cvtColor(ano_img, cv2.COLOR_BGR2GRAY) #.reshape(-1, 1)
+        x_nom = cv2.cvtColor(closest_nom_img, cv2.COLOR_BGR2GRAY) #.reshape(-1, 1)
+        print(f'x_ano.shape is {x_ano.shape}')
+        print(f'x_nom.shape is {x_nom.shape}')
+
+        # # Displaying the image 
+        # cv2.imshow('ano img', x_ano) 
+        # # waits for user to press any key 
+        # # (this is necessary to avoid Python kernel form crashing) 
+        # cv2.waitKey(0)
+        # # closing all open windows 
+        # cv2.destroyAllWindows()
+        # cv2.imshow('nom img', x_nom) 
+        # # waits for user to press any key 
+        # # (this is necessary to avoid Python kernel form crashing) 
+        # cv2.waitKey(0)
+        # # closing all open windows 
+        # cv2.destroyAllWindows()
+
+        # np.set_printoptions(threshold=sys.maxsize)
+        # print(x_ano)
+        # print(x_nom)
+        # np.set_printoptions(threshold=False)
+
+
+        # standardization and normalization
+        # x_ano = x_ano.reshape(-1, 1)
+        # x_nom = x_ano.reshape(-1, 1)
+        ano_std_scale = preprocessing.StandardScaler().fit(x_ano)
+        x_ano_std = ano_std_scale.transform(x_ano)
+        nom_std_scale = preprocessing.StandardScaler().fit(x_nom)
+        x_nom_std = nom_std_scale.transform(x_nom)
+
+        print(f'x_ano_std.shape is {x_ano_std.shape}')
+        print(f'x_nom_std.shape is {x_nom_std.shape}')
 
         # PCA conversion
-        pca_ano = pca.fit_transform(x_ano)
-        pca_nom = pca.fit_transform(x_nom)
+        pca_ano = pca.fit_transform(x_ano_std)
+        pca_nom = pca.fit_transform(x_nom_std)
 
-        print(pca_ano.shape)
+        print(f'pca_ano.shape is {pca_ano.shape}')
+        print(f'pca_nom.shape is {pca_nom.shape}')
 
         fig = plt.figure(figsize=(12, 12))
         ax = fig.add_subplot(projection='3d')
