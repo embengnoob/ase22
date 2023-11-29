@@ -3,7 +3,7 @@ TRAINING_DATA_DIR = "datasets"  # root folder for all driving training sets
 TRAINING_SET_DIR = "dataset5"  # the driving training set to use
 SAO_MODELS_DIR = "sao"  # autoencoder-based self-assessment oracle models
 TEST_SIZE = 0.2  # split of training data used for the validation set (keep it low)
-METHOD = 'p2p' # 'thirdeye', 'p2p', 'p2c'
+METHOD = 'test' # 'thirdeye', 'p2p', 'p2c'
 
 # simulations settings
 TRACK = "track3"  # ["track1"|"track2"|"track3"|"track1","track2","track3"] the race track to use
@@ -12,7 +12,7 @@ TRACK2_DRIVING_STYLES = ["normal", "recovery", "recovery2", "recovery3", "revers
 TRACK3_DRIVING_STYLES = ["normal", "recovery", "recovery2", "reverse", "sport_normal"]  # , "recovery", "recovery2", "reverse", "sport_normal"]
 TRACK1_IMG_PER_LAP = 1140
 TRACK2_IMG_PER_LAP = 1870
-TRACK3_IMG_PER_LAP = 1375
+TRACK3_IMG_PER_LAP = 1375 
 
 # self-driving car model settings
 SDC_MODELS_DIR = "models/"  # self-driving car models
@@ -27,7 +27,7 @@ NUM_SAMPLES_MC_DROPOUT = 20
 
 # Udacity simulation settings
 ANOMALY_DETECTOR_NAME = "track1-MSE-latent2"
-SIMULATION_NAME = "track1-day-night-fog-10-pos" # =======> Anomalous Simulation/Recorded Simulation save name
+SIMULATION_NAME = "test1" # =======> Anomalous Simulation/Recorded Simulation save name ['test1', 'test2', 'test3', 'test4', 'test5']
 SIMULATION_NAME_NOMINAL = "track1-sunny-positioned-nominal" # Nominal simulation used as reference
 TESTING_DATA_DIR = "simulations"  # Udacity simulations logs - "simulations"
 MAX_SPEED = 30  # car's max speed, capped at 35 mph (default)
@@ -55,3 +55,15 @@ PLOT_NOMINAL_ALL = False
 PLOT_ANOMALOUS_ALL_WINDOWS = True
 PLOT_THIRDEYE = False
 PLOT_POINT_TO_POINT = True
+
+# p2p settings
+# summary collage settings
+GENERATE_SUMMARY_COLLAGES = True
+SUMMARY_COLLAGE_PCA_DIMS = [] #except max dims
+SUMMARY_COLLAGE_DIST_METHODS = ['pairwise_distance']
+SUMMARY_COLLAGE_DIST_TYPES = ['euclidean']
+CREATE_GIF = True
+
+SAVE_PCA = False
+
+

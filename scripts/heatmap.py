@@ -13,7 +13,7 @@ def score_when_decrease(output):
     return -1.0 * output[:, 0]
 
 
-def compute_heatmap(cfg, simulation_name, attention_type="SmoothGrad"):
+def compute_heatmap(cfg, simulation_name, NUM_OF_FRAMES, MODE, attention_type="SmoothGrad"):
     """
     Given a simulation by Udacity, the script reads the corresponding image paths from the csv and creates a heatmap for
     each driving image. The heatmap is created with the SmoothGrad algorithm available from tf-keras-vis
@@ -22,18 +22,18 @@ def compute_heatmap(cfg, simulation_name, attention_type="SmoothGrad"):
 
     """
 
-    print("Computing attention heatmaps for simulation %s using %s" % (simulation_name, attention_type))
+    cprintf(f"Computing attention heatmaps for simulation \"{simulation_name}\" using \"{attention_type}\"", 'yellow')
 
-    # load the image file paths from csv
+    # load the image file paths from main csv
     path = os.path.join(cfg.TESTING_DATA_DIR,
                         simulation_name,
                         'driving_log.csv')
     data_df = pd.read_csv(path)
     data = data_df["center"]
 
-    print("read %d images from file" % len(data))
+    print("Read %d images from file\n" % len(data))
 
-    # load self-driving car model //////////////////////////////////////////////////////////////////////
+    # load self-driving car model
     self_driving_car_model = tensorflow.keras.models.load_model( 
         Path(os.path.join(cfg.SDC_MODELS_DIR, cfg.SDC_MODEL_NAME)))
     # model = build_model(cfg.SDC_MODEL_NAME, cfg.USE_PREDICTIVE_UNCERTAINTY)
@@ -51,19 +51,23 @@ def compute_heatmap(cfg, simulation_name, attention_type="SmoothGrad"):
     total_time = 0
     prev_hm = gradient = np.zeros((80, 160))
 
-    # create directory for the heatmaps
+    # HM Path
     path_save_heatmaps = os.path.join(cfg.TESTING_DATA_DIR,
                                       simulation_name,
                                       "heatmaps-" + attention_type.lower(),
                                       "IMG")
-    if os.path.exists(path_save_heatmaps):
-        print("Deleting folder at {}".format(path_save_heatmaps))
-        shutil.rmtree(path_save_heatmaps)
-    print("Creating image folder at {}".format(path_save_heatmaps))
-    os.makedirs(path_save_heatmaps)
-
+    
+    missing_heatmaps = 0
     for idx, img in enumerate(tqdm(data)):
-
+        if MODE != 'new_calc':
+            # double-check if every heatmap actually exists
+            img_address = img.split('/')[-1]
+            img_name = os.path.basename(os.path.normpath(img_address))
+            hm_name = "htm-" + attention_type.lower() + '-' + img_name
+            if hm_name in os.listdir(path_save_heatmaps):
+                continue
+            else:
+                missing_heatmaps += 1 
         # convert Windows path, if needed
         if "\\\\" in img:
             img = img.replace("\\\\", "/")
@@ -105,54 +109,93 @@ def compute_heatmap(cfg, simulation_name, attention_type="SmoothGrad"):
         avg_heatmaps.append(average)
         avg_gradient_heatmaps.append(average_gradient)
 
-    # save scores as numpy arrays
-    file_name = "htm-" + attention_type.lower() + '-scores'
-    path_name = os.path.join(cfg.TESTING_DATA_DIR,
-                             simulation_name,
-                             file_name + '-avg')
-    np.save(path_name, avg_heatmaps)
+    if MODE == 'new_calc':
+        # save scores as numpy arrays
+        file_name = "htm-" + attention_type.lower() + '-scores'
+        path_name = os.path.join(cfg.TESTING_DATA_DIR,
+                                simulation_name,
+                                file_name + '-avg')
+        np.save(path_name, avg_heatmaps)
 
-    # plot scores as histograms
-    plt.hist(avg_heatmaps)
-    plt.title("average attention heatmaps")
-    path_name = os.path.join(cfg.TESTING_DATA_DIR,
-                             simulation_name,
-                             'plot-' + file_name + '-avg.png')
-    plt.savefig(path_name)
-    plt.show()
+        # plot scores as histograms
+        plt.hist(avg_heatmaps)
+        plt.title("average attention heatmaps")
+        path_name = os.path.join(cfg.TESTING_DATA_DIR,
+                                simulation_name,
+                                'plot-' + file_name + '-avg.png')
+        plt.savefig(path_name)
+        #plt.show()
 
-    path_name = os.path.join(cfg.TESTING_DATA_DIR,
-                             simulation_name,
-                             file_name + '-avg-grad')
-    np.save(path_name, avg_gradient_heatmaps)
+        path_name = os.path.join(cfg.TESTING_DATA_DIR,
+                                simulation_name,
+                                file_name + '-avg-grad')
+        np.save(path_name, avg_gradient_heatmaps)
 
-    plt.clf()
-    plt.hist(avg_gradient_heatmaps)
-    plt.title("average gradient attention heatmaps")
-    path_name = os.path.join(cfg.TESTING_DATA_DIR,
-                             simulation_name,
-                             'plot-' + file_name + '-avg-grad.png')
-    plt.savefig(path_name)
-    plt.show()
+        plt.clf()
+        plt.hist(avg_gradient_heatmaps)
+        plt.title("average gradient attention heatmaps")
+        path_name = os.path.join(cfg.TESTING_DATA_DIR,
+                                simulation_name,
+                                'plot-' + file_name + '-avg-grad.png')
+        plt.savefig(path_name)
+        #plt.show()
+    else:
+        if missing_heatmaps > 0:
+            # remove hm folder
+            shutil.rmtree(os.path.join(cfg.TESTING_DATA_DIR, simulation_name, "heatmaps-" + attention_type.lower()))
+            # remove scores and plots
+            file_name = "htm-" + attention_type.lower() + '-scores'
+            path_name = os.path.join(cfg.TESTING_DATA_DIR,
+                                simulation_name,
+                                file_name + '-avg')
+            os.remove(path_name)
+            path_name = os.path.join(cfg.TESTING_DATA_DIR,
+                                simulation_name,
+                                'plot-' + file_name + '-avg.png')
+            os.remove(path_name)
+            path_name = os.path.join(cfg.TESTING_DATA_DIR,
+                                    simulation_name,
+                                    file_name + '-avg-grad')
+            os.remove(path_name)
+            path_name = os.path.join(cfg.TESTING_DATA_DIR,
+                                    simulation_name,
+                                    'plot-' + file_name + '-avg-grad.png')
+            os.remove(path_name)
+            raise ValueError("Error in number of frames saved heatmaps. Removing all the heatmaps! Please rerun the code.")
+
 
     # save as csv
     path = os.path.join(cfg.TESTING_DATA_DIR,
                         simulation_name,
                         'driving_log.csv')
     data_df = pd.read_csv(path)
-    data = data_df[["frameId", "time", "crashed", "cte", "speed", "car_position"]]
-    # data = data_df[["frameId", "crashed"]]
+    try:
+        # autonomous mode simulation data
+        data = data_df[["frameId", "time", "crashed", "cte", "speed", "car_position", "steering_angle", "throttle"]]
+    except:
+        # manual mode simulation data
+        data = data_df[["frameId", "cte", "speed", "car_position", "steeringAngle", "throttle"]]
 
     # copy frame id, simulation time and crashed information from simulation's csv
+    # if 'frameId' in data.columns:
     df = pd.DataFrame(data['frameId'].copy(), columns=['frameId'])
+    # else:
+    #     df = pd.DataFrame(data.index.copy(), columns=['frameId'])
     df_img = pd.DataFrame(list_of_image_paths, columns=['center'])
     df['center'] = df_img['center'].copy()
-    # df['frameId'] = data['frameId'].copy()
-    df['time'] = data['time'].copy()
-    df['crashed'] = data['crashed'].copy()
+    if 'time' in data.columns:
+        df['time'] = data['time'].copy()
+    if 'crashed' in data.columns:
+        df['crashed'] = data['crashed'].copy()
     df['cte'] = data['cte'].copy()
     df['speed'] = data['speed'].copy()
     df['position'] = data['car_position'].copy()
+    df['throttle'] = data['throttle'].copy()
+    try:
+        df['steering_angle'] = data['steering_angle'].copy()
+    except:
+        df['steering_angle'] = data['steeringAngle'].copy()
+    
 
     # save it as a separate csv
     df.to_csv(os.path.join(cfg.TESTING_DATA_DIR,

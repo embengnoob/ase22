@@ -2,11 +2,11 @@ import csv
 import gc
 import os
 import sys
-import logging
 import math
 import numpy as np
 import pandas as pd
-from colorama import Fore
+import glob
+from PIL import Image, ImageFont, ImageDraw
 import matplotlib.pyplot as plt
 from keras import backend as K
 from scipy.stats import gamma
@@ -17,6 +17,7 @@ from tqdm import tqdm
 import utils
 from utils import *
 from utils_models import *
+import re
 
 ######################################################################################
 ############ EVALUATION FUNCTION FOR THE THIRDEYE METHOD #################
@@ -27,8 +28,8 @@ def evaluate_failure_prediction(cfg, heatmap_type, anomalous_simulation_name, no
                                 aggregation_method, condition, fig,
                                 axs, subplot_counter, number_of_OOTs, run_counter):
     
-    print("Using summarization average" if summary_type is '-avg' else "Using summarization gradient")
-    print("Using aggregation mean" if aggregation_method is 'mean' else "Using aggregation max")
+    print("Using summarization average" if summary_type == '-avg' else "Using summarization gradient")
+    print("Using aggregation mean" if aggregation_method == 'mean' else "Using aggregation max")
 
     # 1. load heatmap scores in nominal conditions
     path = os.path.join(cfg.TESTING_DATA_DIR,
@@ -41,7 +42,7 @@ def evaluate_failure_prediction(cfg, heatmap_type, anomalous_simulation_name, no
                         'heatmaps-' + heatmap_type,
                         'driving_log.csv')
 
-    logging.warning(f"Path for data_df_nominal: {path}")
+    print(f"Path for data_df_nominal: {path}")
     data_df_nominal = pd.read_csv(path)
 
     data_df_nominal['loss'] = original_losses
@@ -57,7 +58,7 @@ def evaluate_failure_prediction(cfg, heatmap_type, anomalous_simulation_name, no
                         'heatmaps-' + heatmap_type,
                         'driving_log.csv')
 
-    logging.warning(f"Path for data_df_anomalous: {path}")
+    print(f"Path for data_df_anomalous: {path}")
     data_df_anomalous = pd.read_csv(path)
     data_df_anomalous['loss'] = anomalous_losses
 
@@ -503,7 +504,7 @@ def evaluate_p2p_failure_prediction(cfg, heatmap_type, heatmap_types, anomalous_
                                     distance_method, distance_methods, pca_dimension, pca_dimensions, abstraction_method,
                                     abstraction_methods, fig, axs):
     
-    print("Using distance method ...." if distance_method is '...' else "Using distance method ....")
+    print(f"Using distance method {distance_method}")
     print(f"Calculating with {pca_dimension} dimension(s).")
 
     # 1. find the closest frame from anomalous sim to the frame in nominal sim (comparing car position)
@@ -511,14 +512,14 @@ def evaluate_p2p_failure_prediction(cfg, heatmap_type, heatmap_types, anomalous_
                             nominal_simulation_name,
                             'heatmaps-' + heatmap_type,
                             'driving_log.csv')
-    logging.warning(f"Path for data_df_nominal: {nom_path}")
+    print(f"Path for data_df_nominal: {nom_path}")
     data_df_nominal = pd.read_csv(nom_path)
 
     ano_path = os.path.join(cfg.TESTING_DATA_DIR,
                             anomalous_simulation_name,
                             'heatmaps-' + heatmap_type,
                             'driving_log.csv')
-    logging.warning(f"Path for data_df_anomalous: {ano_path}")
+    print(f"Path for data_df_anomalous: {ano_path}")
     data_df_anomalous = pd.read_csv(ano_path)
 
     # car position in nominal simulation
@@ -549,7 +550,7 @@ def evaluate_p2p_failure_prediction(cfg, heatmap_type, heatmap_types, anomalous_
       
     # check if positional mapping list file in csv format already exists 
     if not os.path.exists(pos_map_path):
-        print(Fore.BLUE + f"Positional mapping list does not exist. Generating list ..." + Fore.RESET)
+        cprintf(f"Positional mapping list does not exist. Generating list ...", 'l_blue')
         pos_mappings = np.zeros(num_anomalous_frames, dtype=float)
         nominal_positions = np.zeros((num_nominal_frames, 3), dtype=float)
         # cluster of all nominal positions
@@ -557,7 +558,7 @@ def evaluate_p2p_failure_prediction(cfg, heatmap_type, heatmap_types, anomalous_
             vector = string_to_np_array(nominal.iloc[nominal_frame, 1])
             nominal_positions[nominal_frame] = vector
         # compare each anomalous position with the nominal cluster and find the closest nom position (mapping)
-        print(Fore.MAGENTA + f"Number of frames in anomalous conditions:{num_anomalous_frames}" + Fore.RESET)
+        cprintf(f"Number of frames in anomalous conditions:{num_anomalous_frames}", 'l_magenta')
         for anomalous_frame in tqdm(range(num_anomalous_frames)):
             vector = string_to_np_array(anomalous.iloc[anomalous_frame, 1])
             sample_point = vector.reshape(1, -1)
@@ -565,12 +566,12 @@ def evaluate_p2p_failure_prediction(cfg, heatmap_type, heatmap_types, anomalous_
             pos_mappings[anomalous_frame] = closest
         # save list of positional mappings
         print(pos_mappings)
-        print(Fore.WHITE + f"Saving CSV file ..." + Fore.RESET)
+        print("Saving CSV file ...")
         np.savetxt(pos_map_path, pos_mappings, delimiter=",")
     else:
-        print(Fore.GREEN + f"Positional mapping list exists." + Fore.RESET)
+        cprintf(f"Positional mapping list exists.", 'green')       
         # load list of mapped positions
-        print(Fore.WHITE + f"Loading CSV file ..." + Fore.RESET)
+        print(f"Loading CSV file {pos_map_path} ...")
         pos_mappings = np.loadtxt(pos_map_path, dtype='int')
         print(pos_mappings)
 
@@ -596,123 +597,141 @@ def evaluate_p2p_failure_prediction(cfg, heatmap_type, heatmap_types, anomalous_
                                         'distances')
         if not os.path.exists(dist_vectors_folder_path):
             os.makedirs(dist_vectors_folder_path)
-        print(Fore.BLUE + f"Distance vector of distance method {distance_method} and of PCA dim {pca_dimension} does not exist. Generating array ..." + Fore.RESET)
+        # initialize arrays
+        _, _, ht_height, ht_width = get_heatmaps(0, anomalous, nominal, pos_mappings, return_size=True)
+        x_ano_all_frames = np.zeros((num_anomalous_frames, ht_height*ht_width))
+        x_nom_all_frames = np.zeros((num_anomalous_frames, ht_height*ht_width))
+
+        cprintf(f"Distance vector of distance method {distance_method} and of PCA dim {pca_dimension} does not exist. Generating array ...", 'l_blue') 
         for anomalous_frame in tqdm(range(num_anomalous_frames)):
-            # load the addresses of centeral camera heatmap of this anomalous frame and the closest nominal frame in terms of position
-            ano_img_address = anomalous.iloc[anomalous_frame , 2]
-            closest_nom_img_address = nominal.iloc[pos_mappings[anomalous_frame] , 2]
-            # correct windows path, if necessary
-            ano_img_address = correct_windows_path(ano_img_address)
-            closest_nom_img_address = correct_windows_path(closest_nom_img_address)
             # load corresponding heatmaps
-            ano_img = mpimg.imread(ano_img_address)
-            closest_nom_img = mpimg.imread(closest_nom_img_address)
+            ano_img, closest_nom_img = get_heatmaps(anomalous_frame, anomalous, nominal, pos_mappings, return_size=False)
             # convert to grayscale
-            x_ano = cv2.cvtColor(ano_img, cv2.COLOR_BGR2GRAY)
-            x_nom = cv2.cvtColor(closest_nom_img, cv2.COLOR_BGR2GRAY)
+            x_ano = cv2.cvtColor(ano_img, cv2.COLOR_BGR2GRAY).reshape(1, -1)
+            x_nom = cv2.cvtColor(closest_nom_img, cv2.COLOR_BGR2GRAY).reshape(1, -1)
+            # print(f'x_ano shape is {x_ano.shape}')
+            # print(f'x_nom shape is {x_nom.shape}')
             # standardization and normalization
             ano_std_scale = preprocessing.StandardScaler().fit(x_ano)
             x_ano_std = ano_std_scale.transform(x_ano)
             nom_std_scale = preprocessing.StandardScaler().fit(x_nom)
             x_nom_std = nom_std_scale.transform(x_nom)
-            # PCA conversion (row to point)
-            pca_ano = pca.fit_transform(x_ano_std)
-            pca_nom = pca.fit_transform(x_nom_std)
 
-            # 3. Using different pairwise distance methods to calculate distance between two anomalous and nominal pca clusters
-            if distance_method == 'pairwise_distance':
-                distance_vector = pairwise.paired_distances(pca_ano, pca_nom)
-            elif distance_method == 'cosine_similarity':
-                distance_vector = pairwise.cosine_similarity(pca_ano, pca_nom)
-            elif distance_method == 'polynomial_kernel':
-                distance_vector = pairwise.polynomial_kernel(pca_ano, pca_nom)
-            elif distance_method == 'sigmoid_kernel':
-                distance_vector = pairwise.sigmoid_kernel(pca_ano, pca_nom)
-            elif distance_method == 'rbf_kernel':
-                distance_vector = pairwise.rbf_kernel(pca_ano, pca_nom)  
-            elif distance_method == 'laplacian_kernel':
-                distance_vector = pairwise.laplacian_kernel(pca_ano, pca_nom)
-            elif distance_method == 'chi2_kernel':
-                distance_vector = pairwise.chi2_kernel(pca_ano, pca_nom)
-            # compute a representative point of the distance vector of this frame based on the abstraction method
-            if abstraction_method == 'avg':
-                distance_vector_abs.append(np.average(distance_vector))
-            elif abstraction_method == 'variance':
-                distance_vector_abs.append(np.var(distance_vector))
+            x_ano_all_frames[anomalous_frame] = x_ano_std
+            x_nom_all_frames[anomalous_frame] = x_nom_std
 
-        print(Fore.WHITE + f"Saving CSV file ..." + Fore.RESET)
-        np.savetxt(dist_vector_path, distance_vector_abs, delimiter=",")
-    else:
-        print(Fore.GREEN + f"Distance vector exists." + Fore.RESET)
-        print(Fore.WHITE + f"Loading CSV file ..." + Fore.RESET)
-        distance_vector_abs = np.loadtxt(dist_vector_path, dtype='float')
-    # calculate threshold via gamma fitting
-    threshold = get_threshold(distance_vector_abs)
-    # get the correct ax index
-    hm_index = heatmap_types.index(heatmap_type)
-    pca_index = pca_dimensions.index(pca_dimension)
-    abs_index = abstraction_methods.index(abstraction_method)
-    correct_index = (hm_index/(len(heatmap_types)))*len(abstraction_methods)*len(pca_dimensions)*len(heatmap_types) + \
-                    (pca_index/(len(pca_dimensions)))*len(abstraction_methods)*len(pca_dimensions) + abs_index
-    ax = axs[int(correct_index)]
-    # plot
-    # anomalous cross track errors
-    cte_anomalous = data_df_anomalous['cte']
-    # car speed in anomaluos mode
-    speed_anomalous = data_df_anomalous['speed']
+        # PCA conversion (row to point)
+        print(f'x_ano_all_frames shape is {x_ano_all_frames.shape}')
+        print(f'x_nom_all_frames shape is {x_nom_all_frames.shape}')
+        pca_ano = pca.fit_transform(x_ano_all_frames)
+        pca_nom = pca.fit_transform(x_nom_all_frames)
+        print(f'pca_ano shape is {pca_ano.shape}')
+        print(f'pca_nom shape is {pca_nom.shape}')
 
-    # plot cross track error values: 
-    # cte > 4: reaching the borders of the track: yellow
-    # 5> cte > 7: on the borders of the track (partial crossing): orange
-    # cte > 7: out of track (full crossing): red
-    yellow_condition = (abs(cte_anomalous)>3.6)&(abs(cte_anomalous)<5.0)
-    orange_condition = (abs(cte_anomalous)>5.0)&(abs(cte_anomalous)<7.0)
-    red_condition = (abs(cte_anomalous)>7.0)
-    yellow_ranges = get_ranges(yellow_condition)
-    orange_ranges = get_ranges(orange_condition)
-    red_ranges = get_ranges(red_condition)
+        fig = plt.figure(figsize=(12, 12))
+        ax = fig.add_subplot(projection='3d')
+        if pca_dimension == 3:
+            ax.scatter(pca_ano[:,0], pca_ano[:,1], pca_ano[:,2], color = 'r')
+            ax.scatter(pca_nom[:,0], pca_nom[:,1], pca_nom[:,2], color = 'b')
+        elif pca_dimension == 2:
+            ax.scatter(pca_ano[:,0], pca_ano[:,1], color = 'r')
+            ax.scatter(pca_nom[:,0], pca_nom[:,1], color = 'b')            
+        plt.show()
+    #     # 3. Using different pairwise distance methods to calculate distance between two anomalous and nominal pca clusters
+    #     if distance_method == 'pairwise_distance':
+    #         distance_vector = pairwise.paired_distances(pca_ano, pca_nom)
+    #     elif distance_method == 'cosine_similarity':
+    #         distance_vector = pairwise.cosine_similarity(pca_ano, pca_nom)
+    #     elif distance_method == 'polynomial_kernel':
+    #         distance_vector = pairwise.polynomial_kernel(pca_ano, pca_nom)
+    #     elif distance_method == 'sigmoid_kernel':
+    #         distance_vector = pairwise.sigmoid_kernel(pca_ano, pca_nom)
+    #     elif distance_method == 'rbf_kernel':
+    #         distance_vector = pairwise.rbf_kernel(pca_ano, pca_nom)  
+    #     elif distance_method == 'laplacian_kernel':
+    #         distance_vector = pairwise.laplacian_kernel(pca_ano, pca_nom)
+    #     elif distance_method == 'chi2_kernel':
+    #         distance_vector = pairwise.chi2_kernel(pca_ano, pca_nom)
+    #     # # compute a representative point of the distance vector of this frame based on the abstraction method
+    #     # if abstraction_method == 'avg':
+    #     #     distance_vector_abs.append(np.average(distance_vector))
+    #     # elif abstraction_method == 'variance':
+    #     #     distance_vector_abs.append(np.var(distance_vector))
 
-    # plot yellow ranges
-    plot_ranges(yellow_ranges, ax, color='yellow', alpha=0.2)
-    # plot orange ranges
-    plot_ranges(orange_ranges, ax, color='orange', alpha=0.2)
-    # plot red ranges
-    plot_ranges(red_ranges, ax, color='red', alpha=0.2)
+    #     print(Fore.WHITE + f"Saving CSV file ..." + Fore.RESET)
+    #     np.savetxt(dist_vector_path, distance_vector_abs, delimiter=",")
+    # else:
+    #     print(Fore.GREEN + f"Distance vector exists." + Fore.RESET)
+    #     print(Fore.WHITE + f"Loading CSV file ..." + Fore.RESET)
+    #     distance_vector_abs = np.loadtxt(dist_vector_path, dtype='float')
 
-    # plot crash instances: speed < 1.0 
-    crash_condition = (abs(speed_anomalous)<1.0)
-    # remove the first 10 frames: starting out so speed is less than 1 
-    crash_condition[:10] = False
-    crash_ranges = get_ranges(crash_condition)
-    # plot_ranges(crash_ranges, ax, color='blue', alpha=0.2)
-    NUM_OF_FRAMES_TO_CHECK = 20
-    is_crash_instance = False
-    for rng in crash_ranges:
-        # check 20 frames before first frame with speed < 1.0. if not bigger than 15 it's not
-        # a crash instance it's reset instance
-        if isinstance(rng, list):
-            crash_frame = rng[0]
-        else:
-            crash_frame = rng
-        for speed in speed_anomalous[crash_frame-NUM_OF_FRAMES_TO_CHECK:crash_frame]:
-            if speed > 15.0:
-                is_crash_instance = True
-        if is_crash_instance == True:
-            is_crash_instance = False
-            reset_frame = crash_frame
-            ax.axvline(x = reset_frame, color = 'blue', linestyle = '--')
-            continue
-        # plot crash ranges (speed < 1.0)
-        if isinstance(rng, list):
-            ax.axvspan(rng[0], rng[1], color='teal', alpha=0.2)
-        else:
-            ax.axvspan(rng, rng+1, color='teal', alpha=0.2)
-    ax.plot(distance_vector_abs, label=distance_method, linewidth= 0.5, linestyle = '-', color=distance_method_colors[distance_method])
-    title = f"{heatmap_type} && {pca_dimension}d && {abstraction_method}"
-    ax.set_title(title)
-    ax.set_ylabel("distance scores")
-    # ax.set_xlabel("frame number")
-    ax.legend(loc='upper left')
+    # # calculate threshold via gamma fitting
+    # threshold = get_threshold(distance_vector_abs)
+    # # get the correct ax index
+    # hm_index = heatmap_types.index(heatmap_type)
+    # pca_index = pca_dimensions.index(pca_dimension)
+    # abs_index = abstraction_methods.index(abstraction_method)
+    # correct_index = (hm_index/(len(heatmap_types)))*len(abstraction_methods)*len(pca_dimensions)*len(heatmap_types) + \
+    #                 (pca_index/(len(pca_dimensions)))*len(abstraction_methods)*len(pca_dimensions) + abs_index
+    # ax = axs[int(correct_index)]
+    # # plot
+    # # anomalous cross track errors
+    # cte_anomalous = data_df_anomalous['cte']
+    # # car speed in anomaluos mode
+    # speed_anomalous = data_df_anomalous['speed']
+
+    # # plot cross track error values: 
+    # # cte > 4: reaching the borders of the track: yellow
+    # # 5> cte > 7: on the borders of the track (partial crossing): orange
+    # # cte > 7: out of track (full crossing): red
+    # yellow_condition = (abs(cte_anomalous)>3.6)&(abs(cte_anomalous)<5.0)
+    # orange_condition = (abs(cte_anomalous)>5.0)&(abs(cte_anomalous)<7.0)
+    # red_condition = (abs(cte_anomalous)>7.0)
+    # yellow_ranges = get_ranges(yellow_condition)
+    # orange_ranges = get_ranges(orange_condition)
+    # red_ranges = get_ranges(red_condition)
+
+    # # plot yellow ranges
+    # plot_ranges(yellow_ranges, ax, color='yellow', alpha=0.2)
+    # # plot orange ranges
+    # plot_ranges(orange_ranges, ax, color='orange', alpha=0.2)
+    # # plot red ranges
+    # plot_ranges(red_ranges, ax, color='red', alpha=0.2)
+
+    # # plot crash instances: speed < 1.0 
+    # crash_condition = (abs(speed_anomalous)<1.0)
+    # # remove the first 10 frames: starting out so speed is less than 1 
+    # crash_condition[:10] = False
+    # crash_ranges = get_ranges(crash_condition)
+    # # plot_ranges(crash_ranges, ax, color='blue', alpha=0.2)
+    # NUM_OF_FRAMES_TO_CHECK = 20
+    # is_crash_instance = False
+    # for rng in crash_ranges:
+    #     # check 20 frames before first frame with speed < 1.0. if not bigger than 15 it's not
+    #     # a crash instance it's reset instance
+    #     if isinstance(rng, list):
+    #         crash_frame = rng[0]
+    #     else:
+    #         crash_frame = rng
+    #     for speed in speed_anomalous[crash_frame-NUM_OF_FRAMES_TO_CHECK:crash_frame]:
+    #         if speed > 15.0:
+    #             is_crash_instance = True
+    #     if is_crash_instance == True:
+    #         is_crash_instance = False
+    #         reset_frame = crash_frame
+    #         ax.axvline(x = reset_frame, color = 'blue', linestyle = '--')
+    #         continue
+    #     # plot crash ranges (speed < 1.0)
+    #     if isinstance(rng, list):
+    #         ax.axvspan(rng[0], rng[1], color='teal', alpha=0.2)
+    #     else:
+    #         ax.axvspan(rng, rng+1, color='teal', alpha=0.2)
+    # ax.plot(distance_vector_abs, label=distance_method, linewidth= 0.5, linestyle = '-', color=distance_method_colors[distance_method])
+    # title = f"{heatmap_type} && {pca_dimension}d && {abstraction_method}"
+    # ax.set_title(title)
+    # ax.set_ylabel("distance scores")
+    # # ax.set_xlabel("frame number")
+    # ax.legend(loc='upper left')
     
     
 
@@ -720,10 +739,21 @@ def evaluate_p2p_failure_prediction(cfg, heatmap_type, heatmap_types, anomalous_
 ############################### AUXILIARY FUNCTIONS ##################################
 ######################################################################################
 
-def string_to_np_array(vector_string):
-    vector_string = ' '.join(vector_string.split())
-    vector_string = vector_string.strip("[]").strip().replace(' ', ',')
-    vector = np.fromstring(vector_string, dtype=float, sep=',')
+def string_to_np_array(vector_string, frame_num):
+    if '[' in vector_string:
+        # autonomous mode
+        vector_string = ' '.join(vector_string.split())
+        vector_string = vector_string.strip("[]").strip().replace(' ', ',')
+        vector = np.fromstring(vector_string, dtype=float, sep=',')
+    elif '(' in vector_string:
+        # manual training mode
+        vector_string = vector_string.strip("()").replace('  ', ' ')
+        vector = np.fromstring(vector_string, dtype=float, sep=' ')
+    if vector.shape != (3,):
+        cprintf(str(vector.shape), 'l_red')
+        print(vector_string)
+        print(vector)
+        raise ValueError(f"Car position format of frame number {frame_num} can't be interpreted.")
     return vector
 
 def correct_windows_path(address):
@@ -794,16 +824,114 @@ def plot_ranges(list_of_ranges, ax, color, alpha=0.2):
         else:
             ax.axvspan(rng, rng+1, color=color, alpha=alpha)
 
+def get_heatmaps(anomalous_frame, anomalous, nominal, pos_mappings, return_size=False, return_IMAGE = False):
+    # load the addresses of centeral camera heatmap of this anomalous frame and the closest nominal frame in terms of position
+    ano_hm_address = anomalous['center'].iloc[anomalous_frame]
+    closest_nom_hm_address = nominal['center'].iloc[int(pos_mappings[anomalous_frame])]
+    # correct windows path, if necessary
+    ano_hm_address = correct_windows_path(ano_hm_address)
+    closest_nom_hm_address = correct_windows_path(closest_nom_hm_address)
+    # load corresponding heatmaps
+    if not return_IMAGE:
+        ano_hm = mpimg.imread(ano_hm_address)
+        closest_nom_hm = mpimg.imread(closest_nom_hm_address)
+        if ano_hm.shape != closest_nom_hm.shape:
+            raise ValueError(Fore.RED + f"Different heatmap sizes for nominal and anomalous conditions!" + Fore.RESET)
+    else:
+        ano_hm = Image.open(ano_hm_address)
+        closest_nom_hm = Image.open(closest_nom_hm_address)
+    if return_size:
+        return ano_hm.shape[0], ano_hm.shape[1]
+    else:
+        return ano_hm, closest_nom_hm
+
+def get_images(cfg, anomalous_frame, pos_mappings):
+    # load the image file paths from main csv
+    ano_csv_path = os.path.join(cfg.TESTING_DATA_DIR,
+                                cfg.SIMULATION_NAME,
+                                'driving_log.csv')
+    nom_csv_path = os.path.join(cfg.TESTING_DATA_DIR,
+                                cfg.SIMULATION_NAME_NOMINAL,
+                                'driving_log.csv')
+    ano_data = pd.read_csv(ano_csv_path)
+    ano_img_address = ano_data["center"].iloc[anomalous_frame]
+    nom_data = pd.read_csv(nom_csv_path)
+    closest_nom_img_address = nom_data['center'].iloc[int(pos_mappings[anomalous_frame])]
+    ano_img_address = correct_windows_path(ano_img_address)
+    closest_nom_img_address = correct_windows_path(closest_nom_img_address)
+    ano_img = Image.open(ano_img_address)
+    closest_nom_img = Image.open(closest_nom_img_address)   
+    return ano_img, closest_nom_img
+
+def save_ax_nosave(ax, **kwargs):
+    import io
+    ax.axis("off")
+    ax.figure.canvas.draw()
+    trans = ax.figure.dpi_scale_trans.inverted() 
+    bbox = ax.bbox.transformed(trans)
+    buff = io.BytesIO()
+    plt.savefig(buff, format="png", dpi=ax.figure.dpi, bbox_inches=bbox,  **kwargs)
+    ax.axis("on")
+    buff.seek(0)
+    # im = plt.imread(buff)
+    im = Image.open(buff)
+    return im
+
+# Video creation functions
+
+def tryint(s):
+    try:
+        return int(s)
+    except:
+        return s
+
+def alphanum_key(s):
+    """ Turn a string into a list of string and number chunks.
+        "z23a" -> ["z", 23, "a"]
+    """
+    return [ tryint(c) for c in re.split('([0-9]+)', s) ]
+
+def sort_nicely(l):
+    """ Sort the given list in the way that humans expect.
+    """
+    l.sort(key=alphanum_key)
+
+def make_avi(image_folder, name):
+    video_name = f'{name}.avi'
+    video_path = os.path.join(image_folder, name, video_name)
+    video_folder_path = os.path.join(image_folder, name)
+    if not os.path.exists(video_path):
+        cprintf('Creating video ...', 'l_yellow')
+        # path to collages folder
+        if not os.path.exists(video_folder_path):
+            os.makedirs(video_folder_path)
+        images = [img for img in os.listdir(image_folder)]
+        sort_nicely(images)
+        frame = cv2.imread(os.path.join(image_folder, images[0]))
+        height, width, layers = frame.shape
+        fps = 10
+        video = cv2.VideoWriter(os.path.join(image_folder, name, video_name), 0, fps, (width,height))
+        for image in tqdm(images):
+            video.write(cv2.imread(os.path.join(image_folder, image)))
+        cv2.destroyAllWindows()
+        video.release()
+    else:
+        cprintf('Video already exists. Skipping video creation ...', 'l_green')
+
+def make_gif(frame_folder, name):
+    frames = [Image.open(image) for image in glob.glob(f"{frame_folder}/*.PNG")]
+    frame_one = frames[0]
+    frame_one.save(f"{name}.gif", format="GIF", append_images=frames,
+               save_all=True, duration=100, loop=0)
 
 ######################################################################################
-############ TEST #################
+#####################################   TEST   #######################################
 ######################################################################################
 
-def test(cfg, heatmap_type, heatmap_types, anomalous_simulation_name, nominal_simulation_name,
-                                    distance_method, distance_methods, pca_dimension, pca_dimensions, abstraction_method,
-                                    abstraction_methods):
-    
-    print("Using distance method ...." if distance_method is '...' else "Using distance method ....")
+def test(cfg, heatmap_type, anomalous_simulation_name, nominal_simulation_name, 
+         distance_method, distance_type, pca_dimension):
+
+    print(f"Using distance method {distance_method}")
     print(f"Calculating with {pca_dimension} dimension(s).")
 
     # 1. find the closest frame from anomalous sim to the frame in nominal sim (comparing car position)
@@ -811,20 +939,23 @@ def test(cfg, heatmap_type, heatmap_types, anomalous_simulation_name, nominal_si
                             nominal_simulation_name,
                             'heatmaps-' + heatmap_type,
                             'driving_log.csv')
-    logging.warning(f"Path for data_df_nominal: {nom_path}")
+    print(f"Path for data_df_nominal: {nom_path}")
     data_df_nominal = pd.read_csv(nom_path)
 
     ano_path = os.path.join(cfg.TESTING_DATA_DIR,
                             anomalous_simulation_name,
                             'heatmaps-' + heatmap_type,
                             'driving_log.csv')
-    logging.warning(f"Path for data_df_anomalous: {ano_path}")
+    print(f"Path for data_df_anomalous: {ano_path}")
     data_df_anomalous = pd.read_csv(ano_path)
 
     # car position in nominal simulation
     nominal = pd.DataFrame(data_df_nominal['frameId'].copy(), columns=['frameId'])
     nominal['position'] = data_df_nominal['position'].copy()
     nominal['center'] = data_df_nominal['center'].copy()
+    nominal['steering_angle'] = data_df_nominal['steering_angle'].copy()
+    nominal['throttle'] = data_df_nominal['throttle'].copy()
+    nominal['speed'] = data_df_nominal['speed'].copy()
     # total number of nominal frames
     num_nominal_frames = pd.Series.max(nominal['frameId'])
 
@@ -832,9 +963,12 @@ def test(cfg, heatmap_type, heatmap_types, anomalous_simulation_name, nominal_si
     anomalous = pd.DataFrame(data_df_anomalous['frameId'].copy(), columns=['frameId'])
     anomalous['position'] = data_df_anomalous['position'].copy()
     anomalous['center'] = data_df_anomalous['center'].copy()
+    anomalous['steering_angle'] = data_df_anomalous['steering_angle'].copy()
+    anomalous['throttle'] = data_df_anomalous['throttle'].copy()
+    anomalous['speed'] = data_df_anomalous['speed'].copy()
+
     # total number of anomalous frames
     num_anomalous_frames = pd.Series.max(anomalous['frameId'])
-
     # path to csv file containing mapped positions
     pos_map_path = os.path.join(cfg.TESTING_DATA_DIR,
                                     anomalous_simulation_name,
@@ -843,103 +977,353 @@ def test(cfg, heatmap_type, heatmap_types, anomalous_simulation_name, nominal_si
       
     # check if positional mapping list file in csv format already exists 
     if not os.path.exists(pos_map_path):
-        print(Fore.BLUE + f"Positional mapping list does not exist. Generating list ..." + Fore.RESET)
+        cprintf(f"Positional mapping list for {anomalous_simulation_name} and {nominal_simulation_name} does not exist. Generating list ...", 'l_blue')
         pos_mappings = np.zeros(num_anomalous_frames, dtype=float)
         nominal_positions = np.zeros((num_nominal_frames, 3), dtype=float)
         # cluster of all nominal positions
+        print("Generating nominal cluster ...")
         for nominal_frame in range(num_nominal_frames):
-            vector = string_to_np_array(nominal.iloc[nominal_frame, 1])
+            vector = string_to_np_array(nominal['position'].iloc[nominal_frame], nominal_frame)
             nominal_positions[nominal_frame] = vector
         # compare each anomalous position with the nominal cluster and find the closest nom position (mapping)
-        print(Fore.MAGENTA + f"Number of frames in anomalous conditions:{num_anomalous_frames}" + Fore.RESET)
+        cprintf(f"Number of frames in anomalous conditions:{num_anomalous_frames}", 'l_magenta')
+        cprintf("Finding the closest point in nom cluster to each anomalous point ...", 'l_yellow')
         for anomalous_frame in tqdm(range(num_anomalous_frames)):
-            vector = string_to_np_array(anomalous.iloc[anomalous_frame, 1])
+            vector = string_to_np_array(anomalous['position'].iloc[anomalous_frame], anomalous_frame)
             sample_point = vector.reshape(1, -1)
             closest, _ = pairwise_distances_argmin_min(sample_point, nominal_positions)
             pos_mappings[anomalous_frame] = closest
         # save list of positional mappings
-        print(pos_mappings)
-        print(Fore.WHITE + f"Saving CSV file ..." + Fore.RESET)
+        print("Saving positional mappings to CSV file ...")
         np.savetxt(pos_map_path, pos_mappings, delimiter=",")
     else:
-        print(Fore.GREEN + f"Positional mapping list exists." + Fore.RESET)
+        cprintf(f"Positional mapping list exists.", 'green')
         # load list of mapped positions
-        print(Fore.WHITE + f"Loading CSV file ..." + Fore.RESET)
+        print(f"Loading CSV file {pos_map_path} ...")
         pos_mappings = np.loadtxt(pos_map_path, dtype='int')
-        print(pos_mappings)
+
+    # np.set_printoptions(threshold=sys.maxsize)
+    print(pos_mappings)
+    # np.set_printoptions(threshold=False)
 
     # 2. Principal component analysis to project heat-maps to a point in a lower dim space
-    print(type(pca_dimension))
     pca = PCA(n_components=pca_dimension)
 
+    # initialize arrays
+    ht_height, ht_width = get_heatmaps(0, anomalous, nominal, pos_mappings, return_size=True, return_IMAGE=False)
+    x_ano_all_frames = np.zeros((num_anomalous_frames, ht_height*ht_width))
+    x_nom_all_frames = np.zeros((num_anomalous_frames, ht_height*ht_width))
+    cprintf('Reshaping positionally corresponding heatmaps into two arrays ...', 'l_yellow')
+    if cfg.GENERATE_SUMMARY_COLLAGES:
+        missing_collages = 0
+        # path to plotted figure images folder
+        collage_base_folder_path = os.path.join(cfg.TESTING_DATA_DIR,
+                                anomalous_simulation_name,
+                                "heatmaps-" + heatmap_type,
+                                f"collages_{anomalous_simulation_name}_{nominal_simulation_name}",
+                                "base")
 
+        if not os.path.exists(collage_base_folder_path):
+            os.makedirs(collage_base_folder_path)
+            cprintf('Generating base summary collages ...', 'l_cyan')
+        elif len(os.listdir(collage_base_folder_path)) != num_anomalous_frames:
+            cprintf('There are missing collages. Deleting base folder ...', 'l_yellow')
+            shutil.rmtree(collage_base_folder_path)
+            os.makedirs(collage_base_folder_path)
+            cprintf('Generating base summary collages ...', 'l_cyan')
     for anomalous_frame in tqdm(range(num_anomalous_frames)):
-        if anomalous_frame > 0 and anomalous_frame < 510:
-            continue
-        elif anomalous_frame == 511:
-            break
-        # load the addresses of centeral camera heatmap of this anomalous frame and the closest nominal frame in terms of position
-        ano_img_address = anomalous.iloc[anomalous_frame , 2]
-        closest_nom_img_address = nominal.iloc[pos_mappings[anomalous_frame] , 2]
+        # load the centeral camera heatmaps of this anomalous frame and the closest nominal frame in terms of position
+        ano_heatmap, closest_nom_heatmap = get_heatmaps(anomalous_frame, anomalous, nominal, pos_mappings, return_size=False, return_IMAGE=False)
 
-        # correct windows path, if necessary
-        ano_img_address = correct_windows_path(ano_img_address)
-        closest_nom_img_address = correct_windows_path(closest_nom_img_address)
-        
-        # load corresponding heatmaps
-        ano_img = mpimg.imread(ano_img_address)
-        closest_nom_img = mpimg.imread(closest_nom_img_address)
-        print(ano_img.shape)
-        # convert to grayscale and flatten
-        x_ano = cv2.cvtColor(ano_img, cv2.COLOR_BGR2GRAY) #.reshape(-1, 1)
-        x_nom = cv2.cvtColor(closest_nom_img, cv2.COLOR_BGR2GRAY) #.reshape(-1, 1)
-        print(f'x_ano.shape is {x_ano.shape}')
-        print(f'x_nom.shape is {x_nom.shape}')
+        # convert to grayscale
+        x_ano = cv2.cvtColor(ano_heatmap, cv2.COLOR_BGR2GRAY)
+        x_nom = cv2.cvtColor(closest_nom_heatmap, cv2.COLOR_BGR2GRAY)
 
-        # # Displaying the image 
-        # cv2.imshow('ano img', x_ano) 
-        # # waits for user to press any key 
-        # # (this is necessary to avoid Python kernel form crashing) 
-        # cv2.waitKey(0)
-        # # closing all open windows 
-        # cv2.destroyAllWindows()
-        # cv2.imshow('nom img', x_nom) 
-        # # waits for user to press any key 
-        # # (this is necessary to avoid Python kernel form crashing) 
-        # cv2.waitKey(0)
-        # # closing all open windows 
-        # cv2.destroyAllWindows()
-
-        # np.set_printoptions(threshold=sys.maxsize)
-        # print(x_ano)
-        # print(x_nom)
-        # np.set_printoptions(threshold=False)
-
-
-        # standardization and normalization
-        # x_ano = x_ano.reshape(-1, 1)
-        # x_nom = x_ano.reshape(-1, 1)
         ano_std_scale = preprocessing.StandardScaler().fit(x_ano)
         x_ano_std = ano_std_scale.transform(x_ano)
         nom_std_scale = preprocessing.StandardScaler().fit(x_nom)
         x_nom_std = nom_std_scale.transform(x_nom)
 
-        print(f'x_ano_std.shape is {x_ano_std.shape}')
-        print(f'x_nom_std.shape is {x_nom_std.shape}')
+        x_ano_all_frames[anomalous_frame,:] = x_ano_std.flatten()
+        x_nom_all_frames[anomalous_frame,:] = x_nom_std.flatten()
 
-        # PCA conversion
-        pca_ano = pca.fit_transform(x_ano_std)
-        pca_nom = pca.fit_transform(x_nom_std)
+        if cfg.GENERATE_SUMMARY_COLLAGES:
+            # double-check if every collage actually exists
+            img_name = f'FID_{anomalous_frame}.png'
+            if img_name in os.listdir(collage_base_folder_path):
+                continue
+            else:
+                missing_collages += 1 
+            # load central camera images
+            ano_img, closest_nom_img = get_images(cfg, anomalous_frame, pos_mappings)
+            # load the centeral camera heatmaps of this anomalous frame and the closest nominal frame in terms of position
+            ano_heatmap, closest_nom_heatmap = get_heatmaps(anomalous_frame, anomalous, nominal, pos_mappings, return_size=False, return_IMAGE=True)
+            # convert to grayscale and resize
+            ano_heatmap = ano_heatmap.convert('LA').resize((2*IMAGE_WIDTH,2*IMAGE_HEIGHT))
+            closest_nom_heatmap = closest_nom_heatmap.convert('LA').resize((2*IMAGE_WIDTH,2*IMAGE_HEIGHT))
 
-        print(f'pca_ano.shape is {pca_ano.shape}')
-        print(f'pca_nom.shape is {pca_nom.shape}')
+            ano_img = ano_img.resize((2*IMAGE_WIDTH,2*IMAGE_HEIGHT))
+            closest_nom_img = closest_nom_img.resize((2*IMAGE_WIDTH,2*IMAGE_HEIGHT))
 
-        fig = plt.figure(figsize=(12, 12))
-        ax = fig.add_subplot(projection='3d')
-        if pca_dimension == 3:
-            ax.scatter(pca_ano[:,0], pca_ano[:,1], pca_ano[:,2], color = 'r')
-            ax.scatter(pca_nom[:,0], pca_nom[:,1], pca_nom[:,2], color = 'b')
-        elif pca_dimension == 2:
-            ax.scatter(pca_ano[:,0], pca_ano[:,1], color = 'r')
-            ax.scatter(pca_nom[:,0], pca_nom[:,1], color = 'b')            
-        plt.show()
+            ano_sa = anomalous['steering_angle'].iloc[anomalous_frame]
+            nom_sa = nominal['steering_angle'].iloc[int(pos_mappings[anomalous_frame])]
+            ano_throttle = anomalous['throttle'].iloc[anomalous_frame]
+            nom_throttle = nominal['throttle'].iloc[int(pos_mappings[anomalous_frame])]
+            ano_speed = anomalous['speed'].iloc[anomalous_frame]
+            nom_speed = nominal['speed'].iloc[int(pos_mappings[anomalous_frame])]
+
+            font = ImageFont.truetype(os.path.join(cfg.TESTING_DATA_DIR,"arial.ttf"), 18)
+            draw_ano = ImageDraw.Draw(ano_img)
+            draw_ano.text((0, 0),f"Anomalous: steering_angle:{float(ano_sa):.2f} // throttle:{float(ano_throttle):.2f} // speed:{float(ano_speed):.2f}",(255,255,255),font=font)
+            draw_nom = ImageDraw.Draw(closest_nom_img)
+            draw_nom.text((10, 0),f"Nominal: steering_angle:{float(nom_sa):.2f} // throttle:{float(nom_throttle):.2f} // speed:{float(nom_speed):.2f}",(255,255,255),font=font)
+
+            # create and save collage
+            base_collage = Image.new("RGBA", (1280,640))
+            base_collage.paste(ano_img, (0,0))
+            base_collage.paste(closest_nom_img, (640,0))
+            base_collage.paste(ano_heatmap, (0,320))
+            base_collage.paste(closest_nom_heatmap, (640,320))
+            base_collage.save(os.path.join(collage_base_folder_path, f'FID_{anomalous_frame}.png'))
+            
+    if cfg.GENERATE_SUMMARY_COLLAGES:
+        if missing_collages > 0 and missing_collages != num_anomalous_frames:
+            cprintf('There are missing collages. Deleting base folder ...', 'l_yellow')
+            shutil.rmtree(collage_base_folder_path)
+            raise ValueError("Error in number of saved collages. Removing all the collages! Please rerun the code.")
+        
+    print(f'x_ano_std.shape is {x_ano_std.shape}')
+    print(f'x_nom_std.shape is {x_nom_std.shape}')
+    print(f'x_ano_all_frames.shape is {x_ano_all_frames.shape}')
+    print(f'x_nom_all_frames.shape is {x_nom_all_frames.shape}')
+
+    if cfg.SAVE_PCA:
+        # path to pca csv file
+        pca_ano_path = os.path.join(cfg.TESTING_DATA_DIR,
+                                    anomalous_simulation_name,
+                                    "heatmaps-" + heatmap_type,
+                                    f'pca_ano_{pca_dimension}d.csv')
+        pca_nom_path = os.path.join(cfg.TESTING_DATA_DIR,
+                                    anomalous_simulation_name,
+                                    "heatmaps-" + heatmap_type,
+                                    f'pca_nom_{pca_dimension}d.csv')
+        
+        # check if positional mapping list file in csv format already exists 
+        if (not os.path.exists(pca_ano_path)) or (not os.path.exists(pca_nom_path)):
+            cprintf(f"PCA for {anomalous_simulation_name} and {nominal_simulation_name} of pca dimension {pca_dimension} does not exist. Generating array ...", 'l_blue')
+            print(f"Performing PCA conversion with {pca_dimension} dimensions ...")
+            # PCA conversion
+            pca_ano = pca.fit_transform(x_ano_all_frames)
+            pca_nom = pca.fit_transform(x_nom_all_frames)
+            # save list of positional mappings
+            print("Saving distance vector to CSV file ...")
+            np.savetxt(pca_ano_path, pca_ano, delimiter=",")
+            np.savetxt(pca_nom_path, pca_nom, delimiter=",")
+        else:
+            cprintf(f"PCA CSV files exist.", 'green')
+            # load list of mapped positions
+            print(f"Loading CSV file {pca_ano_path} ...")
+            pca_ano = np.genfromtxt(pca_ano_path, delimiter=',', dtype='float')[:,:-1]
+            print(f"Loading CSV file {pca_nom_path} ...")
+            pca_nom = np.genfromtxt(pca_nom_path, delimiter=',', dtype='float')[:,:-1]
+
+    pca_ano = pca.fit_transform(x_ano_all_frames)
+    pca_nom = pca.fit_transform(x_nom_all_frames)
+    cprintf(f'pca_ano.shape is {pca_ano.shape}', 'l_magenta')
+    cprintf(f'pca_nom.shape is {pca_nom.shape}', 'l_magenta')
+
+    # path to csv file containing distance vector
+    dist_vect_path = os.path.join(cfg.TESTING_DATA_DIR,
+                                  anomalous_simulation_name,
+                                  "heatmaps-" + heatmap_type,
+                                  f'dist_vect_{distance_method}_{distance_type}_{pca_dimension}d.csv')
+      
+    # check if positional mapping list file in csv format already exists 
+    if not os.path.exists(dist_vect_path):
+        cprintf(f"Distance vector list for {anomalous_simulation_name} and {nominal_simulation_name} using {distance_method} of type {distance_type} and pca dimension {pca_dimension} does not exist. Generating list ...", 'l_blue')
+        if distance_method == 'pairwise_distance':
+            distance_vector = pairwise.paired_distances(pca_ano, pca_nom, metric=distance_type)
+        else:
+            raise ValueError(f"Distance method \"{distance_method}\" is not defined.")
+        # save list of positional mappings
+        print("Saving distance vector to CSV file ...")
+        np.savetxt(dist_vect_path, distance_vector, delimiter=",")
+    else:
+        cprintf(f"Distance vector list exists.", 'green')
+        # load list of mapped positions
+        print(f"Loading CSV file {dist_vect_path} ...")
+        distance_vector = np.loadtxt(dist_vect_path, dtype='float')
+
+    fig = plt.figure(figsize=(20,15), constrained_layout=False)
+    spec = fig.add_gridspec(nrows=3, ncols=1, width_ratios= [1], height_ratios=[3, 1, 1])
+
+    # Plot pca cluster
+    if pca_dimension == 2:
+        ax = fig.add_subplot(spec[0, :])
+        ax.scatter(pca_ano[:,0], pca_ano[:,1], color = 'r')
+        ax.scatter(pca_nom[:,0], pca_nom[:,1], color = 'b')  
+    else:
+        ax = fig.add_subplot(spec[0, :], projection='3d')
+        ax.scatter(pca_ano[:,0], pca_ano[:,1], pca_ano[:,2], color = 'r')
+        ax.scatter(pca_nom[:,0], pca_nom[:,1], pca_nom[:,2], color = 'b')       
+
+    # Plot distance vector/ranges
+    ax = fig.add_subplot(spec[1, :])
+
+    # plot preprocessing
+    # anomalous cross track errors
+    cte_anomalous = data_df_anomalous['cte']
+    # car speed in anomaluos mode
+    speed_anomalous = data_df_anomalous['speed']
+
+    # plot cross track error values: 
+    # cte > 4: reaching the borders of the track: yellow
+    # 5> cte > 7: on the borders of the track (partial crossing): orange
+    # cte > 7: out of track (full crossing): red
+    yellow_condition = (abs(cte_anomalous)>3.6)&(abs(cte_anomalous)<5.0)
+    orange_condition = (abs(cte_anomalous)>5.0)&(abs(cte_anomalous)<7.0)
+    red_condition = (abs(cte_anomalous)>7.0)
+    yellow_ranges = get_ranges(yellow_condition)
+    orange_ranges = get_ranges(orange_condition)
+    red_ranges = get_ranges(red_condition)
+
+    # plot yellow ranges
+    plot_ranges(yellow_ranges, ax, color='yellow', alpha=0.2)
+    # plot orange ranges
+    plot_ranges(orange_ranges, ax, color='orange', alpha=0.2)
+    # plot red ranges
+    plot_ranges(red_ranges, ax, color='red', alpha=0.2)
+
+    # plot crash instances: speed < 1.0 
+    crash_condition = (abs(speed_anomalous)<1.0)
+    # remove the first 10 frames: starting out so speed is less than 1 
+    crash_condition[:10] = False
+    crash_ranges = get_ranges(crash_condition)
+    # plot_ranges(crash_ranges, ax, color='blue', alpha=0.2)
+    NUM_OF_FRAMES_TO_CHECK = 20
+    is_crash_instance = False
+    for rng in crash_ranges:
+        # check 20 frames before first frame with speed < 1.0. if not bigger than 15 it's not
+        # a crash instance it's reset instance
+        if isinstance(rng, list):
+            crash_frame = rng[0]
+        else:
+            crash_frame = rng
+        for speed in speed_anomalous[crash_frame-NUM_OF_FRAMES_TO_CHECK:crash_frame]:
+            if speed > 15.0:
+                is_crash_instance = True
+        if is_crash_instance == True:
+            is_crash_instance = False
+            reset_frame = crash_frame
+            ax.axvline(x = reset_frame, color = 'blue', linestyle = '--')
+            continue
+        # plot crash ranges (speed < 1.0)
+        if isinstance(rng, list):
+            ax.axvspan(rng[0], rng[1], color='teal', alpha=0.2)
+        else:
+            ax.axvspan(rng, rng+1, color='teal', alpha=0.2)
+
+    # Plot distance scores
+    color = 'blue'
+    ax.set_xlabel('Frame ID', color=color)
+    ax.set_ylabel(f'{distance_type} distance scores', color=color)
+    ax.plot(distance_vector, label=distance_method, linewidth= 0.5, linestyle = '-', color=color)
+    title = f"{heatmap_type} && {pca_dimension}d"
+    ax.set_title(title)
+    ax.legend(loc='upper left')
+
+    if cfg.GENERATE_SUMMARY_COLLAGES:
+        missing_collages = 0
+        # path to collages folder
+        collage_folder_path = os.path.join(cfg.TESTING_DATA_DIR,
+                                anomalous_simulation_name,
+                                "heatmaps-" + heatmap_type,
+                                f"collages_{anomalous_simulation_name}_{nominal_simulation_name}",
+                                f"{distance_type}_{distance_method}_{pca_dimension}d")
+        if not os.path.exists(collage_folder_path):
+            os.makedirs(collage_folder_path)
+        elif len(os.listdir(collage_folder_path)) != num_anomalous_frames:
+            shutil.rmtree(collage_folder_path)
+            os.makedirs(collage_folder_path)
+
+        create_collage = False
+
+        for anomalous_frame in tqdm(range(num_anomalous_frames)):
+            collage_name = ''
+            if distance_type in cfg.SUMMARY_COLLAGE_DIST_TYPES:
+                collage_name = collage_name + f'{distance_type}'
+            else:
+                shutil.rmtree(collage_folder_path)
+                break
+            if distance_method in cfg.SUMMARY_COLLAGE_DIST_METHODS:
+                collage_name = f'_{distance_method}'
+            else:
+                shutil.rmtree(collage_folder_path)
+                break
+            if (pca_dimension == num_anomalous_frames) or (pca_dimension in cfg.SUMMARY_COLLAGE_PCA_DIMS):
+                collage_name = collage_name + f'_{pca_dimension}d_FID_{anomalous_frame}.png'
+            else:
+                shutil.rmtree(collage_folder_path)
+                break
+            create_collage = True
+            if anomalous_frame == 0:
+                cprintf(f'\nGenerating summary collages for {distance_type}_{distance_method}_{pca_dimension}d ...', 'l_cyan')
+
+            # double-check if every collage actually exists
+            if collage_name in os.listdir(collage_folder_path):
+                continue
+            else:
+                missing_collages += 1 
+            # load saved base collage
+            base_collage_img = Image.open(os.path.join(collage_base_folder_path, f'FID_{anomalous_frame}.png'))
+            ax.axvline(x = anomalous_frame, color = 'black', linestyle = '-')
+            distance_plot_img = save_ax_nosave(ax)
+            distance_plot_img = distance_plot_img.resize((1280,320))
+            ax.lines.pop(-1)
+            collage = Image.new("RGBA", (1280,960))
+            collage.paste(base_collage_img, (0,0))
+            collage.paste(distance_plot_img, (0,640))
+            collage.save(os.path.join(collage_folder_path, collage_name))
+            
+    if cfg.GENERATE_SUMMARY_COLLAGES and create_collage:
+        if missing_collages > 0 and missing_collages != num_anomalous_frames:
+            cprintf('There are missing collages. Deleting collages folder ...', 'l_yellow')
+            shutil.rmtree(collage_folder_path)
+            raise ValueError("Error in number of saved collages. Removing all the collages! Please rerun the code.")
+        elif cfg.CREATE_GIF:
+            make_avi(collage_folder_path, f"{distance_type}_{distance_method}_{pca_dimension}d")
+        
+    # Plot cross track error
+    ax = fig.add_subplot(spec[2, :])
+    color = 'red'
+    ax.set_xlabel('Frame ID', color=color)
+    ax.set_ylabel('cross-track error', color=color)
+    ax.plot(cte_anomalous, label='cross-track error', linewidth= 0.5, linestyle = '-', color=color)
+    yellow_condition = (abs(cte_anomalous)>3.6)&(abs(cte_anomalous)<5.0)
+    orange_condition = (abs(cte_anomalous)>5.0)&(abs(cte_anomalous)<7.0)
+    red_condition = (abs(cte_anomalous)>7.0)
+    ax.axhline(y = 3.6, color = 'yellow', linestyle = '--')
+    ax.axhline(y = -3.6, color = 'yellow', linestyle = '--')
+    ax.axhline(y = 5.0, color = 'orange', linestyle = '--')
+    ax.axhline(y = -5.0, color = 'orange', linestyle = '--')
+    ax.axhline(y = 7.0, color = 'red', linestyle = '--')
+    ax.axhline(y = -7.0, color = 'red', linestyle = '--')    
+    title = f"{heatmap_type} && {pca_dimension}d"
+    ax.set_title(title)
+    ax.legend(loc='upper left')
+ 
+    # path to plotted figure images folder
+    fig_folder_path = os.path.join(cfg.TESTING_DATA_DIR,
+                            anomalous_simulation_name,
+                            "heatmaps-" + heatmap_type,
+                            f"figures_{anomalous_simulation_name}_{nominal_simulation_name}")
+
+    if not os.path.exists(fig_folder_path):
+        os.makedirs(fig_folder_path)
+
+    print('Saving plotted figure ...')
+    plt.savefig(os.path.join(fig_folder_path, f"{distance_type}_{pca_dimension}d.png"), bbox_inches='tight', dpi=300)
+
+    # plt.show()
+    # a = ScrollableWindow(fig)
+    # b = ScrollableGraph(fig, ax)

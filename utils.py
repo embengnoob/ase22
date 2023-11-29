@@ -1,16 +1,31 @@
-import csv
+import sys
 import datetime
 import os
 import shutil
 import time
-
-import cv2
-import matplotlib.image as mpimg
-import matplotlib.pyplot as plt
+import csv
 import numpy as np
 import pandas as pd
+import cv2
+
 import tensorflow
 from tensorflow.keras import backend as K
+
+# Make sure that we are using QT5
+import matplotlib
+matplotlib.use('Qt5Agg')
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from PyQt5 import QtWidgets, QtCore
+import matplotlib.image as mpimg
+
+from colorama import Fore, Back
+from colorama import init
+init(autoreset=True)
+
+import colored_traceback
+colored_traceback.add_hook(always=True)
 
 from config import Config
 
@@ -25,7 +40,81 @@ csv_fieldnames_improved_simulator = ["frameId", "model", "anomaly_detector", "th
                                      "cte", "steering_angle", "throttle", "speed", "brake", "crashed",
                                      "distance", "time", "ang_diff",  # newly added
                                      "center", "tot_OBEs", "tot_crashes", "car_position"]
+csv_fieldnames_in_manual_mode = ["center", "left", "right", "steeringAngle", "throttle", "brake", "speed", "lap", "sector", "cte", "car_position"]
 
+class ScrollableWindow(QtWidgets.QMainWindow):
+    def __init__(self, fig):
+        # self.qapp = QtWidgets.QApplication([])
+        plt.close("all")
+        if not QtWidgets.QApplication.instance():
+            self.app = QtWidgets.QApplication(sys.argv)
+        else:
+            self.app = QtWidgets.QApplication.instance()
+
+        QtWidgets.QMainWindow.__init__(self)
+        self.widget = QtWidgets.QWidget()
+        self.setCentralWidget(self.widget)
+        self.widget.setLayout(QtWidgets.QVBoxLayout())
+        self.widget.layout().setContentsMargins(0,0,0,0)
+        self.widget.layout().setSpacing(0)
+
+        self.fig = fig
+        self.canvas = FigureCanvas(self.fig)
+        self.canvas.draw()
+        self.scroll = QtWidgets.QScrollArea(self.widget)
+        self.scroll.setWidget(self.canvas)
+
+        self.nav = NavigationToolbar(self.canvas, self.widget)
+        self.widget.layout().addWidget(self.nav)
+        self.widget.layout().addWidget(self.scroll)
+
+        self.showMaximized()
+        exit(self.app.exec_())
+
+class ScrollableGraph(QtWidgets.QMainWindow):
+    def __init__(self, fig, ax, step=0.1):
+        plt.close("all")
+        if not QtWidgets.QApplication.instance():
+            self.app = QtWidgets.QApplication(sys.argv)
+        else:
+            self.app = QtWidgets.QApplication.instance() 
+
+        QtWidgets.QMainWindow.__init__(self)
+        self.widget = QtWidgets.QWidget()
+        self.setCentralWidget(self.widget)
+        self.widget.setLayout(QtWidgets.QVBoxLayout())
+        self.widget.layout().setContentsMargins(0,0,0,0)
+        self.widget.layout().setSpacing(0)
+
+        self.fig = fig
+        self.ax = ax
+        self.canvas = FigureCanvas(self.fig)
+        self.canvas.draw()
+        self.scroll = QtWidgets.QScrollBar(QtCore.Qt.Horizontal)
+        self.step = step
+        self.setupSlider()
+        self.nav = NavigationToolbar(self.canvas, self.widget)
+        self.widget.layout().addWidget(self.nav)
+        self.widget.layout().addWidget(self.canvas)
+        self.widget.layout().addWidget(self.scroll)
+
+        self.canvas.draw()
+        self.show()
+        self.app.exec_()
+
+    def setupSlider(self):
+        self.lims = np.array(self.ax.get_xlim())
+        self.scroll.setPageStep(self.step*100)
+        self.scroll.actionTriggered.connect(self.update)
+        self.update()
+
+    def update(self, evt=None):
+        r = self.scroll.value()/((1+self.step)*100)
+        l1 = self.lims[0]+r*np.diff(self.lims)
+        l2 = l1 +  np.diff(self.lims)*self.step
+        self.ax.set_xlim(l1,l2)
+        print(self.scroll.value(), l1,l2)
+        self.fig.canvas.draw_idle()
 
 def load_image(data_dir, image_file):
     """
@@ -430,3 +519,83 @@ def load_autoencoder_from_disk():
 
     # TODO: manage the case in which the files do not exist
     return encoder, decoder
+
+# Colors: BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE, RESET.
+#         LIGHTBLACK_EX, LIGHTRED_EX, LIGHTGREEN_EX, LIGHTYELLOW_EX, LIGHTBLUE_EX,
+#         LIGHTMAGENTA_EX, LIGHTCYAN_EX, LIGHTWHITE_EX
+def cprintf(fstring, color):
+    """
+    Colorful foreground print in terminal.
+    """
+    if color == 'black':
+        print(Fore.BLACK + fstring)
+    elif color == 'red':
+        print(Fore.RED + fstring)
+    elif color == 'green':
+        print(Fore.GREEN + fstring)
+    elif color == 'yellow':
+        print(Fore.YELLOW + fstring)
+    elif color == 'blue':
+        print(Fore.BLUE + fstring)
+    elif color == 'magenta':
+        print(Fore.MAGENTA + fstring)
+    elif color == 'cyan':
+        print(Fore.CYAN + fstring)
+    elif color == 'white':
+        print(Fore.WHITE + fstring)
+    elif color == 'l_black':
+        print(Fore.LIGHTBLACK_EX + fstring)
+    elif color == 'l_red':
+        print(Fore.LIGHTRED_EX + fstring)
+    elif color == 'l_green':
+        print(Fore.LIGHTGREEN_EX + fstring)
+    elif color == 'l_yellow':
+        print(Fore.LIGHTYELLOW_EX + fstring)
+    elif color == 'l_blue':
+        print(Fore.LIGHTBLUE_EX + fstring)
+    elif color == 'l_magenta':
+        print(Fore.LIGHTMAGENTA_EX + fstring)
+    elif color == 'l_cyan':
+        print(Fore.LIGHTCYAN_EX + fstring)
+    elif color == 'l_white':
+        print(Fore.LIGHTWHITE_EX + fstring)
+
+def cprintb(fstring, color):
+    """
+    Colorful background print in terminal.
+    """
+    if color == 'black':
+        print(Back.BLACK + fstring)
+    elif color == 'red':
+        print(Back.RED + fstring)
+    elif color == 'green':
+        print(Back.GREEN + fstring)
+    elif color == 'yellow':
+        print(Back.YELLOW + fstring)
+    elif color == 'blue':
+        print(Back.BLUE + fstring)
+    elif color == 'magenta':
+        print(Back.MAGENTA + fstring)
+    elif color == 'cyan':
+        print(Back.CYAN + fstring)
+    elif color == 'white':
+        print(Back.WHITE + fstring)
+    elif color == 'l_black':
+        print(Back.LIGHTBLACK_EX + fstring)
+    elif color == 'l_red':
+        print(Back.LIGHTRED_EX + fstring)
+    elif color == 'l_green':
+        print(Back.LIGHTGREEN_EX + fstring)
+    elif color == 'l_yellow':
+        print(Back.LIGHTYELLOW_EX + fstring)
+    elif color == 'l_blue':
+        print(Back.LIGHTBLUE_EX + fstring)
+    elif color == 'l_magenta':
+        print(Back.LIGHTMAGENTA_EX + fstring)
+    elif color == 'l_cyan':
+        print(Back.LIGHTCYAN_EX + fstring)
+    elif color == 'l_white':
+        print(Back.LIGHTWHITE_EX + fstring)
+
+
+

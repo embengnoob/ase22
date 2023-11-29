@@ -35,6 +35,12 @@ class Config:
         self.PLOT_THIRDEYE = None
         self.PLOT_POINT_TO_POINT = None
         self.METHOD = None
+        self.GENERATE_SUMMARY_COLLAGES = None
+        self.SUMMARY_COLLAGE_PCA_DIMS = None
+        self.SUMMARY_COLLAGE_DIST_METHODS = None
+        self.SUMMARY_COLLAGE_DIST_TYPES = None
+        self.CREATE_GIF = None
+        self.SAVE_PCA = None
 
     def from_pyfile(self, filename, silent=False):
         # filename = os.path.join(self.root_path, filename)
