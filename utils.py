@@ -27,6 +27,9 @@ init(autoreset=True)
 import colored_traceback
 colored_traceback.add_hook(always=True)
 
+import time
+from datetime import timedelta
+
 from config import Config
 
 RESIZED_IMAGE_HEIGHT, RESIZED_IMAGE_WIDTH = 80, 160

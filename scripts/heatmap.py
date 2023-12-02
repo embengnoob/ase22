@@ -13,7 +13,7 @@ def score_when_decrease(output):
     return -1.0 * output[:, 0]
 
 
-def compute_heatmap(cfg, simulation_name, NUM_OF_FRAMES, MODE, attention_type="SmoothGrad"):
+def compute_heatmap(cfg, nominal, simulation_name, NUM_OF_FRAMES, MODE, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH):
     """
     Given a simulation by Udacity, the script reads the corresponding image paths from the csv and creates a heatmap for
     each driving image. The heatmap is created with the SmoothGrad algorithm available from tf-keras-vis
@@ -22,22 +22,22 @@ def compute_heatmap(cfg, simulation_name, NUM_OF_FRAMES, MODE, attention_type="S
 
     """
 
-    cprintf(f"Computing attention heatmaps for simulation \"{simulation_name}\" using \"{attention_type}\"", 'yellow')
+    cprintf(f"Computing attention heatmaps for simulation \"{simulation_name}\" using \"{attention_type}\" of run id \"{run_id}\"", 'l_cyan')
 
     # load the image file paths from main csv
-    path = os.path.join(cfg.TESTING_DATA_DIR,
-                        simulation_name,
-                        'driving_log.csv')
-    data_df = pd.read_csv(path)
-    data = data_df["center"]
-
+    main_data = pd.read_csv(MAIN_CSV_PATH)
+    data = main_data["center"]
     print("Read %d images from file\n" % len(data))
 
+    if len(data) != NUM_OF_FRAMES:
+        raise ValueError(Fore.RED + f'Length of loaded data:{len(data)} is not the same as number of frames: {NUM_OF_FRAMES}' + Fore.RESET)
+
     # load self-driving car model
-    self_driving_car_model = tensorflow.keras.models.load_model( 
-        Path(os.path.join(cfg.SDC_MODELS_DIR, cfg.SDC_MODEL_NAME)))
+    cprintf(f'Loading self-driving car model: {cfg.SDC_MODEL_NAME}', 'l_yellow')
+    self_driving_car_model = tensorflow.keras.models.load_model(Path(os.path.join(cfg.SDC_MODELS_DIR, cfg.SDC_MODEL_NAME)))
     # model = build_model(cfg.SDC_MODEL_NAME, cfg.USE_PREDICTIVE_UNCERTAINTY)
     # self_driving_car_model = model.load_weights(Path(os.path.join(cfg.SDC_MODELS_DIR, cfg.SDC_MODEL_NAME)))
+
     # load attention model
     saliency = None
     if attention_type == "SmoothGrad":
@@ -48,23 +48,21 @@ def compute_heatmap(cfg, simulation_name, NUM_OF_FRAMES, MODE, attention_type="S
     avg_heatmaps = []
     avg_gradient_heatmaps = []
     list_of_image_paths = []
-    total_time = 0
     prev_hm = gradient = np.zeros((80, 160))
 
-    # HM Path
-    path_save_heatmaps = os.path.join(cfg.TESTING_DATA_DIR,
-                                      simulation_name,
-                                      "heatmaps-" + attention_type.lower(),
-                                      "IMG")
-    
     missing_heatmaps = 0
+
+    cprintf(f'Generating heatmaps and loss scores/plots...', 'l_cyan')
     for idx, img in enumerate(tqdm(data)):
         if MODE != 'new_calc':
             # double-check if every heatmap actually exists
             img_address = img.split('/')[-1]
             img_name = os.path.basename(os.path.normpath(img_address))
             hm_name = "htm-" + attention_type.lower() + '-' + img_name
-            if hm_name in os.listdir(path_save_heatmaps):
+            if hm_name in os.listdir(HEATMAP_IMG_PATH):
+                # store the addresses for the heatmap csv file
+                heatmap_path = os.path.join(HEATMAP_IMG_PATH, hm_name)
+                list_of_image_paths.append(heatmap_path)
                 continue
             else:
                 missing_heatmaps += 1 
@@ -86,6 +84,8 @@ def compute_heatmap(cfg, simulation_name, NUM_OF_FRAMES, MODE, attention_type="S
             saliency_map = saliency(score_when_decrease, x, smooth_samples=20, smooth_noise=0.20)
         elif attention_type == "GradCam++":
             saliency_map = saliency(score_when_decrease, x, penultimate_layer=-1)
+        else:
+            raise ValueError(Fore.RED + f'Unknown heatmap computation method {attention_type} given.' + Fore.RESET)
         
         # compute average of the heatmap
         average = np.average(saliency_map)
@@ -101,7 +101,7 @@ def compute_heatmap(cfg, simulation_name, NUM_OF_FRAMES, MODE, attention_type="S
         # store the heatmaps
         file_name = img.split('/')[-1]
         file_name = "htm-" + attention_type.lower() + '-' + file_name
-        path_name = os.path.join(path_save_heatmaps, file_name)
+        path_name = os.path.join(HEATMAP_IMG_PATH, file_name)
         mpimg.imsave(path_name, np.squeeze(saliency_map))
 
         list_of_image_paths.append(path_name)
@@ -109,72 +109,53 @@ def compute_heatmap(cfg, simulation_name, NUM_OF_FRAMES, MODE, attention_type="S
         avg_heatmaps.append(average)
         avg_gradient_heatmaps.append(average_gradient)
 
+    # score and their plot paths
+    if not nominal:
+        SCORES_FOLDER_PATH = os.path.join(SIM_PATH, run_id)
+        if not os.path.exists(SCORES_FOLDER_PATH):
+            cprintf(f'Loss avg/avg-grad scores folder does not exist. Creating folder ...' ,'l_blue')
+            os.makedirs(SCORES_FOLDER_PATH)
+    else:
+        SCORES_FOLDER_PATH = SIM_PATH
+
+    cprintf(f'Saving loss avg/avg-grad scores and their plots to {SCORES_FOLDER_PATH}' ,'l_yellow')
+    file_name = "htm-" + attention_type.lower() + '-scores'
+    AVG_SCORE_PATH = os.path.join(SCORES_FOLDER_PATH, file_name + '-avg')
+    AVG_PLOT_PATH = os.path.join(SCORES_FOLDER_PATH, 'plot-' + file_name + '-avg.png')
+    AVG_GRAD_SCORE_PATH = os.path.join(SCORES_FOLDER_PATH, file_name + '-avg-grad')
+    AVG_GRAD_PLOT_PATH = os.path.join(SCORES_FOLDER_PATH, 'plot-' + file_name + '-avg-grad.png')
+
     if MODE == 'new_calc':
         # save scores as numpy arrays
-        file_name = "htm-" + attention_type.lower() + '-scores'
-        path_name = os.path.join(cfg.TESTING_DATA_DIR,
-                                simulation_name,
-                                file_name + '-avg')
-        np.save(path_name, avg_heatmaps)
-
+        np.save(AVG_SCORE_PATH, avg_heatmaps)
         # plot scores as histograms
         plt.hist(avg_heatmaps)
         plt.title("average attention heatmaps")
-        path_name = os.path.join(cfg.TESTING_DATA_DIR,
-                                simulation_name,
-                                'plot-' + file_name + '-avg.png')
-        plt.savefig(path_name)
-        #plt.show()
-
-        path_name = os.path.join(cfg.TESTING_DATA_DIR,
-                                simulation_name,
-                                file_name + '-avg-grad')
-        np.save(path_name, avg_gradient_heatmaps)
-
+        plt.savefig(AVG_PLOT_PATH)
+        np.save(AVG_GRAD_SCORE_PATH, avg_gradient_heatmaps)
         plt.clf()
         plt.hist(avg_gradient_heatmaps)
         plt.title("average gradient attention heatmaps")
-        path_name = os.path.join(cfg.TESTING_DATA_DIR,
-                                simulation_name,
-                                'plot-' + file_name + '-avg-grad.png')
-        plt.savefig(path_name)
+        plt.savefig(AVG_GRAD_PLOT_PATH)
         #plt.show()
     else:
         if missing_heatmaps > 0:
             # remove hm folder
-            shutil.rmtree(os.path.join(cfg.TESTING_DATA_DIR, simulation_name, "heatmaps-" + attention_type.lower()))
+            shutil.rmtree(HEATMAP_FOLDER_PATH)
             # remove scores and plots
-            file_name = "htm-" + attention_type.lower() + '-scores'
-            path_name = os.path.join(cfg.TESTING_DATA_DIR,
-                                simulation_name,
-                                file_name + '-avg')
-            os.remove(path_name)
-            path_name = os.path.join(cfg.TESTING_DATA_DIR,
-                                simulation_name,
-                                'plot-' + file_name + '-avg.png')
-            os.remove(path_name)
-            path_name = os.path.join(cfg.TESTING_DATA_DIR,
-                                    simulation_name,
-                                    file_name + '-avg-grad')
-            os.remove(path_name)
-            path_name = os.path.join(cfg.TESTING_DATA_DIR,
-                                    simulation_name,
-                                    'plot-' + file_name + '-avg-grad.png')
-            os.remove(path_name)
-            raise ValueError("Error in number of frames saved heatmaps. Removing all the heatmaps! Please rerun the code.")
+            os.remove(AVG_SCORE_PATH)
+            os.remove(AVG_PLOT_PATH)
+            os.remove(AVG_GRAD_SCORE_PATH)
+            os.remove(AVG_GRAD_PLOT_PATH)
+            raise ValueError("Error in number of frames of aved heatmaps. Removing all the heatmaps! Please rerun the code.")
 
-
-    # save as csv
-    path = os.path.join(cfg.TESTING_DATA_DIR,
-                        simulation_name,
-                        'driving_log.csv')
-    data_df = pd.read_csv(path)
+    # save as csv in heatmap folder
     try:
         # autonomous mode simulation data
-        data = data_df[["frameId", "time", "crashed", "cte", "speed", "car_position", "steering_angle", "throttle"]]
+        data = main_data[["frameId", "time", "crashed", "cte", "speed", "car_position", "steering_angle", "throttle"]]
     except:
         # manual mode simulation data
-        data = data_df[["frameId", "cte", "speed", "car_position", "steeringAngle", "throttle"]]
+        data = main_data[["frameId", "cte", "speed", "car_position", "steeringAngle", "throttle"]]
 
     # copy frame id, simulation time and crashed information from simulation's csv
     # if 'frameId' in data.columns:
@@ -196,9 +177,6 @@ def compute_heatmap(cfg, simulation_name, NUM_OF_FRAMES, MODE, attention_type="S
     except:
         df['steering_angle'] = data['steeringAngle'].copy()
     
-
     # save it as a separate csv
-    df.to_csv(os.path.join(cfg.TESTING_DATA_DIR,
-                           simulation_name,
-                           "heatmaps-" + attention_type.lower(),
-                           'driving_log.csv'), index=False)
+    cprintf(f'Saving CSV file to: {HEATMAP_CSV_PATH}', 'l_yellow')
+    df.to_csv(HEATMAP_CSV_PATH, index=False)
