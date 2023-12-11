@@ -30,10 +30,8 @@ def simExists(cfg, run_id, sim_name, attention_type, nominal):
         HEATMAP_CSV_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, "driving_log.csv")
         HEATMAP_IMG_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, "IMG")
 
-    # add field names to main csv file if it's not there (manual training recording)
-    csv_df = correct_field_names(MAIN_CSV_PATH)
-    # get number of frames
-    NUM_OF_FRAMES = pd.Series.max(csv_df['frameId']) + 1 
+    NUM_OF_FRAMES = get_num_frames(cfg, sim_name)
+
     if not os.path.exists(SIM_PATH):
         raise ValueError(Fore.RED + f"The provided simulation path does not exist: {SIM_PATH}" + Fore.RESET)
 
@@ -86,6 +84,28 @@ def correct_field_names(MAIN_CSV_PATH):
         data = data_df["center"]
     return data_df
 
+def get_num_frames(cfg, sim_name):
+    SIM_PATH = os.path.join(cfg.TESTING_DATA_DIR, sim_name)
+    MAIN_CSV_PATH = os.path.join(SIM_PATH, "driving_log.csv")
+    # add field names to main csv file if it's not there (manual training recording)
+    csv_df = correct_field_names(MAIN_CSV_PATH)
+    # get number of frames
+    NUM_OF_FRAMES = pd.Series.max(csv_df['frameId']) + 1
+    return NUM_OF_FRAMES
+
+def comparison_plot_setup(comp_fig):
+        comp_spec = comp_fig.add_gridspec(nrows=4, ncols=1, width_ratios= [1], height_ratios=[3, 3, 1, 1])
+        pca_ax_nom = comp_fig.add_subplot(comp_spec[0, :], projection='3d')
+        pca_ax_nom.set_title('Nominal PCAs')
+        pca_ax_ano = comp_fig.add_subplot(comp_spec[1, :], projection='3d')
+        pca_ax_ano.set_title('Anomalous PCAs')
+        position_ax = comp_fig.add_subplot(comp_spec[2, :])
+        position_ax.set_title('Positional Mappings')
+        distance_ax = comp_fig.add_subplot(comp_spec[3, :])
+        distance_ax.set_title('Distance Vectors')
+        axes = [pca_ax_nom, pca_ax_ano, position_ax, distance_ax]
+        return axes, comp_fig
+
 if __name__ == '__main__':
     start_time = time.monotonic()
     os.chdir(os.getcwd().replace('scripts', ''))
@@ -103,18 +123,37 @@ if __name__ == '__main__':
                        'track1-sunny-positioned-nominal',
                        'track1-sunny-positioned-nominal',
                        'track1-sunny-positioned-nominal']
-    RUN_ID_NUMBERS = [[1, 2, 3],
-                      [1, 2, 3],
-                      [1, 2, 3],
-                      [1, 2, 3],
-                      [1, 2, 3],
-                      [1, 2, 3]]
-    SUMMARY_COLLAGES = [[False, False, False],
-                        [False, False, False],
-                        [False, False, False],
-                        [False, False, False],
-                        [False, False, False],
-                        [False, False, False]]
+    RUN_ID_NUMBERS = [[1],
+                      [1],
+                      [1],
+                      [1],
+                      [1],
+                      [1]]
+    SUMMARY_COLLAGES = [[False],
+                        [False],
+                        [False],
+                        [False],
+                        [False],
+                        [False]]
+    # ANO_SIMULATIONS = ['test1', 'test2', 'test3', 'test4', 'test5', 'track1-sunny-positioned-nominal-as-anomalous'] # , 'test2', 'test3', 'test4', 'test5'
+    # NOM_SIMULATIONS = ['track1-sunny-positioned-nominal',
+    #                    'track1-sunny-positioned-nominal',
+    #                    'track1-sunny-positioned-nominal',
+    #                    'track1-sunny-positioned-nominal',
+    #                    'track1-sunny-positioned-nominal',
+    #                    'track1-sunny-positioned-nominal']
+    # RUN_ID_NUMBERS = [[1, 2, 3],
+    #                   [1, 2, 3],
+    #                   [1, 2, 3],
+    #                   [1, 2, 3],
+    #                   [1, 2, 3],
+    #                   [1, 2, 3]]
+    # SUMMARY_COLLAGES = [[False, False, False],
+    #                     [False, False, False],
+    #                     [False, False, False],
+    #                     [False, False, False],
+    #                     [False, False, False],
+    #                     [False, False, False]]
     
     if len(ANO_SIMULATIONS) != len(NOM_SIMULATIONS):
         raise ValueError(Fore.RED + f"Mismatch in number of specified ANO and NOM simulations: {len(ANO_SIMULATIONS)} != {len(NOM_SIMULATIONS)} " + Fore.RESET)
@@ -123,6 +162,19 @@ if __name__ == '__main__':
     elif len(SUMMARY_COLLAGES) != len(RUN_ID_NUMBERS):
         raise ValueError(Fore.RED + f"Mismatch in number of runs and specified summary collage patterns: {len(SUMMARY_COLLAGES)} != {len(RUN_ID_NUMBERS)} " + Fore.RESET)
     
+    HEATMAP_TYPES = ['RectGrad'] #'GradCam++', 'SmoothGrad', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient*Input', 'IntegGrad', 'Epsilon_LRP'
+    DISTANCE_METHODS = ['pairwise_distance']
+    DISTANCE_TYPES = ['euclidean']
+    summary_types = ['-avg', '-avg-grad']
+    aggregation_methods = ['mean', 'max']
+    abstraction_methods = ['avg', 'variance']
+    # distance_methods = ['pairwise_distance',
+    #                     'cosine_similarity',
+    #                     'polynomial_kernel',
+    #                     'sigmoid_kernel',
+    #                     'rbf_kernel',
+    #                     'laplacian_kernel'] #'chi2_kernel'
+
     total_runs = 0
     for idx, run_pattern in enumerate(RUN_ID_NUMBERS):
         total_runs += len(run_pattern)
@@ -131,6 +183,29 @@ if __name__ == '__main__':
     
     # Starting evaluation
     for sim_idx, sim_name in enumerate(ANO_SIMULATIONS):
+        num_of_frames = get_num_frames(cfg, sim_name)
+        # Number between 0 and min(n_samples, n_features)
+        PCA_DIMENSIONS = [100] # [100, 500, num_of_frames]
+        comparison_figs = []
+        # # run comparison fig
+        # if (cfg.METHOD == 'test') or (cfg.METHOD == 'p2p'):
+        #     for ht_idx, heatmap_type in enumerate(HEATMAP_TYPES):
+        #         for dm_idx, distance_method in enumerate(DISTANCE_METHODS):
+        #             for dt_idx, distance_type in enumerate(DISTANCE_TYPES):
+        #                 for pca_idx, pca_dimension in enumerate(PCA_DIMENSIONS):
+            # NUM_OF_COMP_FIGS = len(HEATMAP_TYPES)*len(DISTANCE_METHODS)*len(DISTANCE_TYPES)*(len(PCA_DIMENSIONS)+1)
+        # General run comparison
+        gen_axes, gen_comp_fig = comparison_plot_setup(plt.figure(figsize=(20,15), constrained_layout=False))
+        # PCA_based run comparison
+        pca_axes_list = []
+        pca_comp_fig_list = []
+        for pca_dim in PCA_DIMENSIONS:
+            pca_axes, pca_comp_fig = comparison_plot_setup(plt.figure(figsize=(20,15), constrained_layout=False))
+            pca_axes_list.append(pca_axes)
+            pca_comp_fig_list.append(pca_comp_fig)
+
+        run_results = []
+        run_keys = []                
         for run_number in range(len(RUN_ID_NUMBERS[sim_idx])):
             # Check if a simulation with this run number already exists
             run_id = RUN_ID_NUMBERS[sim_idx][run_number]
@@ -140,28 +215,11 @@ if __name__ == '__main__':
             cfg.SIMULATION_NAME = SIMULATION_NAME_ANOMALOUS
             cfg.SIMULATION_NAME_NOMINAL = SIMULATION_NAME_NOMINAL
             cfg.GENERATE_SUMMARY_COLLAGES = SUMMARY_COLLAGES[sim_idx][run_number]
-        
-            HEATMAP_TYPES = ['SmoothGrad'] #GradCam++, SmoothGrad
-            summary_types = ['-avg', '-avg-grad']
-            aggregation_methods = ['mean', 'max']
-            # distance_methods = ['pairwise_distance',
-            #                     'cosine_similarity',
-            #                     'polynomial_kernel',
-            #                     'sigmoid_kernel',
-            #                     'rbf_kernel',
-            #                     'laplacian_kernel'] #'chi2_kernel'
-            DISTANCE_METHODS = ['pairwise_distance']
-            DISTANCE_TYPES = ['euclidean']
-            abstraction_methods = ['avg', 'variance']
 
             # check whether nominal and anomalous simulation and the corresponding heatmaps are already generated, generate them otherwise
             for attention_type in HEATMAP_TYPES:
                 NUM_FRAMES_NOM, NOMINAL_PATHS = simExists(cfg, str(run_id), sim_name=SIMULATION_NAME_NOMINAL, attention_type=attention_type, nominal=True) 
                 NUM_FRAMES_ANO, ANOMALOUS_PATHS = simExists(cfg, str(run_id), sim_name=SIMULATION_NAME_ANOMALOUS, attention_type=attention_type, nominal=False)
-
-            # Number between 0 and min(n_samples, n_features)
-            PCA_DIMENSIONS = [100, 500, NUM_FRAMES_ANO]
-
             if cfg.METHOD == 'thirdeye':
                 # get number of OOTs
                 path = os.path.join(cfg.TESTING_DATA_DIR,
@@ -238,25 +296,91 @@ if __name__ == '__main__':
                                                                 axs=axs)
                 plt.show()
             elif cfg.METHOD == 'test':
+                if cfg.NOM_VS_NOM_TEST:
+                    pca_values = []
+                    pca_keys = []
                 for heatmap_type in HEATMAP_TYPES:
                     for distance_method in DISTANCE_METHODS:
                         for distance_type in DISTANCE_TYPES:
                             for pca_dimension in PCA_DIMENSIONS:
-                                cprintb(f'\n########### Using Distance Method: \"{distance_method}\" ###########', 'l_blue')
+                                cprintb(f'\n########### run number {run_number+1} ############## run id {run_id} ##############', 'l_blue')
+                                cprintb(f'########### Using Distance Method: \"{distance_method}\" ###########', 'l_blue')
                                 cprintb(f'########### Using Distance Type: \"{distance_type}\" ###########', 'l_blue')
                                 cprintb(f'########### Using PCA Dimension: {pca_dimension} ###########', 'l_blue')
-                                test(cfg,
-                                     NOMINAL_PATHS,
-                                     ANOMALOUS_PATHS,
-                                     NUM_FRAMES_NOM,
-                                     NUM_FRAMES_ANO,
-                                     heatmap_type=heatmap_type,
-                                     anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
-                                     nominal_simulation_name=SIMULATION_NAME_NOMINAL,
-                                     distance_method=distance_method,
-                                     distance_type=distance_type,
-                                     pca_dimension=pca_dimension,
-                                     run_id=run_id)
-    
+                                x_ano_all_frames, x_nom_all_frames, pca_ano, pca_nom = test(cfg,
+                                                                                            NOMINAL_PATHS,
+                                                                                            ANOMALOUS_PATHS,
+                                                                                            NUM_FRAMES_NOM,
+                                                                                            NUM_FRAMES_ANO,
+                                                                                            heatmap_type=heatmap_type,
+                                                                                            anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
+                                                                                            nominal_simulation_name=SIMULATION_NAME_NOMINAL,
+                                                                                            distance_method=distance_method,
+                                                                                            distance_type=distance_type,
+                                                                                            pca_dimension=pca_dimension,
+                                                                                            PCA_DIMENSIONS=PCA_DIMENSIONS,
+                                                                                            run_id=run_id,
+                                                                                            gen_axes=gen_axes,
+                                                                                            pca_axes_list=pca_axes_list)
+                                if cfg.NOM_VS_NOM_TEST:
+                                    pca_values.append([x_ano_all_frames, x_nom_all_frames, pca_ano, pca_nom])
+                                    pca_keys.append([f'x_ano_all_frames-{pca_dimension}d', f'x_nom_all_frames-{pca_dimension}d', f'pca_ano-{pca_dimension}d', f'pca_nom-{pca_dimension}d'])
+
+            if cfg.NOM_VS_NOM_TEST:
+                run_results.append(pca_values)
+                run_keys.append(pca_keys)
+        if cfg.NOM_VS_NOM_TEST:
+            COMP_VARIABLES = ['x_ano_all_frames', 'x_nom_all_frames', 'pca_ano', 'pca_nom']
+            for pca_idx in range(3):
+                for var_idx in range(4):
+                    for run_num in range(3):
+                        print(f'run num:{run_num+1}, pca_dim:{PCA_DIMENSIONS[pca_idx]}[{pca_idx}], len({COMP_VARIABLES[var_idx]}): {run_results[run_num][pca_idx][var_idx].shape}')
+
+            for pca_dim_idx in range(3):
+                for compared_var_idx in range(4):
+                    print(f"\npca_dim_idx: {pca_dim_idx}, compared_var_idx: {compared_var_idx}")    
+                    if np.array_equal(run_results[0][pca_dim_idx][compared_var_idx], run_results[1][pca_dim_idx][compared_var_idx]):
+                        pass
+                    else:
+                        term1 = run_results[0][pca_dim_idx][compared_var_idx]
+                        term2 = run_results[1][pca_dim_idx][compared_var_idx]
+                        print(f'1: run1 {run_keys[0][pca_dim_idx][compared_var_idx]}: {term1.shape}')
+                        print(f'2: run2 {run_keys[1][pca_dim_idx][compared_var_idx]}: {term2.shape}')
+                        cprintf(f"different results run1 vs run2, pca_dim:{PCA_DIMENSIONS[pca_dim_idx]}, {COMP_VARIABLES[compared_var_idx]}", 'l_red')
+                        num_of_different = np.sum(term1 == term2)
+                        cprintf(f"number of different results: {num_of_different} of {term1.shape[0]*term1.shape[1]}\n", 'l_yellow')
+
+
+                    # if np.array_equal(run_results[1][pca_dim_idx][compared_var_idx], run_results[2][pca_dim_idx][compared_var_idx]):
+                    #     pass
+                    # else:
+                    #     term1 = run_results[1][pca_dim_idx][compared_var_idx]
+                    #     term2 = run_results[2][pca_dim_idx][compared_var_idx]
+                    #     print(f'1: run2 {run_keys[1][pca_dim_idx][compared_var_idx]}: {term1.shape}')
+                    #     print(f'2: run3 {run_keys[2][pca_dim_idx][compared_var_idx]}: {term2.shape}')
+                    #     cprintf(f"different results run2 vs run3, pca_dim:{PCA_DIMENSIONS[pca_dim_idx]}, {COMP_VARIABLES[compared_var_idx]}", 'l_red')
+                    #     num_of_different = np.sum(term1 == term2)
+                    #     cprintf(f"number of different results: {num_of_different} of {term1.shape[0]*term1.shape[1]}\n", 'l_yellow')
+
+                    # if np.array_equal(run_results[0][pca_dim_idx][compared_var_idx], run_results[2][pca_dim_idx][compared_var_idx]):
+                    #     pass
+                    # else:
+                    #     term1 = run_results[0][pca_dim_idx][compared_var_idx]
+                    #     term2 = run_results[2][pca_dim_idx][compared_var_idx]
+                    #     print(f'1: run1 {run_keys[0][pca_dim_idx][compared_var_idx]}: {term1.shape}')
+                    #     print(f'2: run3 {run_keys[2][pca_dim_idx][compared_var_idx]}: {term2.shape}')
+                    #     cprintf(f"different results run1 vs run3, pca_dim:{PCA_DIMENSIONS[pca_dim_idx]}, {COMP_VARIABLES[compared_var_idx]}", 'l_red')
+                    #     num_of_different = np.sum(term1 == term2)
+                    #     cprintf(f"number of different results: {num_of_different} of {term1.shape[0]*term1.shape[1]}\n", 'l_yellow')
+
+        # save png of run comparisons
+        if cfg.COMPARE_RUNS:
+            RUN_ID_NUMBERS_STR = '-'.join(str(rn) for rn in RUN_ID_NUMBERS[sim_idx])
+            ANOMALOUS_HEATMAP_PARENT_FOLDER_PATH = ANOMALOUS_PATHS[2]
+            cprintf(f'\nSaving comparison figures of runs {RUN_ID_NUMBERS_STR} ...', 'l_yellow') 
+            gen_comp_fig.savefig(os.path.join(ANOMALOUS_HEATMAP_PARENT_FOLDER_PATH, f"comparison_of_runs_{RUN_ID_NUMBERS_STR}_all.png"), bbox_inches='tight', dpi=300)
+            for idx, pca_based_comp_fig in enumerate(pca_comp_fig_list):
+                pca_based_comp_fig.savefig(os.path.join(ANOMALOUS_HEATMAP_PARENT_FOLDER_PATH, f"comparison_of_runs_{RUN_ID_NUMBERS_STR}_pca_dim_{PCA_DIMENSIONS[idx]}.png"), bbox_inches='tight', dpi=300)
+
     end_time = time.monotonic()
     cprintf(f"Completed {total_runs} evaluation run(s) of {len(ANO_SIMULATIONS)} simulation(s) in {timedelta(seconds=end_time-start_time)}", 'yellow')

@@ -39,8 +39,13 @@ class Config:
         self.SUMMARY_COLLAGE_PCA_DIMS = None
         self.SUMMARY_COLLAGE_DIST_METHODS = None
         self.SUMMARY_COLLAGE_DIST_TYPES = None
-        self.CREATE_GIF = None
+        self.CREATE_VIDEO = None
+        self.PCA = None
         self.SAVE_PCA = None
+        self.EMD = None
+        self.NOM_VS_NOM_TEST = None
+        self.COMPARE_RUNS = None
+        self.SPARSE_ATTRIBUTION = None
 
     def from_pyfile(self, filename, silent=False):
         # filename = os.path.join(self.root_path, filename)

@@ -9,7 +9,7 @@ import glob
 from PIL import Image, ImageFont, ImageDraw
 import matplotlib.pyplot as plt
 from keras import backend as K
-from scipy.stats import gamma
+from scipy.stats import gamma, wasserstein_distance
 from sklearn import preprocessing
 from sklearn.metrics import pairwise_distances_argmin_min, pairwise_distances, pairwise
 from sklearn.decomposition import PCA
@@ -973,9 +973,9 @@ def make_gif(frame_folder, name):
 #####################################   TEST   #######################################
 ######################################################################################
 
-def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, 
-         heatmap_type, anomalous_simulation_name, nominal_simulation_name,
-         distance_method, distance_type, pca_dimension, run_id):
+def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, heatmap_type,
+         anomalous_simulation_name, nominal_simulation_name, distance_method, distance_type,
+         pca_dimension, PCA_DIMENSIONS, run_id, gen_axes, pca_axes_list):
 
     # PATHS = [SIM_PATH, MAIN_CSV_PATH, HEATMAP_PARENT_FOLDER_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH]
     NOMINAL_SIM_PATH = NOMINAL_PATHS[0]
@@ -992,6 +992,41 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO,
     ANOMALOUS_HEATMAP_CSV_PATH = ANOMALOUS_PATHS[4]
     ANOMALOUS_HEATMAP_IMG_PATH = ANOMALOUS_PATHS[5]
 
+    if cfg.NOM_VS_NOM_TEST:
+        # check if nominal and anomalous heatmaps are exactly the same
+        ano_heatmap = pd.read_csv(ANOMALOUS_HEATMAP_CSV_PATH)
+        ano_heatmap_center = ano_heatmap["center"]
+        print("Read %d anomalous heatmaps from file" % len(ano_heatmap_center))
+
+        nom_heatmap = pd.read_csv(NOMINAL_HEATMAP_CSV_PATH)
+        nom_heatmap_center = nom_heatmap["center"]
+        print("Read %d nominal heatmaps from file" % len(nom_heatmap_center))
+
+        different_heatmaps = 0
+        differences = []
+        for ano_idx, ano_img_address in enumerate(tqdm(ano_heatmap_center)):
+
+            # convert Windows path, if needed
+            ano_img_address = correct_windows_path(ano_img_address)
+            nom_img_address = correct_windows_path(nom_heatmap_center[ano_idx])
+
+            # load image
+            ano_img = mpimg.imread(ano_img_address)
+            nom_img = mpimg.imread(nom_img_address)
+
+            if np.array_equal(ano_img, nom_img):
+               pass
+            else:
+                different_heatmaps += 1
+                num_of_different = np.sum(ano_img == nom_img)
+                differences.append(num_of_different)
+            # preprocess image
+            # x = utils.resize(x).astype('float32')
+        
+        if different_heatmaps == 0:
+            cprintf(f"All ano_img, nom_img are the same", 'l_green')
+        else:
+            cprintf(f"{different_heatmaps} different heatmaps", 'l_red')
 
     # 1. find the closest frame from anomalous sim to the frame in nominal sim (comparing car position)
     # nominal simulation
@@ -1060,13 +1095,20 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO,
         raise ValueError(Fore.RED + f"Length of oaded positional mapping array (from CSV file above) \"{len(pos_mappings)}\" does not match the number of anomalous frames: {num_anomalous_frames}" + Fore.RESET)
     # np.set_printoptions(threshold=False)
 
-    # 2. Principal component analysis to project heat-maps to a point in a lower dim space
-    pca = PCA(n_components=pca_dimension)
+    if cfg.PCA:
+        # 2. Principal component analysis to project heat-maps to a point in a lower dim space
+        pca = PCA(n_components=pca_dimension, random_state=999)
 
-    # initialize arrays
-    ht_height, ht_width = get_heatmaps(0, anomalous, nominal, pos_mappings, return_size=True, return_IMAGE=False)
-    x_ano_all_frames = np.zeros((num_anomalous_frames, ht_height*ht_width))
-    x_nom_all_frames = np.zeros((num_anomalous_frames, ht_height*ht_width))
+        # initialize arrays
+        ht_height, ht_width = get_heatmaps(0, anomalous, nominal, pos_mappings, return_size=True, return_IMAGE=False)
+        x_ano_all_frames = np.zeros((num_anomalous_frames, ht_height*ht_width))
+        x_nom_all_frames = np.zeros((num_anomalous_frames, ht_height*ht_width))
+
+    if cfg.EMD:
+        # distance_vector_EMD = np.zeros((num_anomalous_frames))
+        distance_vector_EMD_std = np.zeros((num_anomalous_frames))
+        # distance_vector_EMD_norm = np.zeros((num_anomalous_frames))
+        # distance_vector_EMD_std_norm = np.zeros((num_anomalous_frames))
 
     if cfg.GENERATE_SUMMARY_COLLAGES:
         missing_collages = 0
@@ -1086,6 +1128,8 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO,
             cprintf(f'Generating base summary collages, and ...', 'l_cyan')
 
     cprintf(f'Reshaping positionally corresponding heatmaps into two arrays ...', 'l_cyan')
+    if cfg.NOM_VS_NOM_TEST:
+        diff_ctr = 0
     for anomalous_frame in tqdm(range(num_anomalous_frames)):
         # load the centeral camera heatmaps of this anomalous frame and the closest nominal frame in terms of position
         ano_heatmap, closest_nom_heatmap = get_heatmaps(anomalous_frame, anomalous, nominal, pos_mappings, return_size=False, return_IMAGE=False)
@@ -1093,14 +1137,33 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO,
         # convert to grayscale
         x_ano = cv2.cvtColor(ano_heatmap, cv2.COLOR_BGR2GRAY)
         x_nom = cv2.cvtColor(closest_nom_heatmap, cv2.COLOR_BGR2GRAY)
-
+        
         ano_std_scale = preprocessing.StandardScaler().fit(x_ano)
         x_ano_std = ano_std_scale.transform(x_ano)
         nom_std_scale = preprocessing.StandardScaler().fit(x_nom)
         x_nom_std = nom_std_scale.transform(x_nom)
 
+        if cfg.EMD:
+            # x_ano_normalized = cv2.normalize(x_ano, None, 0, 1.0, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+            # x_nom_normalized = cv2.normalize(x_nom, None, 0, 1.0, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+            # x_ano_std_normalized = cv2.normalize(x_ano_std, None, 0, 1.0, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+            # x_nom_std_normalized = cv2.normalize(x_nom_std, None, 0, 1.0, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+            # distance_vector_EMD[anomalous_frame] = wasserstein_distance(x_ano.flatten(), x_nom.flatten())
+            distance_vector_EMD_std[anomalous_frame] = wasserstein_distance(x_ano_std.flatten(), x_nom_std.flatten())
+            # distance_vector_EMD_norm[anomalous_frame] = wasserstein_distance(x_ano_normalized.flatten(), x_nom_normalized.flatten())
+            # distance_vector_EMD_std_norm[anomalous_frame] = wasserstein_distance(x_ano_std_normalized.flatten(), x_nom_std_normalized.flatten())
         x_ano_all_frames[anomalous_frame,:] = x_ano_std.flatten()
         x_nom_all_frames[anomalous_frame,:] = x_nom_std.flatten()
+
+        if cfg.NOM_VS_NOM_TEST:
+            if np.array_equal(x_ano_std.flatten(), x_nom_std.flatten(), equal_nan=True):
+                # cprintf(f"x_ano_std.flatten(), x_nom_std are the same.flatten()", 'l_green')
+                pass
+            else:
+                num_of_different = np.sum(x_ano_std.flatten() == x_nom_std.flatten())
+                cprintf(f"{x_ano_std.flatten() == x_nom_std.flatten()}\n", 'l_red')
+                cprintf(f"STD: number of different results: {num_of_different}\n", 'l_red')
+                diff_ctr += 1
 
         if cfg.GENERATE_SUMMARY_COLLAGES:
             # double-check if every collage actually exists
@@ -1153,7 +1216,24 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO,
     print(f'x_nom_std.shape is {x_nom_std.shape}')
     print(f'x_ano_all_frames.shape is {x_ano_all_frames.shape}')
     print(f'x_nom_all_frames.shape is {x_nom_all_frames.shape}')
-
+##############################################################################################################
+    # if cfg.NOM_VS_NOM_TEST:
+    #     print(f"diff_counter: {diff_ctr}\n")
+    #     if np.array_equal(x_ano_all_frames, x_nom_all_frames, equal_nan=True):
+    #         cprintf(f"x_ano_all_frames, x_nom_all_frames are the same", 'l_green')
+    #     else:
+    #         num_of_different = np.sum(x_ano_all_frames == x_nom_all_frames)
+    #         cprintf(f"number of different results: {num_of_different}\n", 'l_red')
+    #     #     diff_ctr = 0
+    #     #     diff_rows = []
+    #     #     ground_truth = (x_ano_all_frames == x_nom_all_frames)
+    #     #     for row in tqdm(ground_truth):
+    #     #         for ele in row:
+    #     #             if ele == False:
+    #     #                 diff_ctr += 1
+    #     # print(f"diff_counter: {diff_ctr}\n")
+    #     # print(f"diff_dims: {diff_rows}\n")
+    #     #np.savetxt(os.path.join(ANOMALOUS_SIM_PATH,f'x_ano_all_frames.csv'), x_ano_all_frames, delimiter=",")
     if cfg.SAVE_PCA:
         cprintf(f"WARNING: It's best to calculate PCA instead of saving it. Loading method is not tested", 'yellow')
         # path to pca csv file
@@ -1184,9 +1264,50 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO,
         cprintf(f"Performing PCA conversion using {pca_dimension} dimensions ...", 'l_cyan')
         pca_ano = pca.fit_transform(x_ano_all_frames)
         pca_nom = pca.fit_transform(x_nom_all_frames)
+        if cfg.NOM_VS_NOM_TEST:
+            pca_ano_2 = pca.fit_transform(x_ano_all_frames)
         cprintf(f'pca_ano.shape is {pca_ano.shape}', 'l_magenta')
         cprintf(f'pca_nom.shape is {pca_nom.shape}', 'l_magenta')
-
+    ##############################################################################################################
+    # if cfg.NOM_VS_NOM_TEST:
+        # if np.array_equal(pca_ano, pca_ano_2):
+        #     cprintf(f"pca_ano, pca_ano_2 are the same", 'l_green')
+        # else:
+        #     if np.allclose(pca_ano, pca_ano_2):
+        #         cprintf(f'They are close', 'l_green')
+        #     num_of_different = np.sum(pca_ano == pca_ano_2)
+        #     cprintf(f"number of different results: {num_of_different}\n", 'l_red')
+        #     diff_ctr = 0
+        #     diff_dims = []
+        #     for row_idx, row in tqdm(enumerate(pca_ano == pca_ano_2)):
+        #         for col_idx, ele in enumerate(row):
+        #             if ele == False:
+        #                 cprintf(f"false_idx: {(row_idx, col_idx)}", 'l_yellow')
+        #                 cprintf(f"pca_ano({pca_ano[row_idx][col_idx]}) != pca_nom({pca_ano_2[row_idx][col_idx]})\n", 'l_red')
+        #                 diff_ctr += 1
+        #                 if col_idx+1 not in diff_dims:
+        #                     diff_dims.append(col_idx+1)
+        #             else:
+        #                 # cprintf(f"{ele}", 'l_green')
+        #                 pass
+        # print(f"diff_counter: {diff_ctr}\n")
+        # print(f"diff_dims: {diff_dims}\n")
+        #     num_of_different = np.sum(pca_ano == pca_nom)
+        #     cprintf(f"number of different results: {num_of_different}\n", 'l_red')
+        #     diff_ctr = 0
+        #     diff_dims = []
+        #     for row_idx, row in tqdm(enumerate(pca_ano == pca_nom)):
+        #         for col_idx, ele in enumerate(row):
+        #             if ele == False:
+        #                 # cprintf(f"false_idx: {(row_idx, col_idx)}", 'l_yellow')
+        #                 # cprintf(f"pca_ano({pca_ano[row_idx][col_idx]}) != pca_nom({pca_nom[row_idx][col_idx]})\n", 'l_red')
+        #                 diff_ctr += 1
+        #                 if col_idx+1 not in diff_dims:
+        #                     diff_dims.append(col_idx+1)
+        #             else:
+        #                 cprintf(f"{ele}", 'l_green')
+        # print(f"diff_counter: {diff_ctr}\n")
+        # print(f"diff_dims: {diff_dims}\n")
     # path to csv file containing distance vector
     DISTANCE_VECTOR_PATH = os.path.join(ANOMALOUS_HEATMAP_FOLDER_PATH,
                                         f'dist_vect_{distance_method}_{distance_type}_{pca_dimension}d.csv')
@@ -1195,7 +1316,7 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO,
     if not os.path.exists(DISTANCE_VECTOR_PATH):
         cprintf(f"Distance vector list for \"{distance_method}\" of type \"{distance_type}\" and PCA dimension \"{pca_dimension}\" does not exist. Generating list ...", 'l_blue')
         if distance_method == 'pairwise_distance':
-            distance_vector = pairwise.paired_distances(pca_ano, pca_nom, metric=distance_type)
+            distance_vector = pairwise.paired_distances(abs(pca_ano), abs(pca_nom), metric=distance_type)
         else:
             raise ValueError(f"Distance method \"{distance_method}\" is not defined.")
         # save list of positional mappings
@@ -1207,8 +1328,9 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO,
         cprintf(f"Loading CSV file from {DISTANCE_VECTOR_PATH} ...", 'l_yellow')
         distance_vector = np.loadtxt(DISTANCE_VECTOR_PATH, dtype='float')
 
-    fig = plt.figure(figsize=(20,15), constrained_layout=False)
-    spec = fig.add_gridspec(nrows=3, ncols=1, width_ratios= [1], height_ratios=[3, 1, 1])
+    NUM_OF_AXES = 4
+    fig = plt.figure(figsize=(24,4*NUM_OF_AXES), constrained_layout=False)
+    spec = fig.add_gridspec(nrows=4, ncols=1, width_ratios= [1], height_ratios=[3, 1, 1, 1])
 
     # Plot pca cluster
     if pca_dimension == 2:
@@ -1313,12 +1435,46 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO,
         elif missing_collages == 0:
             cprintf(f"All completed collages already exist.", 'l_green')
 
-        if cfg.CREATE_GIF:
+        if cfg.CREATE_VIDEO:
             VIDEO_FOLDER_PATH = os.path.join(COLLAGES_PARENT_FOLDER_PATH, 'video')
             make_avi(COLLAGES_FOLDER_PATH, VIDEO_FOLDER_PATH, f"{distance_type}_{distance_method}_{pca_dimension}d")
-        
-    # Plot cross track error
+    
+    # plot EMD scores
+    # EMD_distance_vectors = [distance_vector_EMD, distance_vector_EMD_norm, distance_vector_EMD_std, distance_vector_EMD_std_norm]
+    # EMD_labels = ['EMD', 'EMD_norm', 'EMD_std', 'EMD_std_norm']
+    # for i in range(2, 6):
+    #     ax = fig.add_subplot(spec[i, :])
+    #     distance_vector_type = EMD_distance_vectors[i-2]
+    #     label = EMD_labels[i-2]
+    #     # plot ranges
+    #     plot_ranges(ax, cte_anomalous, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER,
+    #                 ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
+    #     plot_crash_ranges(ax, speed_anomalous)
+    #     # Plot distance scores
+    #     color = 'green'
+    #     # ax.set_xlabel('Frame ID', color=color)
+    #     ax.set_ylabel(f'EMD scores', color=color)
+    #     ax.plot(distance_vector_type, label=label, linewidth= 0.5, linestyle = '-', color=color)
+    #     title = f"{heatmap_type} && {label}"
+    #     ax.set_title(title)
+    #     ax.legend(loc='upper left')
+
     ax = fig.add_subplot(spec[2, :])
+    # plot ranges
+    plot_ranges(ax, cte_anomalous, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER,
+                ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
+    plot_crash_ranges(ax, speed_anomalous)
+    # Plot distance scores
+    color = 'green'
+    ax.set_xlabel('Frame ID', color=color)
+    ax.set_ylabel(f'EMD scores', color=color)
+    ax.plot(distance_vector_EMD_std, label='EMD standardized', linewidth= 0.5, linestyle = '-', color=color)
+    title = f"{heatmap_type} && EMD standardized"
+    ax.set_title(title)
+    ax.legend(loc='upper left')
+
+    # Plot cross track error
+    ax = fig.add_subplot(spec[3, :])
     color = 'red'
     ax.set_xlabel('Frame ID', color=color)
     ax.set_ylabel('cross-track error', color=color)
@@ -1350,11 +1506,35 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO,
         os.makedirs(ALL_RUNS_FIGURE_PATH)
 
 
-    cprintf(f'\nSaving plotted figure ...', 'l_yellow')
+    cprintf(f'\nSaving plotted figure to {FIGURES_FOLDER_PATH} ...', 'l_yellow')
     plt.savefig(os.path.join(FIGURES_FOLDER_PATH, f"{distance_type}_{pca_dimension}d.png"), bbox_inches='tight', dpi=300)
     plt.savefig(os.path.join(ALL_RUNS_FIGURE_PATH, f"run_id_{run_id}_{distance_type}.png"), bbox_inches='tight', dpi=300)
-
 
     # plt.show()
     # a = ScrollableWindow(fig)
     # b = ScrollableGraph(fig, ax)
+    if cfg.COMPARE_RUNS:
+        cprintf(f'Plotting run comparison diagramms ...', 'l_cyan')
+        # general_axes = [pca_ax_nom, pca_ax_ano, position_ax, distance_ax]
+        # pca_based_axes = [pca_based_pca_ax_nom, pca_based_pca_ax_ano, pca_based_position_ax, pca_based_distance_ax] 
+        gen_axes[0].scatter(pca_nom[:,0], pca_nom[:,1], pca_nom[:,2], label=f"{run_id}_{pca_dimension}_{distance_type}")
+        gen_axes[0].legend(loc='upper left')
+        gen_axes[1].scatter(pca_ano[:,0], pca_ano[:,1], pca_ano[:,2], label=f"{run_id}_{pca_dimension}_{distance_type}")
+        gen_axes[1].legend(loc='upper left')
+        gen_axes[2].plot(pos_mappings, label=f"{run_id}_{pca_dimension}_{distance_type}", linewidth= 0.5, linestyle = '-')
+        gen_axes[2].legend(loc='upper left')
+        gen_axes[3].plot(distance_vector, label=f"{run_id}_{pca_dimension}_{distance_type}", linewidth= 0.5, linestyle = '-')
+        gen_axes[3].legend(loc='upper left')
+        
+        pca_index = PCA_DIMENSIONS.index(pca_dimension)
+        pca_axes_list[pca_index][0].scatter(pca_nom[:,0], pca_nom[:,1], pca_nom[:,2], label=f"{run_id}_{pca_dimension}_{distance_type}")
+        pca_axes_list[pca_index][0].legend(loc='upper left')
+        pca_axes_list[pca_index][1].scatter(pca_ano[:,0], pca_ano[:,1], pca_ano[:,2], label=f"{run_id}_{pca_dimension}_{distance_type}")
+        pca_axes_list[pca_index][1].legend(loc='upper left')
+        pca_axes_list[pca_index][2].plot(pos_mappings, label=f"{run_id}_{pca_dimension}_{distance_type}", linewidth= 0.5, linestyle = '-')
+        pca_axes_list[pca_index][2].legend(loc='upper left')
+        pca_axes_list[pca_index][3].plot(distance_vector, label=f"{run_id}_{pca_dimension}_{distance_type}", linewidth= 0.5, linestyle = '-')
+        pca_axes_list[pca_index][3].legend(loc='upper left')
+
+    return x_ano_all_frames, x_nom_all_frames, pca_ano, pca_nom
+    

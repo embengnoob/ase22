@@ -1,15 +1,17 @@
 import sys
-import datetime
 import os
 import shutil
 import time
+import datetime
+from datetime import timedelta
+from pathlib import Path
 import csv
 import numpy as np
 import pandas as pd
-import cv2
 
-import tensorflow
+import tensorflow as tf
 from tensorflow.keras import backend as K
+from sklearn.model_selection import train_test_split
 
 # Make sure that we are using QT5
 import matplotlib
@@ -19,6 +21,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from PyQt5 import QtWidgets, QtCore
 import matplotlib.image as mpimg
+import cv2
 
 from colorama import Fore, Back
 from colorama import init
@@ -27,10 +30,17 @@ init(autoreset=True)
 import colored_traceback
 colored_traceback.add_hook(always=True)
 
-import time
-from datetime import timedelta
+from tqdm import tqdm
 
 from config import Config
+
+######################################################################################
+############################## HEATMAP UTIL IMPORTS ##################################
+######################################################################################
+import math
+np.bool = np.bool_
+import collections
+import PIL.Image
 
 RESIZED_IMAGE_HEIGHT, RESIZED_IMAGE_WIDTH = 80, 160
 IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS = 160, 320, 3
@@ -600,5 +610,130 @@ def cprintb(fstring, color):
     elif color == 'l_white':
         print(Back.LIGHTWHITE_EX + fstring)
 
+def load_data(cfg):
+    """
+    Load training data_nominal and split it into training and validation set
+    """
+    start = time.time()
+
+    x = None
+    y = None
+    path = None
+    x_train = None
+    y_train = None
+    x_test = None
+    y_test = None
+
+    drive = get_driving_styles(cfg)
+    print("Loading training set " + cfg.TRACK + str(drive))
+    for drive_style in drive:
+        try:
+            path = os.path.join(cfg.TRAINING_DATA_DIR,
+                                cfg.TRAINING_SET_DIR,
+                                cfg.TRACK,
+                                drive_style,
+                                'driving_log.csv')
+            data_df = pd.read_csv(path)
+            if x is None:
+                x = data_df[['center', 'left', 'right']].values
+                y = data_df['steering'].values
+            else:
+                x = np.concatenate((x, data_df[['center', 'left', 'right']].values), axis=0)
+                y = np.concatenate((y, data_df['steering'].values), axis=0)
+        except FileNotFoundError:
+            print("Unable to read file %s" % path)
+            continue
+
+    if x is None:
+        print("No driving data_nominal were provided for training. Provide correct paths to the driving_log.csv files")
+        exit()
+
+    try:
+        x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=cfg.TEST_SIZE, random_state=0)
+    except TypeError:
+        print("Missing header to csv files")
+        exit()
+
+    duration_train = time.time() - start
+    print("Loading training set completed in %s." % str(datetime.timedelta(seconds=round(duration_train))))
+
+    print("Data set: " + str(len(x)) + " elements")
+    print("Training set: " + str(len(x_train)) + " elements")
+    print("Test set: " + str(len(x_test)) + " elements")
+    return x_train, x_test, y_train, y_test
 
 
+
+######################################################################################
+################################# HEATMAP UTILITIES ##################################
+######################################################################################
+
+def batch_run(function, images, batch_size=5000):
+    '''
+    function   : lambda function taking images with shape [N,H,W,C] as input
+    images     : tensor of shape [N,H,W,C]
+    batch_size : batch size
+    '''
+    
+    res = []
+    
+    for i in range(math.ceil(len(images) / batch_size)):
+        
+        res.append(function(images[i*batch_size:(i+1)*batch_size]))
+    
+    return np.concatenate(res, axis=0)
+
+
+def preprocess(attributions, q1, q2, use_abs=False):
+    
+    if use_abs:
+        attributions = np.abs(attributions)
+    
+    if tf.is_tensor(attributions):
+        attributions = attributions.numpy()
+        # attributions.eval(session=tf.compat.v1.Session())
+    attributions = np.sum(attributions, axis=-1)
+    if attributions.ndim == 2:
+        attributions = attributions[np.newaxis is None,:,:]
+    cprintf(f'{attributions.shape}', 'l_blue')
+    a_min = np.percentile(attributions, q1, axis=(1,2), keepdims=True)
+    a_max = np.percentile(attributions, q2, axis=(1,2), keepdims=True)
+    
+    pos = np.tile(a_min > 0, [1,attributions.shape[1],attributions.shape[2]])
+    ind = np.where(attributions < a_min)
+    
+    attributions = np.clip(attributions, a_min, a_max)
+    attributions[ind] = (1 - pos[ind]) * attributions[ind]
+    
+    return attributions
+
+
+def pixel_range(img):
+    vmin, vmax = np.min(img), np.max(img)
+
+    if vmin * vmax >= 0:
+        
+        v = np.maximum(np.abs(vmin), np.abs(vmax))
+        
+        return [-v, v], 'bwr'
+    
+    else:
+
+        if -vmin > vmax:
+            vmax = -vmin
+        else:
+            vmin = -vmax
+
+        return [vmin, vmax], 'bwr'
+
+
+def scale(x):
+    
+    return x / 127.5 - 1.0
+
+def tensor(arg):
+  arg = tf.convert_to_tensor(arg, dtype=tf.float32)
+  return arg
+
+def file_name(x):
+    return x.split('.')[0]
