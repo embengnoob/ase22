@@ -696,7 +696,9 @@ class DeepExplain(object):
         self.context_on = True
         return self
 
-    def __exit__(self):
+    def __exit__(self, type, value, traceback):
+        # self.graph_context.__exit__(type, value, traceback)
+        # self.override_context.__exit__(type, value, traceback)
         self.context_on = False
 
     def explain(self, method, T, xs, xs_tensor, y, tape_obejct, model, **kwargs):

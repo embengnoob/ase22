@@ -17,6 +17,7 @@ from sklearn.model_selection import train_test_split
 import matplotlib
 matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
+from matplotlib import colormaps
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from PyQt5 import QtWidgets, QtCore
@@ -695,7 +696,7 @@ def preprocess(attributions, q1, q2, use_abs=False):
     attributions = np.sum(attributions, axis=-1)
     if attributions.ndim == 2:
         attributions = attributions[np.newaxis is None,:,:]
-    cprintf(f'{attributions.shape}', 'l_blue')
+    # cprintf(f'{attributions.shape}', 'l_blue')
     a_min = np.percentile(attributions, q1, axis=(1,2), keepdims=True)
     a_max = np.percentile(attributions, q2, axis=(1,2), keepdims=True)
     

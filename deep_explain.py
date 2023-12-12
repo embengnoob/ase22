@@ -83,6 +83,20 @@ class AttributionMethod(object):
         self.keras_learning_phase = keras_learning_phase
         self.has_multiple_inputs = False
 
+    def session_run(self, T, xs):
+        feed_dict = {}
+        if self.has_multiple_inputs:
+            if len(xs) != len(self.X):
+                raise RuntimeError('List of input tensors and input data have different lengths (%s and %s)'
+                                   % (str(len(xs)), str(len(self.X))))
+            for k, v in zip(self.X, xs):
+                feed_dict[k] = v
+        else:
+            feed_dict[self.X] = xs
+
+        if self.keras_learning_phase is not None:
+            feed_dict[self.keras_learning_phase] = 0
+        return self.session.run(T, feed_dict)
 
     def _set_check_baseline(self):
         if self.baseline is None:
@@ -493,64 +507,64 @@ class EpsilonLRP(GradientBasedMethod):
         return grad * output / (input + eps *
                                 tf.compat.v1.where(input >= 0, tf.ones_like(input), -1 * tf.ones_like(input)))
 
-"""
-DeepLIFT
-This reformulation only considers the "Rescale" rule
-https://arxiv.org/abs/1704.02685
-"""
+# """
+# DeepLIFT
+# This reformulation only considers the "Rescale" rule
+# https://arxiv.org/abs/1704.02685
+# """
 
 
-class DeepLIFTRescale(GradientBasedMethod):
+# class DeepLIFTRescale(GradientBasedMethod):
 
-    _deeplift_ref = {}
-    def __init__(self, T, xs, xs_tensor, y, tape_obejct, model, keras_learning_phase, baseline=None):
-        super(DeepLIFTRescale, self).__init__(T, xs, xs_tensor, y, tape_obejct, model, keras_learning_phase)
-        self.baseline = baseline
+#     _deeplift_ref = {}
+#     def __init__(self, T, xs, xs_tensor, y, tape_obejct, model, keras_learning_phase, baseline=None):
+#         super(DeepLIFTRescale, self).__init__(T, xs, xs_tensor, y, tape_obejct, model, keras_learning_phase)
+#         self.baseline = baseline
 
-    def get_symbolic_attribution(self):
-        # return [g * (x - b) for g, x, b in zip(
-        #     tf.gradients(ys=self.T, xs=self.X),
-        #     self.X if self.has_multiple_inputs else [self.X],
-        #     self.baseline if self.has_multiple_inputs else [self.baseline])]
-        return (self.xs_tensor - self.baseline) * self.tape.gradient(self.y, self.xs_tensor)
+#     def get_symbolic_attribution(self):
+#         # return [g * (x - b) for g, x, b in zip(
+#         #     tf.gradients(ys=self.T, xs=self.X),
+#         #     self.X if self.has_multiple_inputs else [self.X],
+#         #     self.baseline if self.has_multiple_inputs else [self.baseline])]
+#         return (self.xs_tensor - self.baseline) * self.tape.gradient(self.y, self.xs_tensor)
 
-    @classmethod
-    def nonlinearity_grad_override(cls, op, grad):
-        output = op.outputs[0]
-        input = op.inputs[0]
-        ref_input = cls._deeplift_ref[op.name]
-        ref_output = activation(op.type)(ref_input)
-        delta_out = output - ref_output
-        delta_in = input - ref_input
-        instant_grad = activation(op.type)(0.5 * (ref_input + input))
-        return tf.compat.v1.where(tf.abs(delta_in) > 1e-5, grad * delta_out / delta_in,
-                               original_grad(instant_grad.op, grad))
+#     @classmethod
+#     def nonlinearity_grad_override(cls, op, grad):
+#         output = op.outputs[0]
+#         input = op.inputs[0]
+#         ref_input = cls._deeplift_ref[op.name]
+#         ref_output = activation(op.type)(ref_input)
+#         delta_out = output - ref_output
+#         delta_in = input - ref_input
+#         instant_grad = activation(op.type)(0.5 * (ref_input + input))
+#         return tf.compat.v1.where(tf.abs(delta_in) > 1e-5, grad * delta_out / delta_in,
+#                                original_grad(instant_grad.op, grad))
 
-    def run(self):
-        # Check user baseline or set default one
-        self._set_check_baseline()
+#     def run(self):
+#         # Check user baseline or set default one
+#         self._set_check_baseline()
 
-        # Init references with a forward pass
-        self._init_references()
+#         # Init references with a forward pass
+#         self._init_references()
 
-        # Run the default run
-        return super(DeepLIFTRescale, self).run()
+#         # Run the default run
+#         return super(DeepLIFTRescale, self).run()
 
-    def _init_references(self):
-        # print ('DeepLIFT: computing references...')
-        sys.stdout.flush()
-        self._deeplift_ref.clear()
-        ops = []
-        g = tf.compat.v1.get_default_graph()
-        for op in g.get_operations():
-            if len(op.inputs) > 0 and not op.name.startswith('gradients'):
-                if op.type in SUPPORTED_ACTIVATIONS:
-                    ops.append(op)
-        YR = self.session_run([o.inputs[0] for o in ops], self.baseline)
-        for (r, op) in zip(YR, ops):
-            self._deeplift_ref[op.name] = r
-        # print('DeepLIFT: references ready')
-        sys.stdout.flush()
+#     def _init_references(self):
+#         # print ('DeepLIFT: computing references...')
+#         sys.stdout.flush()
+#         self._deeplift_ref.clear()
+#         ops = []
+#         g = tf.compat.v1.get_default_graph()
+#         for op in g.get_operations():
+#             if len(op.inputs) > 0 and not op.name.startswith('gradients'):
+#                 if op.type in SUPPORTED_ACTIVATIONS:
+#                     ops.append(op)
+#         YR = self.session_run([o.inputs[0] for o in ops], self.baseline)
+#         for (r, op) in zip(YR, ops):
+#             self._deeplift_ref[op.name] = r
+#         # print('DeepLIFT: references ready')
+#         sys.stdout.flush()
 
 
 """
@@ -643,7 +657,7 @@ attribution_methods = OrderedDict({
     'smoothgrad': (SmoothGrad, 8),
     'intgrad': (IntegratedGradients, 9),
     'elrp': (EpsilonLRP, 10),
-    'deeplift': (DeepLIFTRescale, 11),
+    # 'deeplift': (DeepLIFTRescale, 11),
     'occlusion': (Occlusion, 12),
     'rectgradmod': (RectifiedGradientMod, 13)
 })
@@ -696,8 +710,11 @@ class DeepExplain(object):
         self.context_on = True
         return self
 
-    def __exit__(self):
+    def __exit__(self, exc_type, exc_value, tb):
         self.context_on = False
+        if exc_type is not None:
+            tb.print_exception(exc_type, exc_value, tb)
+            # return False # uncomment to pass exception through
 
     def explain(self, method, T, xs, xs_tensor, y, tape_obejct, model, **kwargs):
         if not self.context_on:
@@ -707,7 +724,7 @@ class DeepExplain(object):
         if self.method in attribution_methods:
             method_class, method_flag = attribution_methods[self.method]
         else:
-            raise RuntimeError('Method must be in %s' % list(attribution_methods.keys()))
+            raise RuntimeError(f'Method \'{self.method}\' is not in {list(attribution_methods.keys())}')
         # print('DeepExplain: running "%s" explanation method (%d)' % (self.method, method_flag))
         self._check_ops()
         _GRAD_OVERRIDE_CHECKFLAG = 0
