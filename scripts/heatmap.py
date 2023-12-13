@@ -118,17 +118,19 @@ def compute_heatmap(cfg, nominal, simulation_name, NUM_OF_FRAMES, MODE, run_id, 
                         
                         # Preprocessing based on the method used
                         if 'RectGrad' in k:
-                            attributions_orig[k] = preprocess(attribution, 0.5, 99.5)
-                            saliency_map = attributions_orig[k]
                             if cfg.SPARSE_ATTRIBUTION:
-                                attributions_sparse[k] = preprocess(attribution, 0.5, 99.5)
+                                attributions_sparse[k] = preprocess(attribution, 90, 99.5)
                                 saliency_map_sparse = attributions_sparse[k]
+                            else:
+                                attributions_orig[k] = preprocess(attribution, 0.5, 99.5)
+                                saliency_map = attributions_orig[k]
                         else:
-                            attributions_orig[k] = preprocess(attribution, 0.5, 99.5)
-                            saliency_map = attributions_orig[k]
                             if cfg.SPARSE_ATTRIBUTION:
                                 attributions_sparse[k] = preprocess(attribution, 95, 99.5)
                                 saliency_map_sparse = attributions_sparse[k]
+                            else:
+                                attributions_orig[k] = preprocess(attribution, 0.5, 99.5)
+                                saliency_map = attributions_orig[k]
 
         # print(attributions_orig['RectGrad'])
         # print(attributions_orig['RectGrad'].shape)
@@ -148,19 +150,20 @@ def compute_heatmap(cfg, nominal, simulation_name, NUM_OF_FRAMES, MODE, run_id, 
         if not os.path.exists(HEATMAP_IMG_PATH):
             cprintf(f'Heatmap image folder does not exist. Creating folder ...' ,'l_blue')
             os.makedirs(HEATMAP_IMG_PATH)
-        if cfg.SPARSE_ATTRIBUTION:
-            SPARSE_HEATMAP_PATH = os.path.join(HEATMAP_FOLDER_PATH, 'SPARSE_IMG')
-            if not os.path.exists(SPARSE_HEATMAP_PATH):
-                cprintf(f'Heatmap image folder does not exist. Creating folder ...' ,'l_blue')
-                os.makedirs(SPARSE_HEATMAP_PATH)
+        # if cfg.SPARSE_ATTRIBUTION:
+        #     SPARSE_HEATMAP_PATH = os.path.join(HEATMAP_FOLDER_PATH, 'SPARSE_IMG')
+        #     if not os.path.exists(SPARSE_HEATMAP_PATH):
+        #         cprintf(f'Heatmap image folder does not exist. Creating folder ...' ,'l_blue')
+        #         os.makedirs(SPARSE_HEATMAP_PATH)
             
         file_name = img.split('/')[-1]
         file_name = "htm-" + attention_type.lower() + '-' + file_name
         path_name = os.path.join(HEATMAP_IMG_PATH, file_name)
         # if attention_type == "SmoothGrad" or attention_type == "GradCam++":
-        mpimg.imsave(path_name, np.squeeze(saliency_map))
         if cfg.SPARSE_ATTRIBUTION:
             mpimg.imsave(path_name, np.squeeze(saliency_map_sparse))
+        else:
+            mpimg.imsave(path_name, np.squeeze(saliency_map))
         # else:
         #     attribution_map = np.squeeze(attributions_orig[attention_type])
         #     v, cmap = pixel_range(attribution_map)

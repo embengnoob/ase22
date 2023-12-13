@@ -14,7 +14,7 @@ from pathlib import Path
 import collections
 from deepexplain.tensorflow import DeepExplain
 from heatmap_utils import preprocess, pixel_range
-import tf_slim as slim
+# import tf_slim as slim
 
 try:
     from config import load_config

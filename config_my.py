@@ -73,4 +73,4 @@ COMPARE_RUNS = True
 NOM_VS_NOM_TEST = False
 
 # heatmap settings
-SPARSE_ATTRIBUTION = False
+SPARSE_ATTRIBUTION = True

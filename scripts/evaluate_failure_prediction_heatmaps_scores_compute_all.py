@@ -22,13 +22,23 @@ def simExists(cfg, run_id, sim_name, attention_type, nominal):
     MAIN_CSV_PATH = os.path.join(SIM_PATH, "driving_log.csv")
     HEATMAP_PARENT_FOLDER_PATH = os.path.join(SIM_PATH, "heatmaps-" + attention_type.lower())
     if not nominal:
-        HEATMAP_FOLDER_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, run_id)
-        HEATMAP_CSV_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, run_id, "driving_log.csv")
-        HEATMAP_IMG_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, run_id, "IMG")
+        if cfg.SPARSE_ATTRIBUTION:
+            HEATMAP_FOLDER_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, f'{run_id}_SPARSE')
+            HEATMAP_CSV_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, f'{run_id}_SPARSE', "driving_log.csv")
+            HEATMAP_IMG_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, f'{run_id}_SPARSE', "IMG")
+        else:
+            HEATMAP_FOLDER_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, run_id)
+            HEATMAP_CSV_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, run_id, "driving_log.csv")
+            HEATMAP_IMG_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, run_id, "IMG")
     else:
         HEATMAP_FOLDER_PATH = HEATMAP_PARENT_FOLDER_PATH
-        HEATMAP_CSV_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, "driving_log.csv")
-        HEATMAP_IMG_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, "IMG")
+        if cfg.SPARSE_ATTRIBUTION:
+            HEATMAP_CSV_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, 'SPARSE', "driving_log.csv")
+            HEATMAP_IMG_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, 'SPARSE', "IMG")
+        else:
+            HEATMAP_CSV_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, "driving_log.csv")
+            HEATMAP_IMG_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, "IMG")
+
 
     NUM_OF_FRAMES = get_num_frames(cfg, sim_name)
 
@@ -162,7 +172,7 @@ if __name__ == '__main__':
     elif len(SUMMARY_COLLAGES) != len(RUN_ID_NUMBERS):
         raise ValueError(Fore.RED + f"Mismatch in number of runs and specified summary collage patterns: {len(SUMMARY_COLLAGES)} != {len(RUN_ID_NUMBERS)} " + Fore.RESET)
     
-    HEATMAP_TYPES = ['RectGrad'] #'GradCam++', 'SmoothGrad', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient*Input', 'IntegGrad', 'Epsilon_LRP'
+    HEATMAP_TYPES = ['SmoothGrad_2'] #'GradCam++', 'SmoothGrad', 'c', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient*Input', 'IntegGrad', 'Epsilon_LRP'
     DISTANCE_METHODS = ['pairwise_distance']
     DISTANCE_TYPES = ['euclidean']
     summary_types = ['-avg', '-avg-grad']
