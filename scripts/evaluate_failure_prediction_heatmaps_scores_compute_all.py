@@ -40,36 +40,41 @@ def simExists(cfg, run_id, sim_name, attention_type, nominal):
             HEATMAP_IMG_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, "IMG")
 
 
+
     NUM_OF_FRAMES = get_num_frames(cfg, sim_name)
 
     if not os.path.exists(SIM_PATH):
         raise ValueError(Fore.RED + f"The provided simulation path does not exist: {SIM_PATH}" + Fore.RESET)
-
-    # 1- IMG folder doesn't exist
-    elif (not os.path.exists(HEATMAP_IMG_PATH)):
-        cprintf(f"Heatmap IMG folder doesn't exist. Creating image folder at {HEATMAP_IMG_PATH}", 'l_blue')
-        os.makedirs(HEATMAP_IMG_PATH)
-        MODE = 'new_calc'
-        compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, MODE, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH)
-
-    # 2- heatmap folder exists, but there are less heatmaps than there should be
-    elif len(os.listdir(HEATMAP_IMG_PATH)) < NUM_OF_FRAMES:
-        cprintf(f"Heatmap IMG folder exists, but there are less heatmaps than there should be.", 'yellow')
-        cprintf(f"Deleting folder at {HEATMAP_IMG_PATH}", 'yellow')
-        shutil.rmtree(HEATMAP_IMG_PATH)
-        MODE = 'new_calc'
-        compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, MODE, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH)
-    # 3- heatmap folder exists and correct number of heatmaps, but no csv file was generated.
-
-    elif not 'driving_log.csv' in os.listdir(HEATMAP_FOLDER_PATH):
-        cprintf(f"Correct number of heatmaps exist. CSV File doesn't.", 'yellow')
-        MODE = 'csv_missing'
-        compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, MODE, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH)
     else:
-        if nominal:
-            cprintf(f"Heatmaps for nominal sim \"{sim_name}\" of attention type \"{attention_type}\" exist.", 'l_green')
+        if cfg.SAME_IMG_TEST:
+            cprintf(f"Same image test mode for {sim_name} of attention type {attention_type}", 'l_red')
+            compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, MODE, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH)
         else:
-            cprintf(f"Heatmaps for anomalous sim \"{sim_name}\" of attention type \"{attention_type}\" and run ID \"{run_id}\" exist.", 'l_green')
+            # 1- IMG folder doesn't exist
+            if (not os.path.exists(HEATMAP_IMG_PATH)):
+                cprintf(f"Heatmap IMG folder doesn't exist. Creating image folder at {HEATMAP_IMG_PATH}", 'l_blue')
+                os.makedirs(HEATMAP_IMG_PATH)
+                MODE = 'new_calc'
+                compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, MODE, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH)
+
+            # 2- heatmap folder exists, but there are less heatmaps than there should be
+            elif len(os.listdir(HEATMAP_IMG_PATH)) < NUM_OF_FRAMES:
+                cprintf(f"Heatmap IMG folder exists, but there are less heatmaps than there should be.", 'yellow')
+                cprintf(f"Deleting folder at {HEATMAP_IMG_PATH}", 'yellow')
+                shutil.rmtree(HEATMAP_IMG_PATH)
+                MODE = 'new_calc'
+                compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, MODE, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH)
+            # 3- heatmap folder exists and correct number of heatmaps, but no csv file was generated.
+
+            elif not 'driving_log.csv' in os.listdir(HEATMAP_FOLDER_PATH):
+                cprintf(f"Correct number of heatmaps exist. CSV File doesn't.", 'yellow')
+                MODE = 'csv_missing'
+                compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, MODE, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH)
+            else:
+                if nominal:
+                    cprintf(f"Heatmaps for nominal sim \"{sim_name}\" of attention type \"{attention_type}\" exist.", 'l_green')
+                else:
+                    cprintf(f"Heatmaps for anomalous sim \"{sim_name}\" of attention type \"{attention_type}\" and run ID \"{run_id}\" exist.", 'l_green')
 
     PATHS = [SIM_PATH, MAIN_CSV_PATH, HEATMAP_PARENT_FOLDER_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH]
     return NUM_OF_FRAMES, PATHS
@@ -224,7 +229,8 @@ if __name__ == '__main__':
 
             # check whether nominal and anomalous simulation and the corresponding heatmaps are already generated, generate them otherwise
             for attention_type in HEATMAP_TYPES:
-                NUM_FRAMES_NOM, NOMINAL_PATHS = simExists(cfg, str(run_id), sim_name=SIMULATION_NAME_NOMINAL, attention_type=attention_type, nominal=True) 
+                if not cfg.SAME_IMG_TEST:
+                    NUM_FRAMES_NOM, NOMINAL_PATHS = simExists(cfg, str(run_id), sim_name=SIMULATION_NAME_NOMINAL, attention_type=attention_type, nominal=True) 
                 NUM_FRAMES_ANO, ANOMALOUS_PATHS = simExists(cfg, str(run_id), sim_name=SIMULATION_NAME_ANOMALOUS, attention_type=attention_type, nominal=False)
             
             if not cfg.SAME_IMG_TEST:
