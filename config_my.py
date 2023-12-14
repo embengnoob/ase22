@@ -59,7 +59,7 @@ PLOT_POINT_TO_POINT = True
 # p2p settings
 # summary collage settings
 GENERATE_SUMMARY_COLLAGES = True
-SUMMARY_COLLAGE_PCA_DIMS = [] #except max dims
+SUMMARY_COLLAGE_PCA_DIMS = [100] #except max dims
 SUMMARY_COLLAGE_DIST_METHODS = ['pairwise_distance']
 SUMMARY_COLLAGE_DIST_TYPES = ['euclidean']
 CREATE_VIDEO = True
@@ -69,8 +69,9 @@ SAVE_PCA = False
 
 EMD = True # Earth mover (Wasserstein) distance
 
-COMPARE_RUNS = True
+COMPARE_RUNS = False
 NOM_VS_NOM_TEST = False
 
 # heatmap settings
 SPARSE_ATTRIBUTION = True
+SAME_IMG_TEST = True
