@@ -117,20 +117,29 @@ def compute_heatmap(cfg, nominal, simulation_name, NUM_OF_FRAMES, run_id, attent
     if cfg.SAME_IMG_TEST:
         FRAME_ID = 0
         NUMBER_OF_SAMPLES = 1000
-        for sample_number in tqdm(range(NUMBER_OF_SAMPLES)):
-            img_addr = data[FRAME_ID]
-            saliency_map = heatmap_generator(cfg, img_addr, attention_type, saliency, attribution_methods, self_driving_car_model)
+        SAME_IMG_TEST_FOLDER_PATH = os.path.join(HEATMAP_FOLDER_PATH, f'same_img_test_frameID_{FRAME_ID}')
+        if not os.path.exists(SAME_IMG_TEST_FOLDER_PATH):
+            cprintf(f'Same image test folder does not exist. Creating folder ...' ,'l_blue')
+            os.makedirs(SAME_IMG_TEST_FOLDER_PATH)
 
-            file_name = Path(img_addr).stem
-            file_name = "htm-" + attention_type.lower() + '-' + file_name + '-' + str(sample_number) + '.JPG'
-            
-            SAME_IMG_TEST_FOLDER_PATH = os.path.join(HEATMAP_FOLDER_PATH, f'same_img_test_frameID_{FRAME_ID}')
-            if not os.path.exists(SAME_IMG_TEST_FOLDER_PATH):
-                cprintf(f'Same image test folder does not exist. Creating folder ...' ,'l_blue')
-                os.makedirs(SAME_IMG_TEST_FOLDER_PATH)
-            
-            path_name = os.path.join(HEATMAP_FOLDER_PATH, f'same_img_test_frameID_{FRAME_ID}' , file_name)
-            mpimg.imsave(path_name, np.squeeze(saliency_map))
+        if not (len(os.listdir(SAME_IMG_TEST_FOLDER_PATH)) == NUMBER_OF_SAMPLES):
+            cprintf(f'Generating heatmaps and plotting them ...', 'l_cyan')
+            for sample_number in tqdm(range(NUMBER_OF_SAMPLES)):
+                img_addr = data[FRAME_ID]
+                saliency_map = heatmap_generator(cfg, img_addr, attention_type, saliency, attribution_methods, self_driving_car_model)
+                file_name = Path(img_addr).stem
+                file_name = "htm-" + attention_type.lower() + '-' + file_name + '-' + str(sample_number) + '.JPG'
+                path_name = os.path.join(HEATMAP_FOLDER_PATH, f'same_img_test_frameID_{FRAME_ID}' , file_name)
+                mpimg.imsave(path_name, np.squeeze(saliency_map))
+        else:
+            cprintf(f'Same image test heatmaps already exist.' ,'l_green')
+            cprintf(f'Plotting heatmaps ...', 'l_cyan')
+            for f_idx, f_name in tqdm(enumerate(os.listdir(SAME_IMG_TEST_FOLDER_PATH))):
+                if f_idx <= 100:
+                    hm_addr = os.path.join(SAME_IMG_TEST_FOLDER_PATH, f_name)
+                    heatmap = mpimg.imread(hm_addr).flatten()
+                else:
+                    break
     else:
         avg_heatmaps = []
         avg_gradient_heatmaps = []
