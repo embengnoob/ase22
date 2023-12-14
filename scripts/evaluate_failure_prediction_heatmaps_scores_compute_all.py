@@ -48,14 +48,14 @@ def simExists(cfg, run_id, sim_name, attention_type, nominal):
     else:
         if cfg.SAME_IMG_TEST:
             cprintf(f"Same image test mode for {sim_name} of attention type {attention_type}", 'l_red')
-            compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, MODE, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH)
+            compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH)
         else:
             # 1- IMG folder doesn't exist
             if (not os.path.exists(HEATMAP_IMG_PATH)):
                 cprintf(f"Heatmap IMG folder doesn't exist. Creating image folder at {HEATMAP_IMG_PATH}", 'l_blue')
                 os.makedirs(HEATMAP_IMG_PATH)
                 MODE = 'new_calc'
-                compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, MODE, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH)
+                compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, MODE)
 
             # 2- heatmap folder exists, but there are less heatmaps than there should be
             elif len(os.listdir(HEATMAP_IMG_PATH)) < NUM_OF_FRAMES:
@@ -63,13 +63,13 @@ def simExists(cfg, run_id, sim_name, attention_type, nominal):
                 cprintf(f"Deleting folder at {HEATMAP_IMG_PATH}", 'yellow')
                 shutil.rmtree(HEATMAP_IMG_PATH)
                 MODE = 'new_calc'
-                compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, MODE, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH)
+                compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, MODE)
             # 3- heatmap folder exists and correct number of heatmaps, but no csv file was generated.
 
             elif not 'driving_log.csv' in os.listdir(HEATMAP_FOLDER_PATH):
                 cprintf(f"Correct number of heatmaps exist. CSV File doesn't.", 'yellow')
                 MODE = 'csv_missing'
-                compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, MODE, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH)
+                compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, MODE)
             else:
                 if nominal:
                     cprintf(f"Heatmaps for nominal sim \"{sim_name}\" of attention type \"{attention_type}\" exist.", 'l_green')
@@ -131,25 +131,6 @@ if __name__ == '__main__':
         cfg = load_config("config_my.py")
     # cfg.from_pyfile("config_my.py")
 
-    ANO_SIMULATIONS = ['test1', 'test2', 'test3', 'test4', 'test5', 'track1-sunny-positioned-nominal-as-anomalous'] # , 'test2', 'test3', 'test4', 'test5'
-    NOM_SIMULATIONS = ['track1-sunny-positioned-nominal',
-                       'track1-sunny-positioned-nominal',
-                       'track1-sunny-positioned-nominal',
-                       'track1-sunny-positioned-nominal',
-                       'track1-sunny-positioned-nominal',
-                       'track1-sunny-positioned-nominal']
-    RUN_ID_NUMBERS = [[1],
-                      [1],
-                      [1],
-                      [1],
-                      [1],
-                      [1]]
-    SUMMARY_COLLAGES = [[False],
-                        [False],
-                        [False],
-                        [False],
-                        [False],
-                        [False]]
     # ANO_SIMULATIONS = ['test1', 'test2', 'test3', 'test4', 'test5', 'track1-sunny-positioned-nominal-as-anomalous'] # , 'test2', 'test3', 'test4', 'test5'
     # NOM_SIMULATIONS = ['track1-sunny-positioned-nominal',
     #                    'track1-sunny-positioned-nominal',
@@ -169,6 +150,26 @@ if __name__ == '__main__':
     #                     [False, False, False],
     #                     [False, False, False],
     #                     [False, False, False]]
+
+    ANO_SIMULATIONS = ['test1', 'test2', 'test3', 'test4', 'test5', 'track1-sunny-positioned-nominal-as-anomalous'] # , 'test2', 'test3', 'test4', 'test5'
+    NOM_SIMULATIONS = ['track1-sunny-positioned-nominal',
+                       'track1-sunny-positioned-nominal',
+                       'track1-sunny-positioned-nominal',
+                       'track1-sunny-positioned-nominal',
+                       'track1-sunny-positioned-nominal',
+                       'track1-sunny-positioned-nominal']
+    RUN_ID_NUMBERS = [[1],
+                      [1],
+                      [1],
+                      [1],
+                      [1],
+                      [1]]
+    SUMMARY_COLLAGES = [[False],
+                        [False],
+                        [False],
+                        [False],
+                        [False],
+                        [False]]
     
     if len(ANO_SIMULATIONS) != len(NOM_SIMULATIONS):
         raise ValueError(Fore.RED + f"Mismatch in number of specified ANO and NOM simulations: {len(ANO_SIMULATIONS)} != {len(NOM_SIMULATIONS)} " + Fore.RESET)
@@ -177,7 +178,7 @@ if __name__ == '__main__':
     elif len(SUMMARY_COLLAGES) != len(RUN_ID_NUMBERS):
         raise ValueError(Fore.RED + f"Mismatch in number of runs and specified summary collage patterns: {len(SUMMARY_COLLAGES)} != {len(RUN_ID_NUMBERS)} " + Fore.RESET)
     
-    HEATMAP_TYPES = ['SmoothGrad_2'] #'GradCam++', 'SmoothGrad', 'c', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient*Input', 'IntegGrad', 'Epsilon_LRP'
+    HEATMAP_TYPES = ['SmoothGrad'] #'GradCam++', 'SmoothGrad', 'c', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient*Input', 'IntegGrad', 'Epsilon_LRP'
     DISTANCE_METHODS = ['pairwise_distance']
     DISTANCE_TYPES = ['euclidean']
     summary_types = ['-avg', '-avg-grad']

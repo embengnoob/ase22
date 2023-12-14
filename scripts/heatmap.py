@@ -73,7 +73,7 @@ def heatmap_generator(cfg, img_addr, attention_type, saliency, attribution_metho
     return saliency_map
             
 
-def compute_heatmap(cfg, nominal, simulation_name, NUM_OF_FRAMES, MODE, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH):
+def compute_heatmap(cfg, nominal, simulation_name, NUM_OF_FRAMES, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, MODE='new_calc'):
     """
     Given a simulation by Udacity, the script reads the corresponding image paths from the csv and creates a heatmap for
     each driving image. The heatmap is created with the SmoothGrad algorithm available from tf-keras-vis
@@ -120,10 +120,16 @@ def compute_heatmap(cfg, nominal, simulation_name, NUM_OF_FRAMES, MODE, run_id, 
         for sample_number in tqdm(range(NUMBER_OF_SAMPLES)):
             img_addr = data[FRAME_ID]
             saliency_map = heatmap_generator(cfg, img_addr, attention_type, saliency, attribution_methods, self_driving_car_model)
-            file_name = img_addr.split('/')[-1]
-            file_name = "htm-" + attention_type.lower() + '-' + file_name + '-' + str(sample_number)
+
+            file_name = Path(img_addr).stem
+            file_name = "htm-" + attention_type.lower() + '-' + file_name + '-' + str(sample_number) + '.JPG'
+            
+            SAME_IMG_TEST_FOLDER_PATH = os.path.join(HEATMAP_FOLDER_PATH, f'same_img_test_frameID_{FRAME_ID}')
+            if not os.path.exists(SAME_IMG_TEST_FOLDER_PATH):
+                cprintf(f'Same image test folder does not exist. Creating folder ...' ,'l_blue')
+                os.makedirs(SAME_IMG_TEST_FOLDER_PATH)
+            
             path_name = os.path.join(HEATMAP_FOLDER_PATH, f'same_img_test_frameID_{FRAME_ID}' , file_name)
-            # if attention_type == "SmoothGrad" or attention_type == "GradCam++":
             mpimg.imsave(path_name, np.squeeze(saliency_map))
     else:
         avg_heatmaps = []
