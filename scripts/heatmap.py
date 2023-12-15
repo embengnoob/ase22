@@ -257,9 +257,10 @@ def compute_heatmap(cfg, nominal, simulation_name, NUM_OF_FRAMES, run_id, attent
             #     if not os.path.exists(SPARSE_HEATMAP_PATH):
             #         cprintf(f'Heatmap image folder does not exist. Creating folder ...' ,'l_blue')
             #         os.makedirs(SPARSE_HEATMAP_PATH)
-                
-            file_name = img_addr.split('/')[-1]
-            file_name = "htm-" + attention_type.lower() + '-' + file_name
+            file_name = Path(img_addr).stem
+            file_name = "htm-" + attention_type.lower() + '-' + file_name + '.JPG'
+            # file_name = img_addr.split('/')[-1]
+            # file_name = "htm-" + attention_type.lower() + '-' + file_name
             path_name = os.path.join(HEATMAP_IMG_PATH, file_name)
             # if attention_type == "SmoothGrad" or attention_type == "GradCam++":
             mpimg.imsave(path_name, np.squeeze(saliency_map))

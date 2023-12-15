@@ -156,16 +156,13 @@ if __name__ == '__main__':
                        'track1-sunny-positioned-nominal',
                        'track1-sunny-positioned-nominal',
                        'track1-sunny-positioned-nominal',
-                       'track1-sunny-positioned-nominal',
                        'track1-sunny-positioned-nominal']
     RUN_ID_NUMBERS = [[1],
                       [1],
                       [1],
                       [1],
-                      [1],
                       [1]]
     SUMMARY_COLLAGES = [[False],
-                        [False],
                         [False],
                         [False],
                         [False],
