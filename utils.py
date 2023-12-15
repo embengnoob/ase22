@@ -41,7 +41,7 @@ from config import Config
 import math
 np.bool = np.bool_
 import collections
-import PIL.Image
+from PIL import Image
 
 RESIZED_IMAGE_HEIGHT, RESIZED_IMAGE_WIDTH = 80, 160
 IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS = 160, 320, 3

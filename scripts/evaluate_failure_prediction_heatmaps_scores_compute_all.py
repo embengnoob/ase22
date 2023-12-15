@@ -151,7 +151,7 @@ if __name__ == '__main__':
     #                     [False, False, False],
     #                     [False, False, False]]
 
-    ANO_SIMULATIONS = ['test1', 'test2', 'test3', 'test4', 'test5', 'track1-sunny-positioned-nominal-as-anomalous'] # , 'test2', 'test3', 'test4', 'test5'
+    ANO_SIMULATIONS = ['test1', 'test2', 'test3', 'test4', 'test5'] # , 'test2', 'test3', 'test4', 'test5'
     NOM_SIMULATIONS = ['track1-sunny-positioned-nominal',
                        'track1-sunny-positioned-nominal',
                        'track1-sunny-positioned-nominal',
@@ -178,7 +178,7 @@ if __name__ == '__main__':
     elif len(SUMMARY_COLLAGES) != len(RUN_ID_NUMBERS):
         raise ValueError(Fore.RED + f"Mismatch in number of runs and specified summary collage patterns: {len(SUMMARY_COLLAGES)} != {len(RUN_ID_NUMBERS)} " + Fore.RESET)
     
-    HEATMAP_TYPES = ['SmoothGrad'] #'GradCam++', 'SmoothGrad', 'c', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient*Input', 'IntegGrad', 'Epsilon_LRP'
+    HEATMAP_TYPES = ['GradCam++', 'SmoothGrad', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'Gradient*Input', 'IntegGrad', 'Epsilon_LRP'] #'GradCam++', 'SmoothGrad', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient*Input', 'IntegGrad', 'Epsilon_LRP'
     DISTANCE_METHODS = ['pairwise_distance']
     DISTANCE_TYPES = ['euclidean']
     summary_types = ['-avg', '-avg-grad']

@@ -115,9 +115,13 @@ def compute_heatmap(cfg, nominal, simulation_name, NUM_OF_FRAMES, run_id, attent
     attribution_methods = collections.OrderedDict(attribution_method_list)
 
     if cfg.SAME_IMG_TEST:
+        # TODO: Noise average doesn't work well. Also implement for the case there is nothing generated yet (if case)
         FRAME_ID = 0
+        BASE_SAMPLE = 0
         NUMBER_OF_SAMPLES = 1000
         SAME_IMG_TEST_FOLDER_PATH = os.path.join(HEATMAP_FOLDER_PATH, f'same_img_test_frameID_{FRAME_ID}')
+        heatmap_avg = np.zeros((INPUT_SHAPE), np.dtype(float))
+        noise_avg = np.zeros((INPUT_SHAPE), np.dtype(float))
         if not os.path.exists(SAME_IMG_TEST_FOLDER_PATH):
             cprintf(f'Same image test folder does not exist. Creating folder ...' ,'l_blue')
             os.makedirs(SAME_IMG_TEST_FOLDER_PATH)
@@ -131,15 +135,26 @@ def compute_heatmap(cfg, nominal, simulation_name, NUM_OF_FRAMES, run_id, attent
                 file_name = "htm-" + attention_type.lower() + '-' + file_name + '-' + str(sample_number) + '.JPG'
                 path_name = os.path.join(HEATMAP_FOLDER_PATH, f'same_img_test_frameID_{FRAME_ID}' , file_name)
                 mpimg.imsave(path_name, np.squeeze(saliency_map))
+                
         else:
             cprintf(f'Same image test heatmaps already exist.' ,'l_green')
             cprintf(f'Plotting heatmaps ...', 'l_cyan')
-            for f_idx, f_name in tqdm(enumerate(os.listdir(SAME_IMG_TEST_FOLDER_PATH))):
-                if f_idx <= 100:
-                    hm_addr = os.path.join(SAME_IMG_TEST_FOLDER_PATH, f_name)
-                    heatmap = mpimg.imread(hm_addr).flatten()
-                else:
-                    break
+            noise_base_sample_hm_addr = os.path.join(SAME_IMG_TEST_FOLDER_PATH, os.listdir(SAME_IMG_TEST_FOLDER_PATH)[BASE_SAMPLE])
+            noise_base_sample_hm = np.array(Image.open(noise_base_sample_hm_addr), dtype=np.dtype(float))
+            for f_name in tqdm(os.listdir(SAME_IMG_TEST_FOLDER_PATH)):
+                hm_addr = os.path.join(SAME_IMG_TEST_FOLDER_PATH, f_name)
+                imarr = np.array(Image.open(hm_addr), dtype=np.dtype(float))
+                noise_avg = noise_avg + (imarr - noise_base_sample_hm)/NUMBER_OF_SAMPLES
+                heatmap_avg = heatmap_avg + imarr/NUMBER_OF_SAMPLES
+            hm_avg_path = os.path.join(HEATMAP_FOLDER_PATH, f'same_img_test_frameID_{FRAME_ID}_hm_avg.JPG')
+            hm_noise_path = os.path.join(HEATMAP_FOLDER_PATH, f'same_img_test_frameID_{FRAME_ID}_hm_noise.JPG')
+            # Round values in array and cast as 8-bit integer
+            heatmap_avg = np.array(np.round(heatmap_avg), dtype=np.ubyte)
+            noise_avg = np.array(np.round(noise_avg), dtype=np.ubyte)
+
+            mpimg.imsave(hm_avg_path, heatmap_avg)
+            mpimg.imsave(hm_noise_path, noise_avg)
+
     else:
         avg_heatmaps = []
         avg_gradient_heatmaps = []
