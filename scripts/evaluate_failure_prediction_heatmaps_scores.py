@@ -9,7 +9,7 @@ import glob
 from PIL import Image, ImageFont, ImageDraw
 import matplotlib.pyplot as plt
 from keras import backend as K
-from scipy.stats import gamma, wasserstein_distance
+from scipy.stats import gamma, wasserstein_distance, pearsonr, spearmanr, kendalltau
 from sklearn import preprocessing
 from sklearn.metrics import pairwise_distances_argmin_min, pairwise_distances, pairwise
 from sklearn.decomposition import PCA
@@ -969,6 +969,32 @@ def make_gif(frame_folder, name):
     frame_one.save(f"{name}.gif", format="GIF", append_images=frames,
                save_all=True, duration=100, loop=0)
 
+def average_filter_1D(data_array, kernel=np.ones((5), dtype=float)):
+
+    if not isinstance(kernel, np.ndarray):
+        raise ValueError(Fore.RED + f"The provided kernel '{kernel}' is not a numpy array." + Fore.RESET)
+    elif not isinstance(data_array, np.ndarray):
+        raise ValueError(Fore.RED + f"The provided data is not a numpy array." + Fore.RESET)
+    elif not ((kernel.ndim == 1) and (data_array.ndim == 1)):
+        raise ValueError(Fore.RED + f"The provided numpy arrays must have 1 dimension." + Fore.RESET)
+    
+    filtered_array = np.zeros((len(data_array)), dtype=float)
+    kernel_length = len(kernel)
+    kernel_range = math.floor(len(kernel)/2)
+
+    for dp_index, data_point in enumerate(data_array):
+        data_window = np.zeros((kernel_length), dtype=float)
+        data_window[kernel_range] = data_point
+        for kernel_index in range(1, kernel_range+1):
+            if not ((dp_index - kernel_index) < 0):
+                data_window[kernel_range-kernel_index] = data_array[dp_index-kernel_index]
+
+            if not ((dp_index + kernel_index) > len(data_array)-1):
+                data_window[kernel_range+kernel_index] = data_array[dp_index+kernel_index]
+        filtered_array[dp_index] = np.average(np.multiply(kernel, data_window))
+    return filtered_array
+
+
 ######################################################################################
 #####################################   TEST   #######################################
 ######################################################################################
@@ -984,6 +1010,7 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, he
     NOMINAL_HEATMAP_FOLDER_PATH = NOMINAL_PATHS[3]
     NOMINAL_HEATMAP_CSV_PATH = NOMINAL_PATHS[4]
     NOMINAL_HEATMAP_IMG_PATH = NOMINAL_PATHS[5]
+    NOMINAL_HEATMAP_IMG_GRADIENT_PATH = NOMINAL_PATHS[6]
 
     ANOMALOUS_SIM_PATH = ANOMALOUS_PATHS[0]
     ANOMALOUS_MAIN_CSV_PATH = ANOMALOUS_PATHS[1]
@@ -991,6 +1018,7 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, he
     ANOMALOUS_HEATMAP_FOLDER_PATH = ANOMALOUS_PATHS[3]
     ANOMALOUS_HEATMAP_CSV_PATH = ANOMALOUS_PATHS[4]
     ANOMALOUS_HEATMAP_IMG_PATH = ANOMALOUS_PATHS[5]
+    ANOMALOUS_HEATMAP_IMG_GRADIENT_PATH = ANOMALOUS_PATHS[6]
 
     if cfg.NOM_VS_NOM_TEST:
         # check if nominal and anomalous heatmaps are exactly the same
@@ -1109,6 +1137,12 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, he
         distance_vector_EMD_std = np.zeros((num_anomalous_frames))
         # distance_vector_EMD_norm = np.zeros((num_anomalous_frames))
         # distance_vector_EMD_std_norm = np.zeros((num_anomalous_frames))
+        pearson_res = np.zeros((num_anomalous_frames))
+        pearson_p = np.zeros((num_anomalous_frames))
+        spearman_res = np.zeros((num_anomalous_frames))
+        spearman_p = np.zeros((num_anomalous_frames))
+        kendall_res = np.zeros((num_anomalous_frames))
+        kendall_p = np.zeros((num_anomalous_frames))
 
     if cfg.GENERATE_SUMMARY_COLLAGES:
         missing_collages = 0
@@ -1150,6 +1184,12 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, he
             # x_nom_std_normalized = cv2.normalize(x_nom_std, None, 0, 1.0, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
             # distance_vector_EMD[anomalous_frame] = wasserstein_distance(x_ano.flatten(), x_nom.flatten())
             distance_vector_EMD_std[anomalous_frame] = wasserstein_distance(x_ano_std.flatten(), x_nom_std.flatten())
+            distance_vector_EMD_std_avg = average_filter_1D(distance_vector_EMD_std)
+            sobel_filter_kernel = np.array([1, 1, 0, -1, -1])
+            distance_vector_EMD_std_sobel = average_filter_1D(distance_vector_EMD_std, kernel=sobel_filter_kernel)
+            pearson_res[anomalous_frame], pearson_p[anomalous_frame] = pearsonr(x_ano_std.flatten(), x_nom_std.flatten())
+            spearman_res[anomalous_frame], spearman_p[anomalous_frame] = spearmanr(x_ano_std.flatten(), x_nom_std.flatten())
+            kendall_res[anomalous_frame], kendall_p[anomalous_frame] = kendalltau(x_ano_std.flatten(), x_nom_std.flatten())
             # distance_vector_EMD_norm[anomalous_frame] = wasserstein_distance(x_ano_normalized.flatten(), x_nom_normalized.flatten())
             # distance_vector_EMD_std_norm[anomalous_frame] = wasserstein_distance(x_ano_std_normalized.flatten(), x_nom_std_normalized.flatten())
         x_ano_all_frames[anomalous_frame,:] = x_ano_std.flatten()
@@ -1327,10 +1367,22 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, he
         # load list of mapped positions
         cprintf(f"Loading CSV file from {DISTANCE_VECTOR_PATH} ...", 'l_yellow')
         distance_vector = np.loadtxt(DISTANCE_VECTOR_PATH, dtype='float')
+    distance_vector_avg = average_filter_1D(distance_vector)
+    sobel_filter_kernel = np.array([1, 1, 0, -1, -1])
+    distance_vector_sobel = average_filter_1D(distance_vector, kernel=sobel_filter_kernel)
 
-    NUM_OF_AXES = 4
+
+
+    #################################### PLOTTING SECTION ##########################################
+    NUM_OF_AXES = 7
+    height_ratios = []
+    for i in range(NUM_OF_AXES):
+        if i==0:
+            height_ratios.append(3)
+        else:
+            height_ratios.append(1)
     fig = plt.figure(figsize=(24,4*NUM_OF_AXES), constrained_layout=False)
-    spec = fig.add_gridspec(nrows=4, ncols=1, width_ratios= [1], height_ratios=[3, 1, 1, 1])
+    spec = fig.add_gridspec(nrows=NUM_OF_AXES, ncols=1, width_ratios= [1], height_ratios=height_ratios)
 
     # Plot pca cluster
     if pca_dimension == 2:
@@ -1358,13 +1410,21 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, he
     plot_crash_ranges(ax, speed_anomalous)
 
     # Plot distance scores
-    color = 'blue'
+    color = 'deepskyblue'
+    color_avg = 'navy'
     ax.set_xlabel('Frame ID', color=color)
     ax.set_ylabel(f'{distance_type} distance scores', color=color)
+
     ax.plot(distance_vector, label=distance_method, linewidth= 0.5, linestyle = '-', color=color)
-    title = f"{heatmap_type} && {pca_dimension}d"
+    ax.plot(distance_vector_avg, linewidth= 0.8, linestyle = 'dashed', color=color_avg)
+    ax.plot(distance_vector_sobel, linewidth= 0.8, linestyle = 'dashed', color='red')
+    
+    title = f"{heatmap_type} && PCA {pca_dimension}d"
     ax.set_title(title)
     ax.legend(loc='upper left')
+
+
+
 
     if cfg.GENERATE_SUMMARY_COLLAGES:
         missing_collages = 0
@@ -1439,7 +1499,10 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, he
             VIDEO_FOLDER_PATH = os.path.join(COLLAGES_PARENT_FOLDER_PATH, 'video')
             make_avi(COLLAGES_FOLDER_PATH, VIDEO_FOLDER_PATH, f"{distance_type}_{distance_method}_{pca_dimension}d")
     
-    # plot EMD scores
+
+
+
+    # plot all different EMD scores
     # EMD_distance_vectors = [distance_vector_EMD, distance_vector_EMD_norm, distance_vector_EMD_std, distance_vector_EMD_std_norm]
     # EMD_labels = ['EMD', 'EMD_norm', 'EMD_std', 'EMD_std_norm']
     # for i in range(2, 6):
@@ -1458,23 +1521,98 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, he
     #     title = f"{heatmap_type} && {label}"
     #     ax.set_title(title)
     #     ax.legend(loc='upper left')
-
     ax = fig.add_subplot(spec[2, :])
     # plot ranges
     plot_ranges(ax, cte_anomalous, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER,
                 ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
     plot_crash_ranges(ax, speed_anomalous)
     # Plot distance scores
-    color = 'green'
+    color = 'mediumseagreen'
+    color_avg = 'darkgreen'
     ax.set_xlabel('Frame ID', color=color)
     ax.set_ylabel(f'EMD scores', color=color)
+
     ax.plot(distance_vector_EMD_std, label='EMD standardized', linewidth= 0.5, linestyle = '-', color=color)
+    ax.plot(distance_vector_EMD_std_avg, linewidth= 0.8, linestyle = 'dashed', color=color_avg)
+    ax.plot(distance_vector_EMD_std_sobel, linewidth= 0.8, linestyle = 'dashed', color='red')
+    
     title = f"{heatmap_type} && EMD standardized"
     ax.set_title(title)
     ax.legend(loc='upper left')
 
-    # Plot cross track error
+
+
+    # Pearson correlation
     ax = fig.add_subplot(spec[3, :])
+    # plot ranges
+    plot_ranges(ax, cte_anomalous, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER,
+                ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
+    plot_crash_ranges(ax, speed_anomalous)
+    # Plot distance scores
+    color = 'gold'
+    color_avg = 'darkgoldenrod'
+    ax.set_xlabel('Frame ID', color=color)
+    ax.set_ylabel(f'Pearson correlation results', color=color)
+
+    ax.plot(pearson_res, label='Pearson Results', linewidth= 0.5, linestyle = '-', color=color)
+    # ax.plot(pearson_p, label='Pearson P-Value', linewidth= 0.5, linestyle = '-', color=color_avg)
+    # ax.plot(distance_vector_EMD_std_avg, linewidth= 0.8, linestyle = 'dashed', color=color_avg)
+    # ax.plot(distance_vector_EMD_std_sobel, linewidth= 0.8, linestyle = 'dashed', color='red')
+    
+    title = f"{heatmap_type} && Pearson correlation"
+    ax.set_title(title)
+    ax.legend(loc='upper left')
+
+
+
+# kendall_res
+    # Spearman correlation
+    ax = fig.add_subplot(spec[4, :])
+    # plot ranges
+    plot_ranges(ax, cte_anomalous, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER,
+                ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
+    plot_crash_ranges(ax, speed_anomalous)
+    # Plot distance scores
+    color = 'mediumslateblue'
+    color_avg = 'darkslateblue'
+    ax.set_xlabel('Frame ID', color=color)
+    ax.set_ylabel(f'Spearman correlation results', color=color)
+
+    ax.plot(spearman_res, label='Spearman Results', linewidth= 0.5, linestyle = '-', color=color)
+    # ax.plot(spearman_p, label='Spearman P-Value', linewidth= 0.5, linestyle = '-', color=color_avg)
+    # ax.plot(distance_vector_EMD_std_avg, linewidth= 0.8, linestyle = 'dashed', color=color_avg)
+    # ax.plot(distance_vector_EMD_std_sobel, linewidth= 0.8, linestyle = 'dashed', color='red')
+    
+    title = f"{heatmap_type} && Spearman correlation"
+    ax.set_title(title)
+    ax.legend(loc='upper left')
+
+
+
+    # Kendall correlation
+    ax = fig.add_subplot(spec[5, :])
+    # plot ranges
+    plot_ranges(ax, cte_anomalous, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER,
+                ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
+    plot_crash_ranges(ax, speed_anomalous)
+    # Plot distance scores
+    color = 'indianred'
+    color_avg = 'brown'
+    ax.set_xlabel('Frame ID', color=color)
+    ax.set_ylabel(f'Kendall correlation results', color=color)
+
+    ax.plot(kendall_res, label='Kendall Results', linewidth= 0.5, linestyle = '-', color=color)
+    # ax.plot(kendall_p, label='Kendall P-Value', linewidth= 0.5, linestyle = '-', color=color_avg)
+    # ax.plot(distance_vector_EMD_std_avg, linewidth= 0.8, linestyle = 'dashed', color=color_avg)
+    # ax.plot(distance_vector_EMD_std_sobel, linewidth= 0.8, linestyle = 'dashed', color='red')
+    
+    title = f"{heatmap_type} && Kendall correlation"
+    ax.set_title(title)
+    ax.legend(loc='upper left')
+
+
+    # Plot cross track error
+    ax = fig.add_subplot(spec[6, :])
     color = 'red'
     ax.set_xlabel('Frame ID', color=color)
     ax.set_ylabel('cross-track error', color=color)
@@ -1487,7 +1625,7 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, he
     ax.axhline(y = RED_BORDER, color = 'red', linestyle = '--')
     ax.axhline(y = -RED_BORDER, color = 'red', linestyle = '--')    
 
-    title = f"{heatmap_type} && {pca_dimension}d"
+    title = f"cross-track error"
     ax.set_title(title)
     ax.legend(loc='upper left')
  

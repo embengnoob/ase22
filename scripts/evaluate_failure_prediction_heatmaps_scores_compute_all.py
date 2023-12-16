@@ -26,18 +26,22 @@ def simExists(cfg, run_id, sim_name, attention_type, nominal):
             HEATMAP_FOLDER_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, f'{run_id}_SPARSE')
             HEATMAP_CSV_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, f'{run_id}_SPARSE', "driving_log.csv")
             HEATMAP_IMG_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, f'{run_id}_SPARSE', "IMG")
+            HEATMAP_IMG_GRADIENT_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, f'{run_id}_SPARSE', "IMG_GRADIENT")
         else:
             HEATMAP_FOLDER_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, run_id)
             HEATMAP_CSV_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, run_id, "driving_log.csv")
             HEATMAP_IMG_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, run_id, "IMG")
+            HEATMAP_IMG_GRADIENT_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, run_id, "IMG_GRADIENT")
     else:
         HEATMAP_FOLDER_PATH = HEATMAP_PARENT_FOLDER_PATH
         if cfg.SPARSE_ATTRIBUTION:
             HEATMAP_CSV_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, 'SPARSE', "driving_log.csv")
             HEATMAP_IMG_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, 'SPARSE', "IMG")
+            HEATMAP_IMG_GRADIENT_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, 'SPARSE', "IMG_GRADIENT")
         else:
             HEATMAP_CSV_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, "driving_log.csv")
             HEATMAP_IMG_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, "IMG")
+            HEATMAP_IMG_GRADIENT_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, "IMG_GRADIENT")
 
 
 
@@ -48,35 +52,80 @@ def simExists(cfg, run_id, sim_name, attention_type, nominal):
     else:
         if cfg.SAME_IMG_TEST:
             cprintf(f"Same image test mode for {sim_name} of attention type {attention_type}", 'l_red')
-            compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH)
+            MODE = 'same_img_test'
+    
         else:
-            # 1- IMG folder doesn't exist
-            if (not os.path.exists(HEATMAP_IMG_PATH)):
-                cprintf(f"Heatmap IMG folder doesn't exist. Creating image folder at {HEATMAP_IMG_PATH}", 'l_blue')
+            # 1- IMG & Gradient folders don't exist 
+            if (not os.path.exists(HEATMAP_IMG_PATH)) and (not os.path.exists(HEATMAP_IMG_GRADIENT_PATH)):
+                cprintf(f"Neither heatmap IMG folder nor gradient folder exist. Creating image folder at {HEATMAP_IMG_PATH} and {HEATMAP_IMG_GRADIENT_PATH}", 'l_blue')
                 os.makedirs(HEATMAP_IMG_PATH)
+                os.makedirs(HEATMAP_IMG_GRADIENT_PATH)
                 MODE = 'new_calc'
-                compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, MODE)
 
-            # 2- heatmap folder exists, but there are less heatmaps than there should be
-            elif len(os.listdir(HEATMAP_IMG_PATH)) < NUM_OF_FRAMES:
-                cprintf(f"Heatmap IMG folder exists, but there are less heatmaps than there should be.", 'yellow')
+            # 2- Heatmap IMG folder exists but gradient folder doesn't
+            elif (os.path.exists(HEATMAP_IMG_PATH)) and (not os.path.exists(HEATMAP_IMG_GRADIENT_PATH)):
+                if (len(os.listdir(HEATMAP_IMG_PATH)) < NUM_OF_FRAMES):
+                    cprintf(f"Heatmap folder exists, but there are less heatmaps than there should be.", 'yellow')
+                    cprintf(f"Deleting folder at {HEATMAP_IMG_GRADIENT_PATH}", 'yellow')
+                    shutil.rmtree(HEATMAP_IMG_PATH)
+                    cprintf(f"Switching to new_calc mode ...", 'yellow')
+                    MODE = 'new_calc'
+                else:
+                    cprintf(f"Heatmap IMG folder exists and is complete, but gradient folder doesn't. Creating image folder at {HEATMAP_IMG_GRADIENT_PATH}", 'l_blue')
+                    os.makedirs(HEATMAP_IMG_GRADIENT_PATH)
+                    MODE = 'gradient_calc'
+
+            # 3- Heatmap IMG folder doesn't exist but gradient folder does
+            elif (not os.path.exists(HEATMAP_IMG_PATH)) and (os.path.exists(HEATMAP_IMG_GRADIENT_PATH)):
+                if (len(os.listdir(HEATMAP_IMG_GRADIENT_PATH)) < NUM_OF_FRAMES-1):
+                    cprintf(f"Gradient folder exists, but there are less gradients than there should be.", 'yellow')
+                    cprintf(f"Deleting folder at {HEATMAP_IMG_GRADIENT_PATH}", 'yellow')
+                    shutil.rmtree(HEATMAP_IMG_GRADIENT_PATH)
+                    cprintf(f"Switching to new_calc mode ...", 'yellow')
+                    MODE = 'new_calc'
+                else:
+                    cprintf(f"Heatmap IMG folder doesn't exist but gradient folder exits and is complete. Creating image folder at {HEATMAP_IMG_PATH}", 'l_blue')
+                    os.makedirs(HEATMAP_IMG_PATH)
+                    MODE = 'heatmap_calc'
+
+            # 4- Both folders exist, but there are less heatmaps/gradients than there should be
+            elif (len(os.listdir(HEATMAP_IMG_PATH)) < NUM_OF_FRAMES) and (len(os.listdir(HEATMAP_IMG_GRADIENT_PATH)) < NUM_OF_FRAMES-1):
+                cprintf(f"Both folders exist, but there are less heatmaps/gradients than there should be.", 'yellow')
+                cprintf(f"Deleting folder at {HEATMAP_IMG_PATH} and {HEATMAP_IMG_GRADIENT_PATH}", 'yellow')
+                shutil.rmtree(HEATMAP_IMG_PATH)
+                shutil.rmtree(HEATMAP_IMG_GRADIENT_PATH)
+                MODE = 'new_calc'
+
+            # 5- both folders exist, but there are less heatmaps than there should be (gradients are the correct number)
+            elif (len(os.listdir(HEATMAP_IMG_PATH)) < NUM_OF_FRAMES) and (len(os.listdir(HEATMAP_IMG_GRADIENT_PATH)) == NUM_OF_FRAMES-1):
+                cprintf(f"Both folders exist, but there are less heatmaps than there should be (gradients are the correct number).", 'yellow')
                 cprintf(f"Deleting folder at {HEATMAP_IMG_PATH}", 'yellow')
                 shutil.rmtree(HEATMAP_IMG_PATH)
-                MODE = 'new_calc'
-                compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, MODE)
-            # 3- heatmap folder exists and correct number of heatmaps, but no csv file was generated.
+                MODE = 'heatmap_calc'
 
+            # 6- gradient folder exists, but there are less gradients than there should be (heatmaps are the correct number)
+            elif (len(os.listdir(HEATMAP_IMG_PATH)) == NUM_OF_FRAMES) and (len(os.listdir(HEATMAP_IMG_GRADIENT_PATH)) < NUM_OF_FRAMES-1):
+                cprintf(f"Both folders exist, but there are less gradients than there should be (heatmaps are the correct number).", 'yellow')
+                cprintf(f"Deleting folder at {HEATMAP_IMG_GRADIENT_PATH}", 'yellow')
+                shutil.rmtree(HEATMAP_IMG_GRADIENT_PATH)
+                MODE = 'gradient_calc'
+
+            # 3- heatmap folder exists and correct number of heatmaps, but no csv file was generated.
             elif not 'driving_log.csv' in os.listdir(HEATMAP_FOLDER_PATH):
                 cprintf(f"Correct number of heatmaps exist. CSV File doesn't.", 'yellow')
                 MODE = 'csv_missing'
-                compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, MODE)
+                
             else:
+                MODE = None
                 if nominal:
                     cprintf(f"Heatmaps for nominal sim \"{sim_name}\" of attention type \"{attention_type}\" exist.", 'l_green')
                 else:
                     cprintf(f"Heatmaps for anomalous sim \"{sim_name}\" of attention type \"{attention_type}\" and run ID \"{run_id}\" exist.", 'l_green')
+        
+        if MODE is not None:
+            compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH, MODE)
 
-    PATHS = [SIM_PATH, MAIN_CSV_PATH, HEATMAP_PARENT_FOLDER_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH]
+    PATHS = [SIM_PATH, MAIN_CSV_PATH, HEATMAP_PARENT_FOLDER_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH]
     return NUM_OF_FRAMES, PATHS
 
 def correct_field_names(MAIN_CSV_PATH):
@@ -175,7 +224,7 @@ if __name__ == '__main__':
     elif len(SUMMARY_COLLAGES) != len(RUN_ID_NUMBERS):
         raise ValueError(Fore.RED + f"Mismatch in number of runs and specified summary collage patterns: {len(SUMMARY_COLLAGES)} != {len(RUN_ID_NUMBERS)} " + Fore.RESET)
     
-    HEATMAP_TYPES = ['GradCam++', 'SmoothGrad', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'Gradient*Input', 'IntegGrad', 'Epsilon_LRP'] #'GradCam++', 'SmoothGrad', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient*Input', 'IntegGrad', 'Epsilon_LRP'
+    HEATMAP_TYPES = ['SmoothGrad'] #'GradCam++', 'SmoothGrad', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP'
     DISTANCE_METHODS = ['pairwise_distance']
     DISTANCE_TYPES = ['euclidean']
     summary_types = ['-avg', '-avg-grad']
@@ -201,17 +250,17 @@ if __name__ == '__main__':
         # Number between 0 and min(n_samples, n_features)
         PCA_DIMENSIONS = [100] # [100, 500, num_of_frames]
 
-        if cfg.COMPARE_RUNS:
-            comparison_figs = []
-            # General run comparison
-            gen_axes, gen_comp_fig = comparison_plot_setup(plt.figure(figsize=(20,15), constrained_layout=False))
-            # PCA_based run comparison
-            pca_axes_list = []
-            pca_comp_fig_list = []
-            for pca_dim in PCA_DIMENSIONS:
-                pca_axes, pca_comp_fig = comparison_plot_setup(plt.figure(figsize=(20,15), constrained_layout=False))
-                pca_axes_list.append(pca_axes)
-                pca_comp_fig_list.append(pca_comp_fig)
+        # if cfg.COMPARE_RUNS:
+        comparison_figs = []
+        # General run comparison
+        gen_axes, gen_comp_fig = comparison_plot_setup(plt.figure(figsize=(20,15), constrained_layout=False))
+        # PCA_based run comparison
+        pca_axes_list = []
+        pca_comp_fig_list = []
+        for pca_dim in PCA_DIMENSIONS:
+            pca_axes, pca_comp_fig = comparison_plot_setup(plt.figure(figsize=(20,15), constrained_layout=False))
+            pca_axes_list.append(pca_axes)
+            pca_comp_fig_list.append(pca_comp_fig)
 
         run_results = []
         run_keys = []                

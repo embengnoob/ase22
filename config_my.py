@@ -58,7 +58,7 @@ PLOT_POINT_TO_POINT = True
 
 # p2p settings
 # summary collage settings
-GENERATE_SUMMARY_COLLAGES = True
+GENERATE_SUMMARY_COLLAGES = False
 SUMMARY_COLLAGE_PCA_DIMS = [100] #except max dims
 SUMMARY_COLLAGE_DIST_METHODS = ['pairwise_distance']
 SUMMARY_COLLAGE_DIST_TYPES = ['euclidean']
