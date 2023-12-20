@@ -1,14 +1,8 @@
-import glob
-import os
 import sys
 sys.path.append("..")
 import utils
 from utils import *
 from utils_models import *
-
-import pandas as pd
-# from natsort import natsorted
-# from colorama import Fore
 from heatmap import compute_heatmap
 try:
     from config import load_config

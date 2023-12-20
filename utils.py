@@ -1,16 +1,19 @@
 import sys
 import os
 import shutil
+import glob
 import time
 import datetime
 from datetime import timedelta
 from pathlib import Path
+
 import csv
 import numpy as np
 import pandas as pd
 
 import tensorflow as tf
-from tensorflow.keras import backend as K
+# from tensorflow.keras import backend as K
+from keras import backend as K
 from sklearn.model_selection import train_test_split
 
 # Make sure that we are using QT5
@@ -23,6 +26,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from PyQt5 import QtWidgets, QtCore
 import matplotlib.image as mpimg
 import cv2
+from skimage.color import rgb2gray
 
 from colorama import Fore, Back
 from colorama import init
@@ -31,17 +35,29 @@ init(autoreset=True)
 import colored_traceback
 colored_traceback.add_hook(always=True)
 
+import gc
 from tqdm import tqdm
 
 from config import Config
 
+######################################################################################
+############################## EVAL UTIL IMPORTS ##################################
+######################################################################################
+from scipy.stats import gamma, wasserstein_distance, pearsonr, spearmanr, kendalltau
+from sklearn import preprocessing
+from sklearn.metrics import pairwise_distances_argmin_min, pairwise_distances, pairwise
+from sklearn.decomposition import PCA
+from libpysal.weights import lat2W
+from esda.moran import Moran
+from splot.esda import moran_scatterplot
 ######################################################################################
 ############################## HEATMAP UTIL IMPORTS ##################################
 ######################################################################################
 import math
 np.bool = np.bool_
 import collections
-from PIL import Image
+from PIL import Image, ImageFont, ImageDraw
+
 
 RESIZED_IMAGE_HEIGHT, RESIZED_IMAGE_WIDTH = 80, 160
 IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS = 160, 320, 3
@@ -526,9 +542,9 @@ def load_autoencoder_from_disk():
     cfg = Config()
     cfg.from_pyfile("config_my.py")
 
-    encoder = tensorflow.keras.models.load_model(
+    encoder = tf.keras.models.load_model(
         cfg.SAO_MODELS_DIR + os.path.sep + 'encoder-' + cfg.ANOMALY_DETECTOR_NAME)
-    decoder = tensorflow.keras.models.load_model(
+    decoder = tf.keras.models.load_model(
         cfg.SAO_MODELS_DIR + os.path.sep + 'decoder-' + cfg.ANOMALY_DETECTOR_NAME)
 
     # TODO: manage the case in which the files do not exist
@@ -738,3 +754,278 @@ def tensor(arg):
 
 def file_name(x):
     return x.split('.')[0]
+
+
+######################################################################################
+################################ EVAL FUNCTIONS ######################################
+######################################################################################
+
+def string_to_np_array(vector_string, frame_num):
+    if '[' in vector_string:
+        # autonomous mode
+        vector_string = ' '.join(vector_string.split())
+        vector_string = vector_string.strip("[]").strip().replace(' ', ',')
+        vector = np.fromstring(vector_string, dtype=float, sep=',')
+    elif '(' in vector_string:
+        # manual training mode
+        vector_string = vector_string.strip("()").replace('  ', ' ')
+        vector = np.fromstring(vector_string, dtype=float, sep=' ')
+    if vector.shape != (3,):
+        cprintf(str(vector.shape), 'l_red')
+        print(vector_string)
+        print(vector)
+        raise ValueError(f"Car position format of frame number {frame_num} can't be interpreted.")
+    return vector
+
+def correct_windows_path(address):
+    if "\\\\" in address:
+        address = address.replace("\\\\", "/")
+    elif "\\\\" in address:
+        address = address.replace("\\\\", "/")
+    return address
+
+def get_threshold(losses, conf_level=0.95):
+    print("Fitting reconstruction error distribution using Gamma distribution")
+
+    # removing zeros
+    losses = np.array(losses)
+    losses_copy = losses[losses != 0]
+    shape, loc, scale = gamma.fit(losses_copy, floc=0)
+
+    print("Creating threshold using the confidence intervals: %s" % conf_level)
+    t = gamma.ppf(conf_level, shape, loc=loc, scale=scale)
+    print('threshold: ' + str(t))
+    return t
+
+def get_OOT_frames(data_df_anomalous, number_frames_anomalous):
+    OOT_anomalous = data_df_anomalous['crashed']
+    OOT_anomalous.is_copy = None
+    OOT_anomalous_in_anomalous_conditions = OOT_anomalous.copy()
+
+    # creates the ground truth
+    all_first_frame_position_OOT_sequences = []
+    for idx, item in enumerate(OOT_anomalous_in_anomalous_conditions):
+        if idx == number_frames_anomalous:  # we have reached the end of the file
+            continue
+
+        if OOT_anomalous_in_anomalous_conditions[idx] == 0 and OOT_anomalous_in_anomalous_conditions[idx + 1] == 1: # if next frame is an OOT
+            first_OOT_index = idx + 1
+            all_first_frame_position_OOT_sequences.append(first_OOT_index) # makes a list of all frames where OOT first happened
+            # print("first_OOT_index: %d" % first_OOT_index) 
+    return all_first_frame_position_OOT_sequences, OOT_anomalous_in_anomalous_conditions
+
+def get_ranges(boolean_cte_array):
+    list_of_ranges = []
+    rng_min = -1
+    rng_max = -1
+    counting_range = False
+    for idx, condition in enumerate(boolean_cte_array):
+        if condition == True:
+            if not counting_range:
+                rng_min = idx
+                counting_range = True
+            else:
+                rng_max = idx
+                counting_range = True
+        else:
+            if counting_range:
+                if rng_max == -1:
+                    list_of_ranges.append(rng_min)
+                else:
+                    list_of_ranges.append([rng_min,rng_max])
+                counting_range = False
+                rng_min = -1
+                rng_max = -1
+    return list_of_ranges
+
+def plot_ranges(ax, cte_anomalous, alpha=0.2, YELLOW_BORDER = 3.6,ORANGE_BORDER = 5.0, RED_BORDER = 7.0):
+    # plot cross track error values: 
+    # yellow_condition: reaching the borders of the track: yellow
+    # orange_condition: on the borders of the track (partial crossing): orange
+    # red_condition: out of track (full crossing): red
+
+    yellow_condition = (abs(cte_anomalous)>YELLOW_BORDER)&(abs(cte_anomalous)<ORANGE_BORDER)
+    orange_condition = (abs(cte_anomalous)>ORANGE_BORDER)&(abs(cte_anomalous)<RED_BORDER)
+    red_condition = (abs(cte_anomalous)>RED_BORDER)
+
+    yellow_ranges = get_ranges(yellow_condition)
+    orange_ranges = get_ranges(orange_condition)
+    red_ranges = get_ranges(red_condition)
+
+    all_ranges = [yellow_ranges, orange_ranges, red_ranges]
+    colors = ['yellow', 'orange', 'red']
+    for idx, list_of_ranges in enumerate(all_ranges):
+        for rng in list_of_ranges:
+            if isinstance(rng, list):
+                ax.axvspan(rng[0], rng[1], color=colors[idx], alpha=alpha)
+            else:
+                ax.axvspan(rng, rng+1, color=colors[idx], alpha=alpha)
+
+def plot_crash_ranges(ax, speed_anomalous):
+    # plot crash instances: speed < 1.0 
+    crash_condition = (abs(speed_anomalous)<1.0)
+    # remove the first 10 frames: starting out so speed is less than 1 
+    crash_condition[:10] = False
+    crash_ranges = get_ranges(crash_condition)
+    # plot_ranges(crash_ranges, ax, color='blue', alpha=0.2)
+    NUM_OF_FRAMES_TO_CHECK = 20
+    is_crash_instance = False
+    for rng in crash_ranges:
+        # check 20 frames before first frame with speed < 1.0. if not bigger than 15 it's not
+        # a crash instance it's reset instance
+        if isinstance(rng, list):
+            crash_frame = rng[0]
+        else:
+            crash_frame = rng
+        for speed in speed_anomalous[crash_frame-NUM_OF_FRAMES_TO_CHECK:crash_frame]:
+            if speed > 15.0:
+                is_crash_instance = True
+        if is_crash_instance == True:
+            is_crash_instance = False
+            reset_frame = crash_frame
+            ax.axvline(x = reset_frame, color = 'blue', linestyle = '--')
+            continue
+        # plot crash ranges (speed < 1.0)
+        if isinstance(rng, list):
+            ax.axvspan(rng[0], rng[1], color='teal', alpha=0.2)
+        else:
+            ax.axvspan(rng, rng+1, color='teal', alpha=0.2)
+
+def get_heatmaps(anomalous_frame, anomalous, nominal, pos_mappings, return_size=False, return_IMAGE = False):
+    # load the addresses of centeral camera heatmap of this anomalous frame and the closest nominal frame in terms of position
+    ano_hm_address = anomalous['center'].iloc[anomalous_frame]
+    closest_nom_hm_address = nominal['center'].iloc[int(pos_mappings[anomalous_frame])]
+    # correct windows path, if necessary
+    ano_hm_address = correct_windows_path(ano_hm_address)
+    closest_nom_hm_address = correct_windows_path(closest_nom_hm_address)
+    # load corresponding heatmaps
+    if not return_IMAGE:
+        ano_hm = mpimg.imread(ano_hm_address)
+        closest_nom_hm = mpimg.imread(closest_nom_hm_address)
+        if ano_hm.shape != closest_nom_hm.shape:
+            raise ValueError(Fore.RED + f"Different heatmap sizes for nominal and anomalous conditions!" + Fore.RESET)
+    else:
+        ano_hm = Image.open(ano_hm_address)
+        closest_nom_hm = Image.open(closest_nom_hm_address)
+    if return_size:
+        return ano_hm.shape[0], ano_hm.shape[1]
+    else:
+        return ano_hm, closest_nom_hm
+
+def get_images(cfg, anomalous_frame, pos_mappings):
+    # load the image file paths from main csv
+    ano_csv_path = os.path.join(cfg.TESTING_DATA_DIR,
+                                cfg.SIMULATION_NAME,
+                                'driving_log.csv')
+    nom_csv_path = os.path.join(cfg.TESTING_DATA_DIR,
+                                cfg.SIMULATION_NAME_NOMINAL,
+                                'driving_log.csv')
+    ano_data = pd.read_csv(ano_csv_path)
+    ano_img_address = ano_data["center"].iloc[anomalous_frame]
+    nom_data = pd.read_csv(nom_csv_path)
+    closest_nom_img_address = nom_data['center'].iloc[int(pos_mappings[anomalous_frame])]
+    ano_img_address = correct_windows_path(ano_img_address)
+    closest_nom_img_address = correct_windows_path(closest_nom_img_address)
+    ano_img = Image.open(ano_img_address)
+    closest_nom_img = Image.open(closest_nom_img_address)   
+    return ano_img, closest_nom_img
+
+def save_ax_nosave(ax, **kwargs):
+    import io
+    ax.axis("off")
+    ax.figure.canvas.draw()
+    trans = ax.figure.dpi_scale_trans.inverted() 
+    bbox = ax.bbox.transformed(trans)
+    buff = io.BytesIO()
+    plt.savefig(buff, format="png", dpi=ax.figure.dpi, bbox_inches=bbox,  **kwargs)
+    ax.axis("on")
+    buff.seek(0)
+    # im = plt.imread(buff)
+    im = Image.open(buff)
+    return im
+
+# Video creation functions
+
+def tryint(s):
+    try:
+        return int(s)
+    except:
+        return s
+
+def alphanum_key(s):
+    """ Turn a string into a list of string and number chunks.
+        "z23a" -> ["z", 23, "a"]
+    """
+    return [ tryint(c) for c in re.split('([0-9]+)', s) ]
+
+def sort_nicely(l):
+    """ Sort the given list in the way that humans expect.
+    """
+    l.sort(key=alphanum_key)
+
+def make_avi(image_folder, video_folder_path, name):
+    video_name = f'{name}.avi'
+    video_path = os.path.join(video_folder_path, video_name)
+    if not os.path.exists(video_path):
+        cprintf('Creating video ...', 'l_cyan')
+        # path to video folder
+        if not os.path.exists(video_folder_path):
+            os.makedirs(video_folder_path)
+        images = [img for img in os.listdir(image_folder)]
+        sort_nicely(images)
+        frame = cv2.imread(os.path.join(image_folder, images[0]))
+        height, width, layers = frame.shape
+        fps = 10
+        video = cv2.VideoWriter(video_path, 0, fps, (width,height))
+        for image in tqdm(images):
+            video.write(cv2.imread(os.path.join(image_folder, image)))
+        cv2.destroyAllWindows()
+        video.release()
+    else:
+        cprintf('Video already exists. Skipping video creation ...', 'l_green')
+
+def make_gif(frame_folder, name):
+    frames = [Image.open(image) for image in glob.glob(f"{frame_folder}/*.PNG")]
+    frame_one = frames[0]
+    frame_one.save(f"{name}.gif", format="GIF", append_images=frames,
+               save_all=True, duration=100, loop=0)
+
+def average_filter_1D(data_array, kernel=np.ones((5), dtype=float)):
+
+    if not isinstance(kernel, np.ndarray):
+        raise ValueError(Fore.RED + f"The provided kernel '{kernel}' is not a numpy array." + Fore.RESET)
+    elif not isinstance(data_array, np.ndarray):
+        raise ValueError(Fore.RED + f"The provided data is not a numpy array." + Fore.RESET)
+    elif not ((kernel.ndim == 1) and (data_array.ndim == 1)):
+        raise ValueError(Fore.RED + f"The provided numpy arrays must have 1 dimension." + Fore.RESET)
+    
+    filtered_array = np.zeros((len(data_array)), dtype=float)
+    kernel_length = len(kernel)
+    kernel_range = math.floor(len(kernel)/2)
+
+    for dp_index, data_point in enumerate(data_array):
+        data_window = np.zeros((kernel_length), dtype=float)
+        data_window[kernel_range] = data_point
+        for kernel_index in range(1, kernel_range+1):
+            if not ((dp_index - kernel_index) < 0):
+                data_window[kernel_range-kernel_index] = data_array[dp_index-kernel_index]
+
+            if not ((dp_index + kernel_index) > len(data_array)-1):
+                data_window[kernel_range+kernel_index] = data_array[dp_index+kernel_index]
+        filtered_array[dp_index] = np.average(np.multiply(kernel, data_window))
+    return filtered_array
+
+
+def Morans_I(data, plot=False):
+    """transforming RGB data to grayscale"""
+    data_gray = np.dot(data[...,:3], [0.2989, 0.5870, 0.1140])
+    col,row = data_gray.shape[:2]
+    WeightMatrix= lat2W(row,col)
+    WeightMatrix = lat2W(data_gray.shape[0],data_gray.shape[1])
+    MoranM= Moran(data_gray,WeightMatrix)
+    if plot:
+        fig, ax = moran_scatterplot(MoranM, aspect_equal=True)
+        print("Raster Dimensions:\t" + str(data_gray.shape))
+        print("Moran's I Value:\t" +str(round(MoranM.I,4)))
+        plt.show()
+    return round(MoranM.I,4)

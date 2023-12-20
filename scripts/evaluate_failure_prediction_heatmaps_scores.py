@@ -1,23 +1,6 @@
-import csv
-import gc
-import os
-import sys
-import math
-import numpy as np
-import pandas as pd
-import glob
-from PIL import Image, ImageFont, ImageDraw
-import matplotlib.pyplot as plt
-from keras import backend as K
-from scipy.stats import gamma, wasserstein_distance, pearsonr, spearmanr, kendalltau
-from sklearn import preprocessing
-from sklearn.metrics import pairwise_distances_argmin_min, pairwise_distances, pairwise
-from sklearn.decomposition import PCA
-from tqdm import tqdm
 import utils
 from utils import *
 from utils_models import *
-import re
 
 ######################################################################################
 ############ EVALUATION FUNCTION FOR THE THIRDEYE METHOD #################
@@ -732,267 +715,6 @@ def evaluate_p2p_failure_prediction(cfg, heatmap_type, heatmap_types, anomalous_
     # ax.set_ylabel("distance scores")
     # # ax.set_xlabel("frame number")
     # ax.legend(loc='upper left')
-    
-    
-
-######################################################################################
-############################### AUXILIARY FUNCTIONS ##################################
-######################################################################################
-
-def string_to_np_array(vector_string, frame_num):
-    if '[' in vector_string:
-        # autonomous mode
-        vector_string = ' '.join(vector_string.split())
-        vector_string = vector_string.strip("[]").strip().replace(' ', ',')
-        vector = np.fromstring(vector_string, dtype=float, sep=',')
-    elif '(' in vector_string:
-        # manual training mode
-        vector_string = vector_string.strip("()").replace('  ', ' ')
-        vector = np.fromstring(vector_string, dtype=float, sep=' ')
-    if vector.shape != (3,):
-        cprintf(str(vector.shape), 'l_red')
-        print(vector_string)
-        print(vector)
-        raise ValueError(f"Car position format of frame number {frame_num} can't be interpreted.")
-    return vector
-
-def correct_windows_path(address):
-    if "\\\\" in address:
-        address = address.replace("\\\\", "/")
-    elif "\\\\" in address:
-        address = address.replace("\\\\", "/")
-    return address
-
-def get_threshold(losses, conf_level=0.95):
-    print("Fitting reconstruction error distribution using Gamma distribution")
-
-    # removing zeros
-    losses = np.array(losses)
-    losses_copy = losses[losses != 0]
-    shape, loc, scale = gamma.fit(losses_copy, floc=0)
-
-    print("Creating threshold using the confidence intervals: %s" % conf_level)
-    t = gamma.ppf(conf_level, shape, loc=loc, scale=scale)
-    print('threshold: ' + str(t))
-    return t
-
-def get_OOT_frames(data_df_anomalous, number_frames_anomalous):
-    OOT_anomalous = data_df_anomalous['crashed']
-    OOT_anomalous.is_copy = None
-    OOT_anomalous_in_anomalous_conditions = OOT_anomalous.copy()
-
-    # creates the ground truth
-    all_first_frame_position_OOT_sequences = []
-    for idx, item in enumerate(OOT_anomalous_in_anomalous_conditions):
-        if idx == number_frames_anomalous:  # we have reached the end of the file
-            continue
-
-        if OOT_anomalous_in_anomalous_conditions[idx] == 0 and OOT_anomalous_in_anomalous_conditions[idx + 1] == 1: # if next frame is an OOT
-            first_OOT_index = idx + 1
-            all_first_frame_position_OOT_sequences.append(first_OOT_index) # makes a list of all frames where OOT first happened
-            # print("first_OOT_index: %d" % first_OOT_index) 
-    return all_first_frame_position_OOT_sequences, OOT_anomalous_in_anomalous_conditions
-
-def get_ranges(boolean_cte_array):
-    list_of_ranges = []
-    rng_min = -1
-    rng_max = -1
-    counting_range = False
-    for idx, condition in enumerate(boolean_cte_array):
-        if condition == True:
-            if not counting_range:
-                rng_min = idx
-                counting_range = True
-            else:
-                rng_max = idx
-                counting_range = True
-        else:
-            if counting_range:
-                if rng_max == -1:
-                    list_of_ranges.append(rng_min)
-                else:
-                    list_of_ranges.append([rng_min,rng_max])
-                counting_range = False
-                rng_min = -1
-                rng_max = -1
-    return list_of_ranges
-
-def plot_ranges(ax, cte_anomalous, alpha=0.2, YELLOW_BORDER = 3.6,ORANGE_BORDER = 5.0, RED_BORDER = 7.0):
-    # plot cross track error values: 
-    # yellow_condition: reaching the borders of the track: yellow
-    # orange_condition: on the borders of the track (partial crossing): orange
-    # red_condition: out of track (full crossing): red
-
-    yellow_condition = (abs(cte_anomalous)>YELLOW_BORDER)&(abs(cte_anomalous)<ORANGE_BORDER)
-    orange_condition = (abs(cte_anomalous)>ORANGE_BORDER)&(abs(cte_anomalous)<RED_BORDER)
-    red_condition = (abs(cte_anomalous)>RED_BORDER)
-
-    yellow_ranges = get_ranges(yellow_condition)
-    orange_ranges = get_ranges(orange_condition)
-    red_ranges = get_ranges(red_condition)
-
-    all_ranges = [yellow_ranges, orange_ranges, red_ranges]
-    colors = ['yellow', 'orange', 'red']
-    for idx, list_of_ranges in enumerate(all_ranges):
-        for rng in list_of_ranges:
-            if isinstance(rng, list):
-                ax.axvspan(rng[0], rng[1], color=colors[idx], alpha=alpha)
-            else:
-                ax.axvspan(rng, rng+1, color=colors[idx], alpha=alpha)
-
-def plot_crash_ranges(ax, speed_anomalous):
-    # plot crash instances: speed < 1.0 
-    crash_condition = (abs(speed_anomalous)<1.0)
-    # remove the first 10 frames: starting out so speed is less than 1 
-    crash_condition[:10] = False
-    crash_ranges = get_ranges(crash_condition)
-    # plot_ranges(crash_ranges, ax, color='blue', alpha=0.2)
-    NUM_OF_FRAMES_TO_CHECK = 20
-    is_crash_instance = False
-    for rng in crash_ranges:
-        # check 20 frames before first frame with speed < 1.0. if not bigger than 15 it's not
-        # a crash instance it's reset instance
-        if isinstance(rng, list):
-            crash_frame = rng[0]
-        else:
-            crash_frame = rng
-        for speed in speed_anomalous[crash_frame-NUM_OF_FRAMES_TO_CHECK:crash_frame]:
-            if speed > 15.0:
-                is_crash_instance = True
-        if is_crash_instance == True:
-            is_crash_instance = False
-            reset_frame = crash_frame
-            ax.axvline(x = reset_frame, color = 'blue', linestyle = '--')
-            continue
-        # plot crash ranges (speed < 1.0)
-        if isinstance(rng, list):
-            ax.axvspan(rng[0], rng[1], color='teal', alpha=0.2)
-        else:
-            ax.axvspan(rng, rng+1, color='teal', alpha=0.2)
-
-def get_heatmaps(anomalous_frame, anomalous, nominal, pos_mappings, return_size=False, return_IMAGE = False):
-    # load the addresses of centeral camera heatmap of this anomalous frame and the closest nominal frame in terms of position
-    ano_hm_address = anomalous['center'].iloc[anomalous_frame]
-    closest_nom_hm_address = nominal['center'].iloc[int(pos_mappings[anomalous_frame])]
-    # correct windows path, if necessary
-    ano_hm_address = correct_windows_path(ano_hm_address)
-    closest_nom_hm_address = correct_windows_path(closest_nom_hm_address)
-    # load corresponding heatmaps
-    if not return_IMAGE:
-        ano_hm = mpimg.imread(ano_hm_address)
-        closest_nom_hm = mpimg.imread(closest_nom_hm_address)
-        if ano_hm.shape != closest_nom_hm.shape:
-            raise ValueError(Fore.RED + f"Different heatmap sizes for nominal and anomalous conditions!" + Fore.RESET)
-    else:
-        ano_hm = Image.open(ano_hm_address)
-        closest_nom_hm = Image.open(closest_nom_hm_address)
-    if return_size:
-        return ano_hm.shape[0], ano_hm.shape[1]
-    else:
-        return ano_hm, closest_nom_hm
-
-def get_images(cfg, anomalous_frame, pos_mappings):
-    # load the image file paths from main csv
-    ano_csv_path = os.path.join(cfg.TESTING_DATA_DIR,
-                                cfg.SIMULATION_NAME,
-                                'driving_log.csv')
-    nom_csv_path = os.path.join(cfg.TESTING_DATA_DIR,
-                                cfg.SIMULATION_NAME_NOMINAL,
-                                'driving_log.csv')
-    ano_data = pd.read_csv(ano_csv_path)
-    ano_img_address = ano_data["center"].iloc[anomalous_frame]
-    nom_data = pd.read_csv(nom_csv_path)
-    closest_nom_img_address = nom_data['center'].iloc[int(pos_mappings[anomalous_frame])]
-    ano_img_address = correct_windows_path(ano_img_address)
-    closest_nom_img_address = correct_windows_path(closest_nom_img_address)
-    ano_img = Image.open(ano_img_address)
-    closest_nom_img = Image.open(closest_nom_img_address)   
-    return ano_img, closest_nom_img
-
-def save_ax_nosave(ax, **kwargs):
-    import io
-    ax.axis("off")
-    ax.figure.canvas.draw()
-    trans = ax.figure.dpi_scale_trans.inverted() 
-    bbox = ax.bbox.transformed(trans)
-    buff = io.BytesIO()
-    plt.savefig(buff, format="png", dpi=ax.figure.dpi, bbox_inches=bbox,  **kwargs)
-    ax.axis("on")
-    buff.seek(0)
-    # im = plt.imread(buff)
-    im = Image.open(buff)
-    return im
-
-# Video creation functions
-
-def tryint(s):
-    try:
-        return int(s)
-    except:
-        return s
-
-def alphanum_key(s):
-    """ Turn a string into a list of string and number chunks.
-        "z23a" -> ["z", 23, "a"]
-    """
-    return [ tryint(c) for c in re.split('([0-9]+)', s) ]
-
-def sort_nicely(l):
-    """ Sort the given list in the way that humans expect.
-    """
-    l.sort(key=alphanum_key)
-
-def make_avi(image_folder, video_folder_path, name):
-    video_name = f'{name}.avi'
-    video_path = os.path.join(video_folder_path, video_name)
-    if not os.path.exists(video_path):
-        cprintf('Creating video ...', 'l_cyan')
-        # path to video folder
-        if not os.path.exists(video_folder_path):
-            os.makedirs(video_folder_path)
-        images = [img for img in os.listdir(image_folder)]
-        sort_nicely(images)
-        frame = cv2.imread(os.path.join(image_folder, images[0]))
-        height, width, layers = frame.shape
-        fps = 10
-        video = cv2.VideoWriter(video_path, 0, fps, (width,height))
-        for image in tqdm(images):
-            video.write(cv2.imread(os.path.join(image_folder, image)))
-        cv2.destroyAllWindows()
-        video.release()
-    else:
-        cprintf('Video already exists. Skipping video creation ...', 'l_green')
-
-def make_gif(frame_folder, name):
-    frames = [Image.open(image) for image in glob.glob(f"{frame_folder}/*.PNG")]
-    frame_one = frames[0]
-    frame_one.save(f"{name}.gif", format="GIF", append_images=frames,
-               save_all=True, duration=100, loop=0)
-
-def average_filter_1D(data_array, kernel=np.ones((5), dtype=float)):
-
-    if not isinstance(kernel, np.ndarray):
-        raise ValueError(Fore.RED + f"The provided kernel '{kernel}' is not a numpy array." + Fore.RESET)
-    elif not isinstance(data_array, np.ndarray):
-        raise ValueError(Fore.RED + f"The provided data is not a numpy array." + Fore.RESET)
-    elif not ((kernel.ndim == 1) and (data_array.ndim == 1)):
-        raise ValueError(Fore.RED + f"The provided numpy arrays must have 1 dimension." + Fore.RESET)
-    
-    filtered_array = np.zeros((len(data_array)), dtype=float)
-    kernel_length = len(kernel)
-    kernel_range = math.floor(len(kernel)/2)
-
-    for dp_index, data_point in enumerate(data_array):
-        data_window = np.zeros((kernel_length), dtype=float)
-        data_window[kernel_range] = data_point
-        for kernel_index in range(1, kernel_range+1):
-            if not ((dp_index - kernel_index) < 0):
-                data_window[kernel_range-kernel_index] = data_array[dp_index-kernel_index]
-
-            if not ((dp_index + kernel_index) > len(data_array)-1):
-                data_window[kernel_range+kernel_index] = data_array[dp_index+kernel_index]
-        filtered_array[dp_index] = np.average(np.multiply(kernel, data_window))
-    return filtered_array
 
 
 ######################################################################################
@@ -1132,11 +854,13 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, he
         x_ano_all_frames = np.zeros((num_anomalous_frames, ht_height*ht_width))
         x_nom_all_frames = np.zeros((num_anomalous_frames, ht_height*ht_width))
 
-    if cfg.EMD:
+        # Earth mover (wasserstein's) distance(s)
         # distance_vector_EMD = np.zeros((num_anomalous_frames))
         distance_vector_EMD_std = np.zeros((num_anomalous_frames))
         # distance_vector_EMD_norm = np.zeros((num_anomalous_frames))
         # distance_vector_EMD_std_norm = np.zeros((num_anomalous_frames))
+
+        # correlations
         pearson_res = np.zeros((num_anomalous_frames))
         pearson_p = np.zeros((num_anomalous_frames))
         spearman_res = np.zeros((num_anomalous_frames))
@@ -1144,6 +868,10 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, he
         kendall_res = np.zeros((num_anomalous_frames))
         kendall_p = np.zeros((num_anomalous_frames))
 
+        # Moran's I: spatial autocorrelation of averaged image (ano, nom)
+        alpha = 0.7
+        beta = (1.0 - alpha)
+        moran_i = np.zeros((num_anomalous_frames))
     if cfg.GENERATE_SUMMARY_COLLAGES:
         missing_collages = 0
         # path to plotted figure images folder
@@ -1168,30 +896,38 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, he
         # load the centeral camera heatmaps of this anomalous frame and the closest nominal frame in terms of position
         ano_heatmap, closest_nom_heatmap = get_heatmaps(anomalous_frame, anomalous, nominal, pos_mappings, return_size=False, return_IMAGE=False)
 
+        # Moran's I: spatial autocorrelation of averaged image (ano, nom)
+        dst = cv2.addWeighted(ano_heatmap, alpha, closest_nom_heatmap, beta, 0.0)
+        moran_i[anomalous_frame] = Morans_I(dst, plot=False)
+
         # convert to grayscale
         x_ano = cv2.cvtColor(ano_heatmap, cv2.COLOR_BGR2GRAY)
         x_nom = cv2.cvtColor(closest_nom_heatmap, cv2.COLOR_BGR2GRAY)
-        
+
         ano_std_scale = preprocessing.StandardScaler().fit(x_ano)
         x_ano_std = ano_std_scale.transform(x_ano)
         nom_std_scale = preprocessing.StandardScaler().fit(x_nom)
         x_nom_std = nom_std_scale.transform(x_nom)
 
-        if cfg.EMD:
-            # x_ano_normalized = cv2.normalize(x_ano, None, 0, 1.0, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
-            # x_nom_normalized = cv2.normalize(x_nom, None, 0, 1.0, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
-            # x_ano_std_normalized = cv2.normalize(x_ano_std, None, 0, 1.0, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
-            # x_nom_std_normalized = cv2.normalize(x_nom_std, None, 0, 1.0, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
-            # distance_vector_EMD[anomalous_frame] = wasserstein_distance(x_ano.flatten(), x_nom.flatten())
-            distance_vector_EMD_std[anomalous_frame] = wasserstein_distance(x_ano_std.flatten(), x_nom_std.flatten())
-            distance_vector_EMD_std_avg = average_filter_1D(distance_vector_EMD_std)
-            sobel_filter_kernel = np.array([1, 1, 0, -1, -1])
-            distance_vector_EMD_std_sobel = average_filter_1D(distance_vector_EMD_std, kernel=sobel_filter_kernel)
-            pearson_res[anomalous_frame], pearson_p[anomalous_frame] = pearsonr(x_ano_std.flatten(), x_nom_std.flatten())
-            spearman_res[anomalous_frame], spearman_p[anomalous_frame] = spearmanr(x_ano_std.flatten(), x_nom_std.flatten())
-            kendall_res[anomalous_frame], kendall_p[anomalous_frame] = kendalltau(x_ano_std.flatten(), x_nom_std.flatten())
-            # distance_vector_EMD_norm[anomalous_frame] = wasserstein_distance(x_ano_normalized.flatten(), x_nom_normalized.flatten())
-            # distance_vector_EMD_std_norm[anomalous_frame] = wasserstein_distance(x_ano_std_normalized.flatten(), x_nom_std_normalized.flatten())
+        # Earth mover's distances
+        # x_ano_normalized = cv2.normalize(x_ano, None, 0, 1.0, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+        # x_nom_normalized = cv2.normalize(x_nom, None, 0, 1.0, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+        # x_ano_std_normalized = cv2.normalize(x_ano_std, None, 0, 1.0, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+        # x_nom_std_normalized = cv2.normalize(x_nom_std, None, 0, 1.0, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+        # distance_vector_EMD[anomalous_frame] = wasserstein_distance(x_ano.flatten(), x_nom.flatten())
+        distance_vector_EMD_std[anomalous_frame] = wasserstein_distance(x_ano_std.flatten(), x_nom_std.flatten())
+        distance_vector_EMD_std_avg = average_filter_1D(distance_vector_EMD_std)
+        # sobel_filter_kernel = np.array([1, 1, 0, -1, -1])
+        # distance_vector_EMD_std_sobel = average_filter_1D(distance_vector_EMD_std, kernel=sobel_filter_kernel)
+        # distance_vector_EMD_norm[anomalous_frame] = wasserstein_distance(x_ano_normalized.flatten(), x_nom_normalized.flatten())
+        # distance_vector_EMD_std_norm[anomalous_frame] = wasserstein_distance(x_ano_std_normalized.flatten(), x_nom_std_normalized.flatten())
+
+        # Correlation scores
+        pearson_res[anomalous_frame], pearson_p[anomalous_frame] = pearsonr(x_ano_std.flatten(), x_nom_std.flatten())
+        spearman_res[anomalous_frame], spearman_p[anomalous_frame] = spearmanr(x_ano_std.flatten(), x_nom_std.flatten())
+        kendall_res[anomalous_frame], kendall_p[anomalous_frame] = kendalltau(x_ano_std.flatten(), x_nom_std.flatten())
+
+
         x_ano_all_frames[anomalous_frame,:] = x_ano_std.flatten()
         x_nom_all_frames[anomalous_frame,:] = x_nom_std.flatten()
 
@@ -1368,13 +1104,12 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, he
         cprintf(f"Loading CSV file from {DISTANCE_VECTOR_PATH} ...", 'l_yellow')
         distance_vector = np.loadtxt(DISTANCE_VECTOR_PATH, dtype='float')
     distance_vector_avg = average_filter_1D(distance_vector)
-    sobel_filter_kernel = np.array([1, 1, 0, -1, -1])
-    distance_vector_sobel = average_filter_1D(distance_vector, kernel=sobel_filter_kernel)
+    # sobel_filter_kernel = np.array([1, 1, 0, -1, -1])
+    # distance_vector_sobel = average_filter_1D(distance_vector, kernel=sobel_filter_kernel)
 
 
-
-    #################################### PLOTTING SECTION ##########################################
-    NUM_OF_AXES = 7
+    #################################### PLOTTING SECTION #########################################
+    NUM_OF_AXES = 8
     height_ratios = []
     for i in range(NUM_OF_AXES):
         if i==0:
@@ -1417,7 +1152,7 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, he
 
     ax.plot(distance_vector, label=distance_method, linewidth= 0.5, linestyle = '-', color=color)
     ax.plot(distance_vector_avg, linewidth= 0.8, linestyle = 'dashed', color=color_avg)
-    ax.plot(distance_vector_sobel, linewidth= 0.8, linestyle = 'dashed', color='red')
+    # ax.plot(distance_vector_sobel, linewidth= 0.8, linestyle = 'dashed', color='red')
     
     title = f"{heatmap_type} && PCA {pca_dimension}d"
     ax.set_title(title)
@@ -1534,7 +1269,7 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, he
 
     ax.plot(distance_vector_EMD_std, label='EMD standardized', linewidth= 0.5, linestyle = '-', color=color)
     ax.plot(distance_vector_EMD_std_avg, linewidth= 0.8, linestyle = 'dashed', color=color_avg)
-    ax.plot(distance_vector_EMD_std_sobel, linewidth= 0.8, linestyle = 'dashed', color='red')
+    # ax.plot(distance_vector_EMD_std_sobel, linewidth= 0.8, linestyle = 'dashed', color='red')
     
     title = f"{heatmap_type} && EMD standardized"
     ax.set_title(title)
@@ -1565,7 +1300,6 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, he
 
 
 
-# kendall_res
     # Spearman correlation
     ax = fig.add_subplot(spec[4, :])
     # plot ranges
@@ -1611,8 +1345,34 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, he
     ax.legend(loc='upper left')
 
 
-    # Plot cross track error
+
+
     ax = fig.add_subplot(spec[6, :])
+    # plot ranges
+    plot_ranges(ax, cte_anomalous, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER,
+                ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
+    plot_crash_ranges(ax, speed_anomalous)
+    # Plot distance scores
+    color = 'indianred'
+    color_avg = 'brown'
+    ax.set_xlabel('Frame ID', color=color)
+    ax.set_ylabel(f'Kendall correlation results', color=color)
+
+    ax.plot(moran_i, label='Morans I', linewidth= 0.5, linestyle = '-', color=color)
+    # ax.plot(kendall_p, label='Kendall P-Value', linewidth= 0.5, linestyle = '-', color=color_avg)
+    # ax.plot(distance_vector_EMD_std_avg, linewidth= 0.8, linestyle = 'dashed', color=color_avg)
+    # ax.plot(distance_vector_EMD_std_sobel, linewidth= 0.8, linestyle = 'dashed', color='red')
+    
+    title = f"{heatmap_type} && Moran's I (blended images)"
+    ax.set_title(title)
+    ax.legend(loc='upper left')
+
+
+
+    
+
+    # Plot cross track error
+    ax = fig.add_subplot(spec[7, :])
     color = 'red'
     ax.set_xlabel('Frame ID', color=color)
     ax.set_ylabel('cross-track error', color=color)
