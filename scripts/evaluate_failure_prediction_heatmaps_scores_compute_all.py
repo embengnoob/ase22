@@ -218,9 +218,9 @@ if __name__ == '__main__':
     elif len(SUMMARY_COLLAGES) != len(RUN_ID_NUMBERS):
         raise ValueError(Fore.RED + f"Mismatch in number of runs and specified summary collage patterns: {len(SUMMARY_COLLAGES)} != {len(RUN_ID_NUMBERS)} " + Fore.RESET)
     
-    HEATMAP_TYPES = ['SmoothGrad'] #'GradCam++', 'SmoothGrad', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP'
-    DISTANCE_METHODS = ['pairwise_distance']
-    DISTANCE_TYPES = ['euclidean']
+    HEATMAP_TYPES = ['GradCam++', 'SmoothGrad', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP'] #'GradCam++', 'SmoothGrad', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP'
+  # DISTANCE_TYPES = ['euclidean', 'manhattan', 'cosine', 'EMD', 'pearson', 'spearman', 'kendall', 'moran', 'kl_divergence', 'mutual_info', 'sobolev_norm']
+    DISTANCE_TYPES = ['euclidean', 'manhattan', 'cosine', 'EMD', 'pearson', 'spearman', 'kendall', 'moran', 'mutual_info', 'sobolev_norm']
     summary_types = ['-avg', '-avg-grad']
     aggregation_methods = ['mean', 'max']
     abstraction_methods = ['avg', 'variance']
@@ -325,61 +325,56 @@ if __name__ == '__main__':
                     plt.show()
                     print(subplot_counter)
 
-                elif cfg.METHOD == 'p2p':
-                    figsize = (15, 12)
-                    hspace = 0.69
-                    fig, axs = plt.subplots(len(abstraction_methods)*len(PCA_DIMENSIONS)*len(HEATMAP_TYPES), 1, figsize=figsize)
-                    plt.subplots_adjust(hspace=hspace)
-                    plt.suptitle("P2P Heatmap Distances", fontsize=15, y=0.95)
-                    for ht in HEATMAP_TYPES:
-                        for am in abstraction_methods:
-                            for dim in PCA_DIMENSIONS:
-                                for dm in DISTANCE_METHODS:
-                                    cprintf(f'\n########### using distance method >>{dm}<< ########### pca dimension {dim} ##############', 'yellow')
-                                    evaluate_p2p_failure_prediction(cfg,
-                                                                    heatmap_type=ht,
-                                                                    heatmap_types = HEATMAP_TYPES,
-                                                                    anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
-                                                                    nominal_simulation_name=SIMULATION_NAME_NOMINAL,
-                                                                    distance_method=dm,
-                                                                    distance_methods = DISTANCE_METHODS,
-                                                                    pca_dimension=dim,
-                                                                    pca_dimensions = PCA_DIMENSIONS,
-                                                                    abstraction_method = am,
-                                                                    abstraction_methods = abstraction_methods,
-                                                                    fig=fig,
-                                                                    axs=axs)
-                    plt.show()
+                # elif cfg.METHOD == 'p2p':
+                #     figsize = (15, 12)
+                #     hspace = 0.69
+                #     fig, axs = plt.subplots(len(abstraction_methods)*len(PCA_DIMENSIONS)*len(HEATMAP_TYPES), 1, figsize=figsize)
+                #     plt.subplots_adjust(hspace=hspace)
+                #     plt.suptitle("P2P Heatmap Distances", fontsize=15, y=0.95)
+                #     for ht in HEATMAP_TYPES:
+                #         for am in abstraction_methods:
+                #             for dim in PCA_DIMENSIONS:
+                #                 for dm in DISTANCE_METHODS:
+                #                     cprintf(f'\n########### using distance method >>{dm}<< ########### pca dimension {dim} ##############', 'yellow')
+                #                     evaluate_p2p_failure_prediction(cfg,
+                #                                                     heatmap_type=ht,
+                #                                                     heatmap_types = HEATMAP_TYPES,
+                #                                                     anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
+                #                                                     nominal_simulation_name=SIMULATION_NAME_NOMINAL,
+                #                                                     distance_method=dm,
+                #                                                     distance_methods = DISTANCE_METHODS,
+                #                                                     pca_dimension=dim,
+                #                                                     pca_dimensions = PCA_DIMENSIONS,
+                #                                                     abstraction_method = am,
+                #                                                     abstraction_methods = abstraction_methods,
+                #                                                     fig=fig,
+                #                                                     axs=axs)
+                #     plt.show()
                 elif cfg.METHOD == 'test':
                     if cfg.NOM_VS_NOM_TEST:
                         pca_values = []
                         pca_keys = []
                     for heatmap_type in HEATMAP_TYPES:
-                        for distance_method in DISTANCE_METHODS:
-                            for distance_type in DISTANCE_TYPES:
-                                for pca_dimension in PCA_DIMENSIONS:
-                                    cprintb(f'\n########### run number {run_number+1} ############## run id {run_id} ##############', 'l_blue')
-                                    cprintb(f'########### Using Distance Method: \"{distance_method}\" ###########', 'l_blue')
-                                    cprintb(f'########### Using Distance Type: \"{distance_type}\" ###########', 'l_blue')
-                                    cprintb(f'########### Using PCA Dimension: {pca_dimension} ###########', 'l_blue')
-                                    x_ano_all_frames, x_nom_all_frames, pca_ano, pca_nom = test(cfg,
-                                                                                                NOMINAL_PATHS,
-                                                                                                ANOMALOUS_PATHS,
-                                                                                                NUM_FRAMES_NOM,
-                                                                                                NUM_FRAMES_ANO,
-                                                                                                heatmap_type=heatmap_type,
-                                                                                                anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
-                                                                                                nominal_simulation_name=SIMULATION_NAME_NOMINAL,
-                                                                                                distance_method=distance_method,
-                                                                                                distance_type=distance_type,
-                                                                                                pca_dimension=pca_dimension,
-                                                                                                PCA_DIMENSIONS=PCA_DIMENSIONS,
-                                                                                                run_id=run_id,
-                                                                                                gen_axes=gen_axes,
-                                                                                                pca_axes_list=pca_axes_list)
-                                    if cfg.NOM_VS_NOM_TEST:
-                                        pca_values.append([x_ano_all_frames, x_nom_all_frames, pca_ano, pca_nom])
-                                        pca_keys.append([f'x_ano_all_frames-{pca_dimension}d', f'x_nom_all_frames-{pca_dimension}d', f'pca_ano-{pca_dimension}d', f'pca_nom-{pca_dimension}d'])
+                        for pca_dimension in PCA_DIMENSIONS:
+                            cprintb(f'\n########### run number {run_number+1} ############## run id {run_id} ##############', 'l_blue')
+                            cprintb(f'########### Using PCA Dimension: {pca_dimension} ###########', 'l_blue')
+                            x_ano_all_frames, x_nom_all_frames, pca_ano, pca_nom = test(cfg,
+                                                                                        NOMINAL_PATHS,
+                                                                                        ANOMALOUS_PATHS,
+                                                                                        NUM_FRAMES_NOM,
+                                                                                        NUM_FRAMES_ANO,
+                                                                                        heatmap_type=heatmap_type,
+                                                                                        anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
+                                                                                        nominal_simulation_name=SIMULATION_NAME_NOMINAL,
+                                                                                        distance_types=DISTANCE_TYPES,
+                                                                                        pca_dimension=pca_dimension,
+                                                                                        PCA_DIMENSIONS=PCA_DIMENSIONS,
+                                                                                        run_id=run_id,
+                                                                                        gen_axes=gen_axes,
+                                                                                        pca_axes_list=pca_axes_list)
+                            if cfg.NOM_VS_NOM_TEST:
+                                pca_values.append([x_ano_all_frames, x_nom_all_frames, pca_ano, pca_nom])
+                                pca_keys.append([f'x_ano_all_frames-{pca_dimension}d', f'x_nom_all_frames-{pca_dimension}d', f'pca_ano-{pca_dimension}d', f'pca_nom-{pca_dimension}d'])
 
                 if cfg.NOM_VS_NOM_TEST:
                     run_results.append(pca_values)
@@ -432,7 +427,7 @@ if __name__ == '__main__':
             if cfg.COMPARE_RUNS:
                 RUN_ID_NUMBERS_STR = '-'.join(str(rn) for rn in RUN_ID_NUMBERS[sim_idx])
                 ANOMALOUS_HEATMAP_PARENT_FOLDER_PATH = ANOMALOUS_PATHS[2]
-                cprintf(f'\nSaving comparison figures of runs {RUN_ID_NUMBERS_STR} ...', 'l_yellow') 
+                cprintf(f'\nSaving comparison figures of runs {RUN_ID_NUMBERS_STR} ...', 'magenta') 
                 gen_comp_fig.savefig(os.path.join(ANOMALOUS_HEATMAP_PARENT_FOLDER_PATH, f"comparison_of_runs_{RUN_ID_NUMBERS_STR}_all.png"), bbox_inches='tight', dpi=300)
                 for idx, pca_based_comp_fig in enumerate(pca_comp_fig_list):
                     pca_based_comp_fig.savefig(os.path.join(ANOMALOUS_HEATMAP_PARENT_FOLDER_PATH, f"comparison_of_runs_{RUN_ID_NUMBERS_STR}_pca_dim_{PCA_DIMENSIONS[idx]}.png"), bbox_inches='tight', dpi=300)

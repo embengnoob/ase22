@@ -43,9 +43,10 @@ from config import Config
 ######################################################################################
 ############################## EVAL UTIL IMPORTS ##################################
 ######################################################################################
-from scipy.stats import gamma, wasserstein_distance, pearsonr, spearmanr, kendalltau
+from scipy.stats import gamma, wasserstein_distance, pearsonr, spearmanr, kendalltau, entropy
+from scipy.special import kl_div, rel_entr
 from sklearn import preprocessing
-from sklearn.metrics import pairwise_distances_argmin_min, pairwise_distances, pairwise
+from sklearn.metrics import pairwise_distances_argmin_min, pairwise_distances, pairwise, mutual_info_score
 from sklearn.decomposition import PCA
 from libpysal.weights import lat2W
 from esda.moran import Moran
@@ -1029,3 +1030,55 @@ def Morans_I(data, plot=False):
         print("Moran's I Value:\t" +str(round(MoranM.I,4)))
         plt.show()
     return round(MoranM.I,4)
+
+def lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg,
+             spine_color='black', alpha=0.4, avg_filter_length=5, pca_dimension=None, pca_plot=False,
+             replace_initial_and_ending_values=True):
+    # Plot distance scores
+    # ax.set_xlabel('Frame ID', color=color)
+    ax.set_ylabel(f'{distance_type} scores', color=color)
+
+    ax_spines = ['top', 'right', 'left', 'bottom']
+    for spine in ax_spines:
+        ax.spines[spine].set_color(spine_color)
+
+    ax.plot(distance_vector, label=distance_type, linewidth= 0.5, linestyle = '-', color=color, alpha=alpha)
+
+    if replace_initial_and_ending_values:
+        for rng in range(math.floor(avg_filter_length/2)):
+                idx = rng
+                distance_vector_avg[idx] = distance_vector[idx]
+                idx = -(rng+1)
+                distance_vector_avg[idx] = distance_vector[idx]
+
+    ax.plot(distance_vector_avg, label=f'avg_filter({avg_filter_length})', linewidth= 0.8, linestyle = 'dashed', color=color_avg)
+    # ax.plot(distance_vector_sobel, linewidth= 0.8, linestyle = 'dashed', color='red')
+
+    if pca_plot:
+        bolded_part = f": {distance_type} - PCA {pca_dimension}d"
+        title = heatmap_type + r"$\bf{" + bolded_part + "}$"
+    else:
+        bolded_part = f": {distance_type}"
+        title = heatmap_type + r"$\bf{" + bolded_part + "}$"
+    # plt.title("This is title number: " + r"$\bf{" + str(number) + "}$")
+    ax.set_title(title, color=spine_color)
+    ax.legend(loc='upper left')
+
+    # set tick and ticklabel color
+    ax.tick_params(axis='x', colors=spine_color)    #setting up X-axis tick color to red
+    ax.tick_params(axis='y', colors=spine_color)  #setting up Y-axis tick color to black
+
+
+def h_minus_1_sobolev_norm(A, B):
+    # Compute the Fourier transform of the difference of the heatmaps
+    fft_diff = np.fft.fft2(A - B)
+    # Create a meshgrid of frequencies (wavevectors)
+    nx, ny = A.shape
+    kx = np.fft.fftfreq(nx)
+    ky = np.fft.fftfreq(ny)
+    kx, ky = np.meshgrid(kx, ky, indexing='ij')  # Use 'ij' indexing to match array shapes
+    # Calculate the wavenumber |k|
+    wavenumber = np.sqrt(kx**2 + ky**2)
+    # Discount Fourier coefficients by the wavenumber and sum them up
+    norm_squared = np.sum(np.abs(fft_diff)**2 / (1 + (2 * np.pi * wavenumber)**2))
+    return np.sqrt(norm_squared)

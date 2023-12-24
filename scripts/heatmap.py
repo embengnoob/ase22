@@ -249,7 +249,7 @@ def compute_heatmap(cfg, nominal, simulation_name, NUM_OF_FRAMES, run_id, attent
             else:
                 SCORES_FOLDER_PATH = SIM_PATH
 
-            cprintf(f'Saving loss avg/avg-grad scores and their plots to {SCORES_FOLDER_PATH}' ,'l_yellow')
+            cprintf(f'Saving loss avg/avg-grad scores and their plots to {SCORES_FOLDER_PATH}' ,'magenta')
             file_name = "htm-" + attention_type.lower() + '-scores'
             AVG_SCORE_PATH = os.path.join(SCORES_FOLDER_PATH, file_name + '-avg')
             AVG_PLOT_PATH = os.path.join(SCORES_FOLDER_PATH, 'plot-' + file_name + '-avg.png')
@@ -323,5 +323,5 @@ def compute_heatmap(cfg, nominal, simulation_name, NUM_OF_FRAMES, run_id, attent
             df['steering_angle'] = data['steeringAngle'].copy()
         
         # save it as a separate csv
-        cprintf(f'Saving CSV file to: {HEATMAP_CSV_PATH}', 'l_yellow')
+        cprintf(f'Saving CSV file to: {HEATMAP_CSV_PATH}', 'magenta')
         df.to_csv(HEATMAP_CSV_PATH, index=False)
