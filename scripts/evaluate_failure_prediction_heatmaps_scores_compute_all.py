@@ -164,6 +164,20 @@ def comparison_plot_setup(comp_fig):
         axes = [pca_ax_nom, pca_ax_ano, position_ax, distance_ax]
         return axes, comp_fig
 
+def copy_run_figs(cfg, sim_name, run_id, run_figs):
+    if cfg.SPARSE_ATTRIBUTION:
+        RUN_FIGS_FOLDER_PATH = os.path.join(cfg.TESTING_DATA_DIR, sim_name, str(run_id), 'FIGS_SPARSE')
+    else:
+        RUN_FIGS_FOLDER_PATH = os.path.join(cfg.TESTING_DATA_DIR, sim_name, str(run_id), 'FIGS')
+
+    if not os.path.exists(RUN_FIGS_FOLDER_PATH):
+        cprintf(f'Run figure folder does not exist. Creating folder ...' ,'l_blue')
+        os.makedirs(RUN_FIGS_FOLDER_PATH)
+    
+    cprintf(f"Copying run figures of all assigned heatmap types to: {RUN_FIGS_FOLDER_PATH}", 'l_cyan')
+    for run_fig_address in tqdm(run_figs):
+        shutil.copy(run_fig_address, RUN_FIGS_FOLDER_PATH)
+
 if __name__ == '__main__':
     start_time = time.monotonic()
     os.chdir(os.getcwd().replace('scripts', ''))
@@ -250,6 +264,8 @@ if __name__ == '__main__':
         if len(run_pattern) != len(SUMMARY_COLLAGES[idx]):
             raise ValueError(Fore.RED + f"Mismatch in number of runs per simlation and specified summary collage binary pattern of simulation {idx}: {len(run_pattern)} != {len(SUMMARY_COLLAGES[idx])} " + Fore.RESET) 
     
+
+
     # Starting evaluation
     for sim_idx, sim_name in enumerate(ANO_SIMULATIONS):
     
@@ -271,10 +287,11 @@ if __name__ == '__main__':
 
         run_results = []
         run_keys = []
+
+        cprintb(f'\n\n########### Simulation {sim_name} ({sim_idx + 1} of {len(ANO_SIMULATIONS)}) ###########', 'l_red')
         for run_number in range(len(RUN_ID_NUMBERS[sim_idx])):
             # Check if a simulation with this run number already exists
             run_id = RUN_ID_NUMBERS[sim_idx][run_number]
-            cprintb(f'\n\n########### Simulation {sim_name} ########### run number {run_number+1} ############## run id {run_id} ##############', 'l_red')
             SIMULATION_NAME_ANOMALOUS = sim_name
             SIMULATION_NAME_NOMINAL = NOM_SIMULATIONS[sim_idx]
             cfg.SIMULATION_NAME = SIMULATION_NAME_ANOMALOUS
@@ -370,9 +387,9 @@ if __name__ == '__main__':
                         #     pca_values = []
                         #     pca_keys = []
                         for pca_dimension in PCA_DIMENSIONS:
-                            cprintb(f'\n########### run number {run_number+1} ############## run id {run_id} ##############', 'l_blue')
-                            cprintb(f'########### Using PCA Dimension: {pca_dimension} ###########', 'l_blue')
-                            cprintb(f'########### Using Heatmap Type: {heatmap_type} ###########', 'l_blue')
+                            cprintb(f'\n############## run number {run_id} of {len(RUN_ID_NUMBERS[sim_idx])} ##############', 'l_blue')
+                            cprintb(f'########### Using PCA Dimension: {pca_dimension} ({PCA_DIMENSIONS.index(pca_dimension) + 1} of {len(PCA_DIMENSIONS)}) ###########', 'l_blue')
+                            cprintb(f'########### Using Heatmap Type: {heatmap_type} ({HEATMAP_TYPES.index(heatmap_type) + 1} of {len(HEATMAP_TYPES)}) ###########', 'l_blue')
                             x_ano_all_frames, x_nom_all_frames, pca_ano, pca_nom, fig_img_address = test(cfg,
                                                                                                         NOMINAL_PATHS,
                                                                                                         ANOMALOUS_PATHS,
@@ -388,15 +405,9 @@ if __name__ == '__main__':
                                                                                                         gen_axes=gen_axes,
                                                                                                         pca_axes_list=pca_axes_list)
                             run_figs.append(fig_img_address)
-
             # copy all figs of a run to a single folder
-            if cfg.SPARSE_ATTRIBUTION:
-                RUN_FIGS_FOLDER_PATH = os.path.join(cfg.TESTING_DATA_DIR, sim_name, str(run_id), 'FIGS_SPARSE')
-            else:
-                RUN_FIGS_FOLDER_PATH = os.path.join(cfg.TESTING_DATA_DIR, sim_name, str(run_id), 'FIGS')
-            cprintf(f"Copying run figures of all assigned heatmap types to: {RUN_FIGS_FOLDER_PATH}", 'l_cyan')
-            for run_fig_address in tqdm(run_figs):
-                shutil.copy(run_fig_address, RUN_FIGS_FOLDER_PATH)
+            copy_run_figs(cfg, sim_name, run_id, run_figs)
+
 
 
             #                 if cfg.NOM_VS_NOM_TEST:
