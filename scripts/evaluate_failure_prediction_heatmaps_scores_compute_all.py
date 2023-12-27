@@ -356,32 +356,7 @@ if __name__ == '__main__':
                         plt.show()
                         print(subplot_counter)
 
-                    # elif cfg.METHOD == 'p2p':
-                    #     figsize = (15, 12)
-                    #     hspace = 0.69
-                    #     fig, axs = plt.subplots(len(abstraction_methods)*len(PCA_DIMENSIONS)*len(HEATMAP_TYPES), 1, figsize=figsize)
-                    #     plt.subplots_adjust(hspace=hspace)
-                    #     plt.suptitle("P2P Heatmap Distances", fontsize=15, y=0.95)
-                    #     for ht in HEATMAP_TYPES:
-                    #         for am in abstraction_methods:
-                    #             for dim in PCA_DIMENSIONS:
-                    #                 for dm in DISTANCE_METHODS:
-                    #                     cprintf(f'\n########### using distance method >>{dm}<< ########### pca dimension {dim} ##############', 'yellow')
-                    #                     evaluate_p2p_failure_prediction(cfg,
-                    #                                                     heatmap_type=ht,
-                    #                                                     heatmap_types = HEATMAP_TYPES,
-                    #                                                     anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
-                    #                                                     nominal_simulation_name=SIMULATION_NAME_NOMINAL,
-                    #                                                     distance_method=dm,
-                    #                                                     distance_methods = DISTANCE_METHODS,
-                    #                                                     pca_dimension=dim,
-                    #                                                     pca_dimensions = PCA_DIMENSIONS,
-                    #                                                     abstraction_method = am,
-                    #                                                     abstraction_methods = abstraction_methods,
-                    #                                                     fig=fig,
-                    #                                                     axs=axs)
-                    #     plt.show()
-                    elif cfg.METHOD == 'test':
+                    elif cfg.METHOD == 'p2p':
                         # if cfg.NOM_VS_NOM_TEST:
                         #     pca_values = []
                         #     pca_keys = []

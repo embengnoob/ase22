@@ -49,7 +49,7 @@ CTE_TOLERANCE_LEVEL = 2.5
 IMPROVEMENT_RATIO = 1
 
 # evaluation settings
-METHOD = 'test' # 'thirdeye', 'p2p', 'p2c'
+METHOD = 'p2p' # 'thirdeye', 'p2p', 'p2c'
 IGNORE_WARNINGS = True
 EVALUATE_ALL = True
 
