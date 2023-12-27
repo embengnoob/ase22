@@ -889,15 +889,15 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, he
         moran_i_nom = np.zeros((num_anomalous_frames))
 
     # Kullback-Leibler Divergence
-    if 'kl_divergence' in distance_types:
+    if 'kl-divergence' in distance_types:
         kl_divergence = np.zeros((num_anomalous_frames))
         kl_divergence_std = np.zeros((num_anomalous_frames))
 
     # Mutual information
-    if 'mutual_info' in distance_types:
+    if 'mutual-info' in distance_types:
         mutual_info_std = np.zeros((num_anomalous_frames))
 
-    if 'sobolev_norm' in distance_types:
+    if 'sobolev-norm' in distance_types:
         sobolev_norms = np.zeros((num_anomalous_frames))
 
     # distance types: are csv files already available?
@@ -960,15 +960,15 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, he
         x_nom_std = nom_std_scale.transform(x_nom)
         
         # Kullback-Leibler Divergence
-        if 'kl_divergence' in distance_types and (not csv_file_available[distance_types.index('kl_divergence')]): 
+        if 'kl-divergence' in distance_types and (not csv_file_available[distance_types.index('kl-divergence')]): 
             kl_divergence_std[anomalous_frame] = entropy(x_ano_std.flatten()//255., x_nom_std.flatten()/255.)
             # kl_divergence[anomalous_frame] = kl_div(x_ano.flatten(), x_nom.flatten())
         
         # Mutual information
-        if 'mutual_info' in distance_types and (not csv_file_available[distance_types.index('mutual_info')]): 
+        if 'mutual-info' in distance_types and (not csv_file_available[distance_types.index('mutual-info')]): 
             mutual_info_std[anomalous_frame] = mutual_info_score(x_ano_std.flatten(), x_nom_std.flatten())
 
-        if 'sobolev_norm' in distance_types and (not csv_file_available[distance_types.index('sobolev_norm')]):
+        if 'sobolev-norm' in distance_types and (not csv_file_available[distance_types.index('sobolev-norm')]):
             sobolev_norms[anomalous_frame] = h_minus_1_sobolev_norm(x_ano_std, x_nom_std)
 
         # Earth mover's distances
@@ -1118,11 +1118,11 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, he
                 distance_vector = spearman_res
             elif distance_type == 'kendall':   
                 distance_vector = kendall_res
-            elif distance_type == 'kl_divergence': 
+            elif distance_type == 'kl-divergence': 
                 distance_vector = kl_divergence_std
-            elif distance_type == 'mutual_info': 
+            elif distance_type == 'mutual-info': 
                 distance_vector = mutual_info_std
-            elif distance_type == 'sobolev_norm':
+            elif distance_type == 'sobolev-norm':
                 distance_vector = sobolev_norms
             else:
                 raise ValueError(f"Distance type \"{distance_type}\" is not defined.")
@@ -1224,9 +1224,9 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, he
         'spearman' : ('pink', 'mediumvioletred'),
         'kendall' : ('goldenrod', 'darkgoldenrod'),
         'moran' : ('darkseagreen', 'darkolivegreen'),
-        'kl_divergence': ('wheat','orange'),
-        'mutual_info': ('salmon', 'maroon'),
-        'sobolev_norm': ('paleturquoise', 'teal')}
+        'kl-divergence': ('wheat','orange'),
+        'mutual-info': ('salmon', 'maroon'),
+        'sobolev-norm': ('paleturquoise', 'teal')}
     
     if cfg.PCA:
         # Plot pca cluster

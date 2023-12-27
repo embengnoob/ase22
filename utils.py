@@ -37,8 +37,10 @@ colored_traceback.add_hook(always=True)
 
 import gc
 from tqdm import tqdm
+import warnings
 
 from config import Config
+
 
 ######################################################################################
 ############################## EVAL UTIL IMPORTS ##################################
@@ -1031,6 +1033,21 @@ def Morans_I(data, plot=False):
         plt.show()
     return round(MoranM.I,4)
 
+
+def h_minus_1_sobolev_norm(A, B):
+    # Compute the Fourier transform of the difference of the heatmaps
+    fft_diff = np.fft.fft2(A - B)
+    # Create a meshgrid of frequencies (wavevectors)
+    nx, ny = A.shape
+    kx = np.fft.fftfreq(nx)
+    ky = np.fft.fftfreq(ny)
+    kx, ky = np.meshgrid(kx, ky, indexing='ij')  # Use 'ij' indexing to match array shapes
+    # Calculate the wavenumber |k|
+    wavenumber = np.sqrt(kx**2 + ky**2)
+    # Discount Fourier coefficients by the wavenumber and sum them up
+    norm_squared = np.sum(np.abs(fft_diff)**2 / (1 + (2 * np.pi * wavenumber)**2))
+    return np.sqrt(norm_squared)
+
 def lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg,
              spine_color='black', alpha=0.4, avg_filter_length=5, pca_dimension=None, pca_plot=False,
              replace_initial_and_ending_values=True):
@@ -1067,18 +1084,3 @@ def lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_ty
     # set tick and ticklabel color
     ax.tick_params(axis='x', colors=spine_color)    #setting up X-axis tick color to red
     ax.tick_params(axis='y', colors=spine_color)  #setting up Y-axis tick color to black
-
-
-def h_minus_1_sobolev_norm(A, B):
-    # Compute the Fourier transform of the difference of the heatmaps
-    fft_diff = np.fft.fft2(A - B)
-    # Create a meshgrid of frequencies (wavevectors)
-    nx, ny = A.shape
-    kx = np.fft.fftfreq(nx)
-    ky = np.fft.fftfreq(ny)
-    kx, ky = np.meshgrid(kx, ky, indexing='ij')  # Use 'ij' indexing to match array shapes
-    # Calculate the wavenumber |k|
-    wavenumber = np.sqrt(kx**2 + ky**2)
-    # Discount Fourier coefficients by the wavenumber and sum them up
-    norm_squared = np.sum(np.abs(fft_diff)**2 / (1 + (2 * np.pi * wavenumber)**2))
-    return np.sqrt(norm_squared)

@@ -3,7 +3,6 @@ TRAINING_DATA_DIR = "datasets"  # root folder for all driving training sets
 TRAINING_SET_DIR = "dataset5"  # the driving training set to use
 SAO_MODELS_DIR = "sao"  # autoencoder-based self-assessment oracle models
 TEST_SIZE = 0.2  # split of training data used for the validation set (keep it low)
-METHOD = 'test' # 'thirdeye', 'p2p', 'p2c'
 
 # simulations settings
 TRACK = "track1"  # ["track1"|"track2"|"track3"|"track1","track2","track3"] the race track to use
@@ -48,6 +47,11 @@ SAO_LEARNING_RATE = 0.0001
 UNCERTAINTY_TOLERANCE_LEVEL = 0.00328
 CTE_TOLERANCE_LEVEL = 2.5
 IMPROVEMENT_RATIO = 1
+
+# evaluation settings
+METHOD = 'test' # 'thirdeye', 'p2p', 'p2c'
+IGNORE_WARNINGS = True
+EVALUATE_ALL = True
 
 # plotting settings
 PLOT_NOMINAL = True
