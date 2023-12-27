@@ -288,7 +288,6 @@ if __name__ == '__main__':
         run_results = []
         run_keys = []
 
-        cprintb(f'\n\n########### Simulation {sim_name} ({sim_idx + 1} of {len(ANO_SIMULATIONS)}) ###########', 'l_red')
         for run_number in range(len(RUN_ID_NUMBERS[sim_idx])):
             # Check if a simulation with this run number already exists
             run_id = RUN_ID_NUMBERS[sim_idx][run_number]
@@ -387,6 +386,7 @@ if __name__ == '__main__':
                         #     pca_values = []
                         #     pca_keys = []
                         for pca_dimension in PCA_DIMENSIONS:
+                            cprintb(f'\n\n########### Simulation {sim_name} ({sim_idx + 1} of {len(ANO_SIMULATIONS)}) ###########', 'l_red')
                             cprintb(f'\n############## run number {run_id} of {len(RUN_ID_NUMBERS[sim_idx])} ##############', 'l_blue')
                             cprintb(f'########### Using PCA Dimension: {pca_dimension} ({PCA_DIMENSIONS.index(pca_dimension) + 1} of {len(PCA_DIMENSIONS)}) ###########', 'l_blue')
                             cprintb(f'########### Using Heatmap Type: {heatmap_type} ({HEATMAP_TYPES.index(heatmap_type) + 1} of {len(HEATMAP_TYPES)}) ###########', 'l_blue')
