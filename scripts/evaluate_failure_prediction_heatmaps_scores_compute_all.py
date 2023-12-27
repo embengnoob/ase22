@@ -9,7 +9,7 @@ try:
 except:
     from config import Config
 
-from evaluate_failure_prediction_heatmaps_scores import evaluate_failure_prediction, evaluate_p2p_failure_prediction, get_OOT_frames, test
+from evaluate_failure_prediction_heatmaps_scores import evaluate_failure_prediction, evaluate_p2p_failure_prediction, get_OOT_frames
 
 def simExists(cfg, run_id, sim_name, attention_type, nominal):
     SIM_PATH = os.path.join(cfg.TESTING_DATA_DIR, sim_name)
@@ -363,9 +363,9 @@ if __name__ == '__main__':
                         for pca_dimension in PCA_DIMENSIONS:
                             cprintb(f'\n\n########### Simulation {sim_name} ({sim_idx + 1} of {len(ANO_SIMULATIONS)}) ###########', 'l_red')
                             cprintb(f'\n############## run number {run_id} of {len(RUN_ID_NUMBERS[sim_idx])} ##############', 'l_blue')
-                            cprintb(f'########### Using PCA Dimension: {pca_dimension} ({PCA_DIMENSIONS.index(pca_dimension) + 1} of {len(PCA_DIMENSIONS)}) ###########', 'l_blue')
                             cprintb(f'########### Using Heatmap Type: {heatmap_type} ({HEATMAP_TYPES.index(heatmap_type) + 1} of {len(HEATMAP_TYPES)}) ###########', 'l_blue')
-                            x_ano_all_frames, x_nom_all_frames, pca_ano, pca_nom, fig_img_address = test(cfg,
+                            cprintb(f'########### Using PCA Dimension: {pca_dimension} ({PCA_DIMENSIONS.index(pca_dimension) + 1} of {len(PCA_DIMENSIONS)}) ###########', 'l_blue')
+                            x_ano_all_frames, x_nom_all_frames, pca_ano, pca_nom, fig_img_address = evaluate_p2p_failure_prediction(cfg,
                                                                                                         NOMINAL_PATHS,
                                                                                                         ANOMALOUS_PATHS,
                                                                                                         NUM_FRAMES_NOM,

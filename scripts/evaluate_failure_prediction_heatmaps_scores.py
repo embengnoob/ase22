@@ -858,7 +858,6 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
     pca_distance_types = []
     pca_distance_vectors = []
     pca_distance_vectors_avgs = []
-    print(pearson_res)
     for distance_type in distance_types:
         # direct distances
         DISTANCE_VECTOR_PATH = os.path.join(ANOMALOUS_HEATMAP_FOLDER_PATH,
@@ -889,14 +888,14 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
             else:
                 raise ValueError(f"Distance type \"{distance_type}\" is not defined.")
             # save distance vector
-            cprintf(f"Saving distance vector of type {distance_type} to CSV file at {DISTANCE_VECTOR_PATH} ...", 'magenta')
+            cprintf(f"Saving distance vector of type \"{distance_type}\" to CSV file at {DISTANCE_VECTOR_PATH} ...", 'magenta')
             np.savetxt(DISTANCE_VECTOR_PATH, distance_vector, delimiter=",")
             # cprintf(f'{distance_type}', 'yellow')
             # cprintf(f'{distance_vector}', 'blue')
         else:
-            cprintf(f"Distance vector list already exists.", 'l_green')
+            cprintf(f"Distance vector list for distance type \"{distance_type}\" already exists.", 'l_green')
             # load distance vector
-            cprintf(f"Loading CSV file for distance type {distance_type} from {DISTANCE_VECTOR_PATH} ...", 'l_yellow')
+            # cprintf(f"Loading CSV file for distance type {distance_type} from {DISTANCE_VECTOR_PATH} ...", 'l_yellow')
             distance_vector = np.loadtxt(DISTANCE_VECTOR_PATH, dtype='float')
             moran_i_ano = np.loadtxt(os.path.join(ANOMALOUS_HEATMAP_FOLDER_PATH, f'dist_vect_moran_i_ano.csv'), dtype='float')
             moran_i_nom = np.loadtxt(os.path.join(ANOMALOUS_HEATMAP_FOLDER_PATH, f'dist_vect_moran_i_nom.csv'), dtype='float')
@@ -926,9 +925,9 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                 cprintf(f"Saving distance vector of type \"{distance_type}\" and PCA dimension \"{pca_dimension}\" to CSV file at {DISTANCE_VECTOR_PATH} ...", 'magenta')
                 np.savetxt(DISTANCE_VECTOR_PATH, pca_distance_vector, delimiter=",")
             else:
-                cprintf(f"Distance vector list already exists.", 'l_green')
+                cprintf(f"PCA distance vector list for distance type \"{distance_type}\" and PCA dimension \"{pca_dimension}\" already exists.", 'l_green')
                 # load pca distance vector
-                cprintf(f"Loading CSV file for distance type \"{distance_type}\" and PCA dimension \"{pca_dimension}\" from {DISTANCE_VECTOR_PATH} ...", 'l_yellow')
+                # cprintf(f"Loading CSV file for distance type \"{distance_type}\" and PCA dimension \"{pca_dimension}\" from {DISTANCE_VECTOR_PATH} ...", 'l_yellow')
                 pca_distance_vector = np.loadtxt(DISTANCE_VECTOR_PATH, dtype='float')
             
             pca_distance_types.append(distance_type)
