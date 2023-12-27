@@ -270,7 +270,7 @@ if __name__ == '__main__':
             pca_comp_fig_list.append(pca_comp_fig)
 
         run_results = []
-        run_keys = []                
+        run_keys = []
         for run_number in range(len(RUN_ID_NUMBERS[sim_idx])):
             # Check if a simulation with this run number already exists
             run_id = RUN_ID_NUMBERS[sim_idx][run_number]
@@ -280,6 +280,8 @@ if __name__ == '__main__':
             cfg.SIMULATION_NAME = SIMULATION_NAME_ANOMALOUS
             cfg.SIMULATION_NAME_NOMINAL = SIMULATION_NAME_NOMINAL
             cfg.GENERATE_SUMMARY_COLLAGES = SUMMARY_COLLAGES[sim_idx][run_number]
+
+            run_figs = []
 
             # check whether nominal and anomalous simulation and the corresponding heatmaps are already generated, generate them otherwise
             for heatmap_type in HEATMAP_TYPES:
@@ -371,20 +373,31 @@ if __name__ == '__main__':
                             cprintb(f'\n########### run number {run_number+1} ############## run id {run_id} ##############', 'l_blue')
                             cprintb(f'########### Using PCA Dimension: {pca_dimension} ###########', 'l_blue')
                             cprintb(f'########### Using Heatmap Type: {heatmap_type} ###########', 'l_blue')
-                            x_ano_all_frames, x_nom_all_frames, pca_ano, pca_nom = test(cfg,
-                                                                                        NOMINAL_PATHS,
-                                                                                        ANOMALOUS_PATHS,
-                                                                                        NUM_FRAMES_NOM,
-                                                                                        NUM_FRAMES_ANO,
-                                                                                        heatmap_type=heatmap_type,
-                                                                                        anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
-                                                                                        nominal_simulation_name=SIMULATION_NAME_NOMINAL,
-                                                                                        distance_types=DISTANCE_TYPES,
-                                                                                        pca_dimension=pca_dimension,
-                                                                                        PCA_DIMENSIONS=PCA_DIMENSIONS,
-                                                                                        run_id=run_id,
-                                                                                        gen_axes=gen_axes,
-                                                                                        pca_axes_list=pca_axes_list)
+                            x_ano_all_frames, x_nom_all_frames, pca_ano, pca_nom, fig_img_address = test(cfg,
+                                                                                                        NOMINAL_PATHS,
+                                                                                                        ANOMALOUS_PATHS,
+                                                                                                        NUM_FRAMES_NOM,
+                                                                                                        NUM_FRAMES_ANO,
+                                                                                                        heatmap_type=heatmap_type,
+                                                                                                        anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
+                                                                                                        nominal_simulation_name=SIMULATION_NAME_NOMINAL,
+                                                                                                        distance_types=DISTANCE_TYPES,
+                                                                                                        pca_dimension=pca_dimension,
+                                                                                                        PCA_DIMENSIONS=PCA_DIMENSIONS,
+                                                                                                        run_id=run_id,
+                                                                                                        gen_axes=gen_axes,
+                                                                                                        pca_axes_list=pca_axes_list)
+                            run_figs.append(fig_img_address)
+
+            # copy all figs of a run to a single folder
+            if cfg.SPARSE_ATTRIBUTION:
+                RUN_FIGS_FOLDER_PATH = os.path.join(cfg.TESTING_DATA_DIR, sim_name, run_id, 'FIGS_SPARSE')
+            else:
+                RUN_FIGS_FOLDER_PATH = os.path.join(cfg.TESTING_DATA_DIR, sim_name, run_id, 'FIGS')
+            for run_fig_address in run_figs:
+                shutil.copy(run_fig_address, RUN_FIGS_FOLDER_PATH)
+
+
             #                 if cfg.NOM_VS_NOM_TEST:
             #                     pca_values.append([x_ano_all_frames, x_nom_all_frames, pca_ano, pca_nom])
             #                     pca_keys.append([f'x_ano_all_frames-{pca_dimension}d', f'x_nom_all_frames-{pca_dimension}d', f'pca_ano-{pca_dimension}d', f'pca_nom-{pca_dimension}d'])

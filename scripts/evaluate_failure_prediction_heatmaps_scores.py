@@ -1400,7 +1400,8 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, he
         fig_img_name = f"{heatmap_type}_plots_{anomalous_simulation_name}_{nominal_simulation_name}_{pca_dimension}d.png"
     else:
         fig_img_name = f"{heatmap_type}_plots_{anomalous_simulation_name}_{nominal_simulation_name}.png"
-    plt.savefig(os.path.join(FIGURES_FOLDER_PATH, fig_img_name), bbox_inches='tight', dpi=300)
+    fig_img_address = os.path.join(FIGURES_FOLDER_PATH, fig_img_name)
+    plt.savefig(fig_img_address, bbox_inches='tight', dpi=300)
     # plt.savefig(os.path.join(ALL_RUNS_FIGURE_PATH, f"run_id_{run_id}.png"), bbox_inches='tight', dpi=300)
 
     # plt.show()
@@ -1431,5 +1432,5 @@ def test(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, he
     #     pca_axes_list[pca_index][3].plot(distance_vector, label=f"{run_id}_{pca_dimension}_{distance_type}", linewidth= 0.5, linestyle = '-')
     #     pca_axes_list[pca_index][3].legend(loc='upper left')
 
-    return x_ano_all_frames, x_nom_all_frames, pca_ano, pca_nom
+    return x_ano_all_frames, x_nom_all_frames, pca_ano, pca_nom, fig_img_address
     
