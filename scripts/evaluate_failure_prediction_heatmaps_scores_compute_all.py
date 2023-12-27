@@ -391,10 +391,11 @@ if __name__ == '__main__':
 
             # copy all figs of a run to a single folder
             if cfg.SPARSE_ATTRIBUTION:
-                RUN_FIGS_FOLDER_PATH = os.path.join(cfg.TESTING_DATA_DIR, sim_name, run_id, 'FIGS_SPARSE')
+                RUN_FIGS_FOLDER_PATH = os.path.join(cfg.TESTING_DATA_DIR, sim_name, str(run_id), 'FIGS_SPARSE')
             else:
-                RUN_FIGS_FOLDER_PATH = os.path.join(cfg.TESTING_DATA_DIR, sim_name, run_id, 'FIGS')
-            for run_fig_address in run_figs:
+                RUN_FIGS_FOLDER_PATH = os.path.join(cfg.TESTING_DATA_DIR, sim_name, str(run_id), 'FIGS')
+            cprintf(f"Copying run figures of all assigned heatmap types to: {RUN_FIGS_FOLDER_PATH}", 'l_cyan')
+            for run_fig_address in tqdm(run_figs):
                 shutil.copy(run_fig_address, RUN_FIGS_FOLDER_PATH)
 
 
