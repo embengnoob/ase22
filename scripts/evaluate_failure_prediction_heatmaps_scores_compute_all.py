@@ -228,13 +228,13 @@ if __name__ == '__main__':
                             [False],
                             [False],
                             [False]]
-        HEATMAP_TYPES = ['SmoothGrad', 'GradCam++', 'SmoothGrad', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP']
+        HEATMAP_TYPES = ['SmoothGrad', 'GradCam++', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP']
 
     else:   
         ANO_SIMULATIONS = ['test1'] # , 'test2', 'test3', 'test4', 'test5'
         NOM_SIMULATIONS = ['track1-sunny-positioned-nominal']
         RUN_ID_NUMBERS = [[1]]
-        SUMMARY_COLLAGES = [[False, False, False]]
+        SUMMARY_COLLAGES = [[False]]
 
         HEATMAP_TYPES = ['SmoothGrad'] #'GradCam++', 'SmoothGrad', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP'
 
@@ -248,6 +248,18 @@ if __name__ == '__main__':
     
   # DISTANCE_TYPES = ['euclidean', 'manhattan', 'cosine', 'EMD', 'pearson', 'spearman', 'kendall', 'moran', 'kl-divergence', 'mutual-info', 'sobolev-norm']
     DISTANCE_TYPES = ['euclidean', 'manhattan', 'cosine', 'EMD', 'pearson', 'spearman', 'kendall', 'moran', 'mutual-info', 'sobolev-norm']
+    # ANALYSE_DISTANCE = {
+    #     'euclidean' : False,
+    #     'manhattan' : False,
+    #     'cosine' : False,
+    #     'EMD' : False,
+    #     'pearson' : False,
+    #     'spearman' : False,
+    #     'kendall' : False,
+    #     'moran' : False,
+    #     'kl-divergence' : False,
+    #     'mutual-info' : False,
+    #     'sobolev-norm' : True}
     summary_types = ['-avg', '-avg-grad']
     aggregation_methods = ['mean', 'max']
     abstraction_methods = ['avg', 'variance']

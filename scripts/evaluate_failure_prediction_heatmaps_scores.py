@@ -577,13 +577,15 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
 
     #################################### LOCALIZATION AND POSITIONAL MAPPING #########################################
 
-    # path to csv file containing mapped positions
+    # path to csv files containing mapped positions and point distances
     POSITIONAL_MAPPING_PATH = os.path.join(ANOMALOUS_HEATMAP_FOLDER_PATH, f'pos_mappings_{nominal_simulation_name}.csv')
+    POINT_DISTANCES_PATH = os.path.join(ANOMALOUS_HEATMAP_FOLDER_PATH, f'point_distances_{nominal_simulation_name}.csv')
       
     # check if positional mapping list file in csv format already exists 
-    if not os.path.exists(POSITIONAL_MAPPING_PATH):
+    if (not os.path.exists(POSITIONAL_MAPPING_PATH)) or (not os.path.exists(POINT_DISTANCES_PATH)):
         cprintf(f"Positional mapping list for {anomalous_simulation_name} and {nominal_simulation_name} does not exist. Generating list ...", 'l_blue')
         pos_mappings = np.zeros(num_anomalous_frames, dtype=float)
+        point_distances = np.zeros(num_anomalous_frames, dtype=float)
         nominal_positions = np.zeros((num_nominal_frames, 3), dtype=float)
         # cluster of all nominal positions
         cprintf(f"Generating nominal cluster ...", 'l_cyan')
@@ -596,21 +598,27 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
         for anomalous_frame in tqdm(range(num_anomalous_frames)):
             vector = string_to_np_array(anomalous['position'].iloc[anomalous_frame], anomalous_frame)
             sample_point = vector.reshape(1, -1)
-            closest, _ = pairwise_distances_argmin_min(sample_point, nominal_positions)
-            pos_mappings[anomalous_frame] = closest
+            closest_point, closest_distance = pairwise_distances_argmin_min(sample_point, nominal_positions)
+            pos_mappings[anomalous_frame] = closest_point
+            point_distances[anomalous_frame] = closest_distance
         # save list of positional mappings
-        cprintf(f"Saving positional mappings to CSV file at {POSITIONAL_MAPPING_PATH} ...", 'magenta')
+        cprintf(f"Saving positional mappings to CSV file at {POSITIONAL_MAPPING_PATH} and point distances at {POINT_DISTANCES_PATH} ...", 'magenta')
         np.savetxt(POSITIONAL_MAPPING_PATH, pos_mappings, delimiter=",")
+        np.savetxt(POINT_DISTANCES_PATH, point_distances, delimiter=",")
     else:
-        cprintf(f"Positional mapping list exists.", 'l_green')
+        cprintf(f"Positional mapping and point distances list exist.", 'l_green')
         # load list of mapped positions
-        cprintf(f"Loading CSV file from {POSITIONAL_MAPPING_PATH} ...", 'l_yellow')
+        cprintf(f"Loading CSV file from {POSITIONAL_MAPPING_PATH} and at {POINT_DISTANCES_PATH} ...", 'l_yellow')
         pos_mappings = np.loadtxt(POSITIONAL_MAPPING_PATH, dtype='int')
+        point_distances = np.loadtxt(POINT_DISTANCES_PATH, dtype='float')
 
     # np.set_printoptions(threshold=sys.maxsize)
     print(pos_mappings)
     if len(pos_mappings) != num_anomalous_frames:
-        raise ValueError(Fore.RED + f"Length of oaded positional mapping array (from CSV file above) \"{len(pos_mappings)}\" does not match the number of anomalous frames: {num_anomalous_frames}" + Fore.RESET)
+        raise ValueError(Fore.RED + f"Length of loaded positional mapping array (from CSV file above) \"{len(pos_mappings)}\" does not match the number of anomalous frames: {num_anomalous_frames}" + Fore.RESET)
+    
+    if len(point_distances) != num_anomalous_frames:
+        raise ValueError(Fore.RED + f"Length of loaded point distance array (from CSV file above) \"{len(point_distances)}\" does not match the number of anomalous frames: {num_anomalous_frames}" + Fore.RESET)
     # np.set_printoptions(threshold=False)
 
     if cfg.PCA:
@@ -958,6 +966,9 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
     if cfg.PCA:
         # 3d plot
         num_of_axes += 1
+##################################7777777777777777777777777777777777777777777777777777777777777########################################################################################################################################################################################################################################################################################################################################################################################
+    # test analyse plot #############777777777777777777777777777777777777777777777777777777777#############################################################################################################################################################################################################################################################################################################################################################################################################
+    num_of_axes += 1
 
     # cross track plot
     num_of_axes += 1
@@ -1017,8 +1028,12 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
             distance_vector_avg = pca_distance_vectors_avgs[d_type_index]
             color = distance_type_colors[pca_distance_type][0]
             color_avg = distance_type_colors[pca_distance_type][1]
+            # calculate threshold via averaging
+            # threshold = np.average(distance_vector_avg)
+            # calculate threshold via gamma fitting
+            threshold = get_threshold(distance_vector_avg, conf_level=0.40)
             lineplot(ax, distance_vector, distance_vector_avg, pca_distance_type, heatmap_type, color,
-                     color_avg, spine_color=pca_ax_spine_color, pca_dimension=pca_dimension, pca_plot=True)
+                     color_avg, eval_var=threshold, spine_color=pca_ax_spine_color, pca_dimension=pca_dimension, pca_plot=True)
 
 
     for d_type_index, distance_type in enumerate(distance_types):
@@ -1041,13 +1056,45 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
         distance_vector_avg = distance_vectors_avgs[d_type_index]
         color = distance_type_colors[distance_type][0]
         color_avg = distance_type_colors[distance_type][1]
+        # calculate threshold via averaging
+        # threshold = np.average(distance_vector_avg)
+        # calculate threshold via gamma fitting
+        threshold = get_threshold(distance_vector_avg, conf_level=0.40)
         if distance_type == 'moran':
             # lineplot(ax, moran_i_ano, average_filter_1D(moran_i_ano), distance_type, heatmap_type, color='red', color_avg='red')
             # lineplot(ax, moran_i_nom, average_filter_1D(moran_i_nom), distance_type, heatmap_type, color='blue', color_avg='blue')
-            lineplot(ax, moran_i_ano - moran_i_nom, average_filter_1D(moran_i_ano - moran_i_nom), distance_type, heatmap_type, color, color_avg)
+            lineplot(ax, moran_i_ano, average_filter_1D(moran_i_ano), distance_type, heatmap_type, color, color_avg, eval_var=threshold, eval_method='no_threshold')
         else:
-            lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg)
-            
+            lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg, eval_var=threshold)
+
+        # if distance_type == 'sobolev-norm':
+        #     ax = fig.add_subplot(spec[num_of_axes-2, :])
+        #     # plot ranges
+        #     YELLOW_BORDER = 3.6
+        #     ORANGE_BORDER = 5.0
+        #     RED_BORDER = 7.0
+        #     plot_ranges(ax, cte_anomalous, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER, ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
+        #     plot_crash_ranges(ax, speed_anomalous)
+        #     # plot distances
+        #     distance_vector = window_slope(distance_vectors[d_type_index])
+        #     distance_vector_avg = average_filter_1D(distance_vector)
+        #     color = distance_type_colors[distance_type][0]
+        #     color_avg = distance_type_colors[distance_type][1]
+        #     # calculate threshold via averaging
+        #     # threshold = np.average(distance_vector_avg)
+        #     # calculate threshold via gamma fitting
+        #     # threshold = get_threshold(distance_vector_avg)
+        #     lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg, eval_var=threshold)
+
+    # plot positional point distances between nominal and anomalous sims
+    ax = fig.add_subplot(spec[num_of_axes-2, :])
+    color = 'orange'
+    ax.set_ylabel('p2p distances', color=color)
+    ax.plot(point_distances, label='p2p distances', linewidth= 0.5, linestyle = '-', color=color)
+    title = f"p2p distances"
+    ax.set_title(title)
+    ax.legend(loc='upper left')
+
 
     # Plot cross track error
     ax = fig.add_subplot(spec[num_of_axes-1, :])

@@ -26,7 +26,7 @@ NUM_SAMPLES_MC_DROPOUT = 20
 
 # Udacity simulation settings
 ANOMALY_DETECTOR_NAME = "track1-MSE-latent2"
-SIMULATION_NAME = "test1" # =======> Anomalous Simulation/Recorded Simulation save name ['test1', 'test2', 'test3', 'test4', 'test5']
+SIMULATION_NAME = "nominal2" # =======> Anomalous Simulation/Recorded Simulation save name ['test1', 'test2', 'test3', 'test4', 'test5']
 SIMULATION_NAME_NOMINAL = "track1-sunny-positioned-nominal" # Nominal simulation used as reference
 TESTING_DATA_DIR = "simulations"  # Udacity simulations logs - "simulations"
 MAX_SPEED = 30  # car's max speed, capped at 35 mph (default)
@@ -51,7 +51,7 @@ IMPROVEMENT_RATIO = 1
 # evaluation settings
 METHOD = 'p2p' # 'thirdeye', 'p2p', 'p2c'
 IGNORE_WARNINGS = True
-EVALUATE_ALL = True
+EVALUATE_ALL = False
 
 # plotting settings
 PLOT_NOMINAL = True

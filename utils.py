@@ -1018,6 +1018,23 @@ def average_filter_1D(data_array, kernel=np.ones((5), dtype=float)):
         filtered_array[dp_index] = np.average(np.multiply(kernel, data_window))
     return filtered_array
 
+def window_slope(data_array, window_length=5):
+
+    if not isinstance(data_array, np.ndarray):
+        raise ValueError(Fore.RED + f"The provided data is not a numpy array." + Fore.RESET)
+    
+    slope_array = np.zeros((len(data_array)), dtype=float)
+
+    for dp_index, data_point in enumerate(data_array):
+        if dp_index < window_length-2:
+            continue
+        else:
+            win_first_element = data_array[dp_index-window_length-1]
+            win_last_element = data_point
+            slope_array[dp_index] = win_last_element - win_first_element
+
+    return slope_array
+
 
 def Morans_I(data, plot=False):
     """transforming RGB data to grayscale"""
@@ -1049,8 +1066,8 @@ def h_minus_1_sobolev_norm(A, B):
     return np.sqrt(norm_squared)
 
 def lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg,
-             spine_color='black', alpha=0.4, avg_filter_length=5, pca_dimension=None, pca_plot=False,
-             replace_initial_and_ending_values=True):
+             eval_var, eval_method='threshold', spine_color='black', alpha=0.4, avg_filter_length=5,
+             pca_dimension=None, pca_plot=False, replace_initial_and_ending_values=True):
     # Plot distance scores
     # ax.set_xlabel('Frame ID', color=color)
     ax.set_ylabel(f'{distance_type} scores', color=color)
@@ -1069,6 +1086,28 @@ def lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_ty
                 distance_vector_avg[idx] = distance_vector[idx]
 
     ax.plot(distance_vector_avg, label=f'avg_filter({avg_filter_length})', linewidth= 0.8, linestyle = 'dashed', color=color_avg)
+    
+    # persistent_slope = []
+    if eval_method == 'threshold':
+        threshold = eval_var
+        ax.axhline(y = threshold, color = 'red', linestyle = '--')
+        # avg_slope = window_slope(distance_vector_avg)
+        for frame, distance_score in enumerate(distance_vector_avg):
+                
+            # if (distance_score < threshold) and (avg_slope[frame] > 100):
+            #     persistent_slope.append(True)
+            # else:
+            #     persistent_slope = []
+            
+            # if len(persistent_slope) != 0 and test_print:
+            #     print(len(persistent_slope), frame)
+            if distance_score > threshold:
+                color = 'red'
+            # elif len(persistent_slope) > 3:
+            #     color = 'red'
+            else:
+                color = 'lime'
+            ax.hlines(y=threshold, xmin=frame, xmax=frame+1, color=color, linewidth=3) # y=distance_vector.max()
     # ax.plot(distance_vector_sobel, linewidth= 0.8, linestyle = 'dashed', color='red')
 
     if pca_plot:
@@ -1084,3 +1123,4 @@ def lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_ty
     # set tick and ticklabel color
     ax.tick_params(axis='x', colors=spine_color)    #setting up X-axis tick color to red
     ax.tick_params(axis='y', colors=spine_color)  #setting up Y-axis tick color to black
+    ax.set_xticks(np.arange(0, len(distance_vector), 50.0), minor=False)
