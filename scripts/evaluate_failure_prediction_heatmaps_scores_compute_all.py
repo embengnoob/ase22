@@ -15,6 +15,11 @@ def simExists(cfg, run_id, sim_name, attention_type, nominal):
     SIM_PATH = os.path.join(cfg.TESTING_DATA_DIR, sim_name)
     MAIN_CSV_PATH = os.path.join(SIM_PATH, "driving_log.csv")
     HEATMAP_PARENT_FOLDER_PATH = os.path.join(SIM_PATH, "heatmaps-" + attention_type.lower())
+
+    THRESHOLD_VECTORS_FOLDER_PATH = os.path.join(cfg.TESTING_DATA_DIR, cfg.THRESHOLD_SIM, "heatmaps-" + attention_type.lower(), cfg.THRESHOLD_SIM_RUN_ID)
+    if not os.path.exists(THRESHOLD_VECTORS_FOLDER_PATH):
+        raise ValueError(Fore.RED + f"The provided path for threshold simulation does not exist: {THRESHOLD_VECTORS_FOLDER_PATH}" + Fore.RESET)
+    
     if not nominal:
         if cfg.SPARSE_ATTRIBUTION:
             HEATMAP_FOLDER_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, f'{run_id}_SPARSE')
@@ -119,7 +124,7 @@ def simExists(cfg, run_id, sim_name, attention_type, nominal):
         if MODE is not None:
             compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH, MODE)
 
-    PATHS = [SIM_PATH, MAIN_CSV_PATH, HEATMAP_PARENT_FOLDER_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH]
+    PATHS = [SIM_PATH, MAIN_CSV_PATH, HEATMAP_PARENT_FOLDER_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH, THRESHOLD_VECTORS_FOLDER_PATH]
     return NUM_OF_FRAMES, PATHS
 
 def correct_field_names(MAIN_CSV_PATH):
@@ -231,10 +236,10 @@ if __name__ == '__main__':
         HEATMAP_TYPES = ['SmoothGrad', 'GradCam++', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP']
 
     else:   
-        ANO_SIMULATIONS = ['test1'] # , 'test2', 'test3', 'test4', 'test5'
+        ANO_SIMULATIONS = ['gauss-journal-track1-day-night-fog'] # , 'test2', 'test3', 'test4', 'test5'
         NOM_SIMULATIONS = ['track1-sunny-positioned-nominal']
         RUN_ID_NUMBERS = [[1]]
-        SUMMARY_COLLAGES = [[False]]
+        SUMMARY_COLLAGES = [[True]]
 
         HEATMAP_TYPES = ['SmoothGrad'] #'GradCam++', 'SmoothGrad', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP'
 
@@ -248,18 +253,18 @@ if __name__ == '__main__':
     
   # DISTANCE_TYPES = ['euclidean', 'manhattan', 'cosine', 'EMD', 'pearson', 'spearman', 'kendall', 'moran', 'kl-divergence', 'mutual-info', 'sobolev-norm']
     DISTANCE_TYPES = ['euclidean', 'manhattan', 'cosine', 'EMD', 'pearson', 'spearman', 'kendall', 'moran', 'mutual-info', 'sobolev-norm']
-    # ANALYSE_DISTANCE = {
-    #     'euclidean' : False,
-    #     'manhattan' : False,
-    #     'cosine' : False,
-    #     'EMD' : False,
-    #     'pearson' : False,
-    #     'spearman' : False,
-    #     'kendall' : False,
-    #     'moran' : False,
-    #     'kl-divergence' : False,
-    #     'mutual-info' : False,
-    #     'sobolev-norm' : True}
+    ANALYSE_DISTANCE = {
+        'euclidean' : (False, 0.95),
+        'manhattan' : (False, 0.95),
+        'cosine' : (False, 0.95),
+        'EMD' : (False, 0.95),
+        'pearson' : (False, 0.95),
+        'spearman' : (False, 0.95),
+        'kendall' : (False, 0.95),
+        'moran' : (False, 0.95),
+        'kl-divergence' : (False, 0.95),
+        'mutual-info' : (False, 0.95),
+        'sobolev-norm' : (True, 0.99)}
     summary_types = ['-avg', '-avg-grad']
     aggregation_methods = ['mean', 'max']
     abstraction_methods = ['avg', 'variance']
@@ -386,6 +391,7 @@ if __name__ == '__main__':
                                                                                                         anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
                                                                                                         nominal_simulation_name=SIMULATION_NAME_NOMINAL,
                                                                                                         distance_types=DISTANCE_TYPES,
+                                                                                                        analyse_distance=ANALYSE_DISTANCE,
                                                                                                         pca_dimension=pca_dimension,
                                                                                                         PCA_DIMENSIONS=PCA_DIMENSIONS,
                                                                                                         run_id=run_id,

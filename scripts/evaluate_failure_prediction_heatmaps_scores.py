@@ -484,8 +484,8 @@ def compute_fp_and_tn(data_df_nominal, aggregation_method, condition,fig,axs,sub
 ######################################################################################
 
 def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, heatmap_type,
-                                    anomalous_simulation_name, nominal_simulation_name, distance_types, pca_dimension,
-                                    PCA_DIMENSIONS, run_id, gen_axes, pca_axes_list):
+                                    anomalous_simulation_name, nominal_simulation_name, distance_types, analyse_distance,
+                                    pca_dimension, PCA_DIMENSIONS, run_id, gen_axes, pca_axes_list):
 
     #################################### GETTING THE RIGHT ROOT PATHS #########################################
 
@@ -505,6 +505,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
     ANOMALOUS_HEATMAP_CSV_PATH = ANOMALOUS_PATHS[4]
     ANOMALOUS_HEATMAP_IMG_PATH = ANOMALOUS_PATHS[5]
     ANOMALOUS_HEATMAP_IMG_GRADIENT_PATH = ANOMALOUS_PATHS[6]
+    THRESHOLD_VECTORS_FOLDER_PATH = ANOMALOUS_PATHS[7]
 
     #################################### INPUT DATA PRE-PROCESSING #########################################
 
@@ -784,9 +785,12 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
             # convert to grayscale and resize
             ano_heatmap = ano_heatmap.resize((2*IMAGE_WIDTH,2*IMAGE_HEIGHT)) # .convert('LA')
             closest_nom_heatmap = closest_nom_heatmap.resize((2*IMAGE_WIDTH,2*IMAGE_HEIGHT)) #.convert('LA')
-
             ano_img = ano_img.resize((2*IMAGE_WIDTH,2*IMAGE_HEIGHT))
             closest_nom_img = closest_nom_img.resize((2*IMAGE_WIDTH,2*IMAGE_HEIGHT))
+
+            alpha = 0.25
+            ano_result = Image.blend(ano_heatmap, ano_img, alpha)
+            nom_result = Image.blend(closest_nom_heatmap, closest_nom_img, alpha)
 
             ano_sa = anomalous['steering_angle'].iloc[anomalous_frame]
             nom_sa = nominal['steering_angle'].iloc[int(pos_mappings[anomalous_frame])]
@@ -796,17 +800,15 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
             nom_speed = nominal['speed'].iloc[int(pos_mappings[anomalous_frame])]
 
             font = ImageFont.truetype(os.path.join(cfg.TESTING_DATA_DIR,"arial.ttf"), 18)
-            draw_ano = ImageDraw.Draw(ano_img)
+            draw_ano = ImageDraw.Draw(ano_result)
             draw_ano.text((0, 0),f"Anomalous: steering_angle:{float(ano_sa):.2f} // throttle:{float(ano_throttle):.2f} // speed:{float(ano_speed):.2f}",(255,255,255),font=font)
-            draw_nom = ImageDraw.Draw(closest_nom_img)
+            draw_nom = ImageDraw.Draw(nom_result)
             draw_nom.text((10, 0),f"Nominal: steering_angle:{float(nom_sa):.2f} // throttle:{float(nom_throttle):.2f} // speed:{float(nom_speed):.2f}",(255,255,255),font=font)
 
             # create and save collage
-            base_collage = Image.new("RGBA", (1280,640))
-            base_collage.paste(ano_img, (0,0))
-            base_collage.paste(closest_nom_img, (640,0))
-            base_collage.paste(ano_heatmap, (0,320))
-            base_collage.paste(closest_nom_heatmap, (640,320))
+            base_collage = Image.new("RGBA", (1280,320))
+            base_collage.paste(ano_result, (0,0))
+            base_collage.paste(nom_result, (640,0))
             base_collage.save(os.path.join(COLLAGES_BASE_FOLDER_PATH, f'FID_{anomalous_frame}.png'))
             
     if cfg.GENERATE_SUMMARY_COLLAGES:
@@ -863,12 +865,16 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
         
     distance_vectors = []
     distance_vectors_avgs = []
+    thresholds = {}
     pca_distance_types = []
     pca_distance_vectors = []
     pca_distance_vectors_avgs = []
+    PCA_thresholds = {}
     for distance_type in distance_types:
         # direct distances
         DISTANCE_VECTOR_PATH = os.path.join(ANOMALOUS_HEATMAP_FOLDER_PATH,
+                                            f'dist_vect_{distance_type}.csv')
+        THRESHOLD_VECTOR_PATH = os.path.join(THRESHOLD_VECTORS_FOLDER_PATH,
                                             f'dist_vect_{distance_type}.csv')
         # check if distance/correlation vectors in csv format already exist
         if not os.path.exists(DISTANCE_VECTOR_PATH):
@@ -912,6 +918,12 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
         distance_vectors.append(distance_vector)    
         distance_vectors_avgs.append(average_filter_1D(distance_vector))
 
+        # Calculate thresholds
+        if analyse_distance[distance_type][0]:
+            threshold = get_threshold(THRESHOLD_VECTOR_PATH, distance_type, analyse_distance[distance_type][1])
+            thresholds[distance_type] = threshold
+
+        
         # skip pca distance calculation if distance type is irrelevant 
         if not ((distance_type == 'euclidean') or (distance_type == 'manhattan') or (distance_type == 'cosine') or (distance_type == 'EMD')):
             continue
@@ -919,6 +931,8 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
         if cfg.PCA:
             # PCA distances
             DISTANCE_VECTOR_PATH = os.path.join(ANOMALOUS_HEATMAP_FOLDER_PATH,
+                                                f'dist_vect_{distance_type}_PCA_{pca_dimension}d.csv')
+            THRESHOLD_VECTOR_PATH = os.path.join(THRESHOLD_VECTORS_FOLDER_PATH,
                                                 f'dist_vect_{distance_type}_PCA_{pca_dimension}d.csv')
             # check if distance/correlation vectors in csv format already exist
             if not os.path.exists(DISTANCE_VECTOR_PATH):
@@ -941,6 +955,11 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
             pca_distance_types.append(distance_type)
             pca_distance_vectors.append(pca_distance_vector)    
             pca_distance_vectors_avgs.append(average_filter_1D(pca_distance_vector))
+
+            # Calculate thresholds
+            if analyse_distance[distance_type][0]:
+                PCA_threshold = get_threshold(THRESHOLD_VECTOR_PATH, distance_type, analyse_distance[distance_type][1])
+                PCA_thresholds[f'PCA_{distance_type}'] = PCA_threshold
             
     print(f'PCA distance types: {pca_distance_types}')
     print(f'Direct distance types: {distance_types}')
@@ -966,8 +985,8 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
     if cfg.PCA:
         # 3d plot
         num_of_axes += 1
-##################################7777777777777777777777777777777777777777777777777777777777777########################################################################################################################################################################################################################################################################################################################################################################################
-    # test analyse plot #############777777777777777777777777777777777777777777777777777777777#############################################################################################################################################################################################################################################################################################################################################################################################################
+
+    # p2p distance plot 
     num_of_axes += 1
 
     # cross track plot
@@ -1028,12 +1047,15 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
             distance_vector_avg = pca_distance_vectors_avgs[d_type_index]
             color = distance_type_colors[pca_distance_type][0]
             color_avg = distance_type_colors[pca_distance_type][1]
-            # calculate threshold via averaging
-            # threshold = np.average(distance_vector_avg)
-            # calculate threshold via gamma fitting
-            threshold = get_threshold(distance_vector_avg, conf_level=0.40)
-            lineplot(ax, distance_vector, distance_vector_avg, pca_distance_type, heatmap_type, color,
-                     color_avg, eval_var=threshold, spine_color=pca_ax_spine_color, pca_dimension=pca_dimension, pca_plot=True)
+
+            if analyse_distance[pca_distance_type][0]:
+                threshold = PCA_thresholds[f'PCA_{pca_distance_type}']
+                lineplot(ax, distance_vector, distance_vector_avg, pca_distance_type, heatmap_type, color,
+                        color_avg, eval_var=threshold, eval_method='threshold', spine_color=pca_ax_spine_color,
+                        pca_dimension=pca_dimension, pca_plot=True)
+            else:
+                lineplot(ax, distance_vector, distance_vector_avg, pca_distance_type, heatmap_type, color,
+                        color_avg, spine_color=pca_ax_spine_color, pca_dimension=pca_dimension, pca_plot=True)
 
 
     for d_type_index, distance_type in enumerate(distance_types):
@@ -1056,16 +1078,19 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
         distance_vector_avg = distance_vectors_avgs[d_type_index]
         color = distance_type_colors[distance_type][0]
         color_avg = distance_type_colors[distance_type][1]
-        # calculate threshold via averaging
-        # threshold = np.average(distance_vector_avg)
-        # calculate threshold via gamma fitting
-        threshold = get_threshold(distance_vector_avg, conf_level=0.40)
-        if distance_type == 'moran':
-            # lineplot(ax, moran_i_ano, average_filter_1D(moran_i_ano), distance_type, heatmap_type, color='red', color_avg='red')
-            # lineplot(ax, moran_i_nom, average_filter_1D(moran_i_nom), distance_type, heatmap_type, color='blue', color_avg='blue')
-            lineplot(ax, moran_i_ano, average_filter_1D(moran_i_ano), distance_type, heatmap_type, color, color_avg, eval_var=threshold, eval_method='no_threshold')
+
+        if analyse_distance[distance_type][0]:
+            threshold = thresholds[distance_type]
+            lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg, eval_var=threshold, eval_method='threshold')
         else:
-            lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg, eval_var=threshold)
+            lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg)
+
+        # if distance_type == 'moran':
+        #     # lineplot(ax, moran_i_ano, average_filter_1D(moran_i_ano), distance_type, heatmap_type, color='red', color_avg='red')
+        #     # lineplot(ax, moran_i_nom, average_filter_1D(moran_i_nom), distance_type, heatmap_type, color='blue', color_avg='blue')
+        #     lineplot(ax, moran_i_ano, average_filter_1D(moran_i_ano), distance_type, heatmap_type, color, color_avg, eval_var=threshold, eval_method='no_threshold')
+        # else:
+        #     lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg, eval_var=threshold)
 
         # if distance_type == 'sobolev-norm':
         #     ax = fig.add_subplot(spec[num_of_axes-2, :])
@@ -1088,13 +1113,14 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
 
     # plot positional point distances between nominal and anomalous sims
     ax = fig.add_subplot(spec[num_of_axes-2, :])
-    color = 'orange'
+    color = 'darkgoldenrod'
     ax.set_ylabel('p2p distances', color=color)
     ax.plot(point_distances, label='p2p distances', linewidth= 0.5, linestyle = '-', color=color)
     title = f"p2p distances"
     ax.set_title(title)
     ax.legend(loc='upper left')
-
+    plot_ranges(ax, cte_anomalous, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER, ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
+    plot_crash_ranges(ax, speed_anomalous)
 
     # Plot cross track error
     ax = fig.add_subplot(spec[num_of_axes-1, :])
@@ -1108,7 +1134,10 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
     ax.axhline(y = ORANGE_BORDER, color = 'orange', linestyle = '--')
     ax.axhline(y = -ORANGE_BORDER, color = 'orange', linestyle = '--')
     ax.axhline(y = RED_BORDER, color = 'red', linestyle = '--')
-    ax.axhline(y = -RED_BORDER, color = 'red', linestyle = '--')    
+    ax.axhline(y = -RED_BORDER, color = 'red', linestyle = '--')
+
+    plot_ranges(ax, cte_anomalous, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER, ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
+    plot_crash_ranges(ax, speed_anomalous)    
 
     title = f"cross-track error"
     ax.set_title(title)
@@ -1163,14 +1192,37 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
             base_collage_img = Image.open(os.path.join(COLLAGES_BASE_FOLDER_PATH, f'FID_{anomalous_frame}.png'))
             # plot the current frame on the ax
             ########### TODO: ADD all relevant axes to the collage:
-            ########### ax = fig.get_axes()[3]
+            ax = fig.get_axes()[num_of_axes-3]
             ax.axvline(x = anomalous_frame, color = 'black', linestyle = '-')
+            if anomalous_frame < 150:
+                h_text_offset = 100
+            elif anomalous_frame > num_anomalous_frames - 150:
+                h_text_offset = -10
+            else:
+                h_text_offset = 10
+            ax.text(x=anomalous_frame+h_text_offset, y=distance_vectors_avgs[distance_types.index('sobolev-norm')].max()+100, s=f"{distance_vectors_avgs[distance_types.index('sobolev-norm')][anomalous_frame]:.2f}")
             distance_plot_img = save_ax_nosave(ax)
-            distance_plot_img = distance_plot_img.resize((1280,320))
+            distance_plot_img = distance_plot_img.resize((1280,160))
             ax.lines.pop(-1)
-            collage = Image.new("RGBA", (1280,960))
+            ax.texts.pop(-1)
+
+            ax2 = fig.get_axes()[num_of_axes-2]
+            ax2.axvline(x = anomalous_frame, color = 'black', linestyle = '-')
+            point_distance_img = save_ax_nosave(ax2)
+            point_distance_img = point_distance_img.resize((1280,160))
+            ax2.lines.pop(-1)
+
+            ax3 = fig.get_axes()[num_of_axes-1]
+            ax3.axvline(x = anomalous_frame, color = 'black', linestyle = '-')
+            cte_img = save_ax_nosave(ax3)
+            cte_img = cte_img.resize((1280,160))
+            ax3.lines.pop(-1)
+
+            collage = Image.new("RGBA", (1280,800))
             collage.paste(base_collage_img, (0,0))
-            collage.paste(distance_plot_img, (0,640))
+            collage.paste(distance_plot_img, (0,320))
+            collage.paste(point_distance_img, (0,480))
+            collage.paste(cte_img, (0,640))
             collage.save(os.path.join(COLLAGES_FOLDER_PATH, collage_name))
     else:
         cprintf(f'Summary collages disabled for this run.', 'yellow')

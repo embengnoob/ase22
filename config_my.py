@@ -52,6 +52,8 @@ IMPROVEMENT_RATIO = 1
 METHOD = 'p2p' # 'thirdeye', 'p2p', 'p2c'
 IGNORE_WARNINGS = True
 EVALUATE_ALL = False
+THRESHOLD_SIM = "nominal2"
+THRESHOLD_SIM_RUN_ID = "1"
 
 # plotting settings
 PLOT_NOMINAL = True
@@ -64,7 +66,7 @@ PLOT_POINT_TO_POINT = True
 # summary collage settings
 GENERATE_SUMMARY_COLLAGES = False
 SUMMARY_COLLAGE_PCA_DIMS = [100] #except max dims
-SUMMARY_COLLAGE_DIST_TYPES = ['euclidean']
+SUMMARY_COLLAGE_DIST_TYPES = ['sobolev-norm']
 CREATE_VIDEO = True
 
 PCA = True # principal component analysis method

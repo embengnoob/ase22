@@ -38,7 +38,7 @@ colored_traceback.add_hook(always=True)
 import gc
 from tqdm import tqdm
 import warnings
-
+import re
 from config import Config
 
 
@@ -787,13 +787,13 @@ def correct_windows_path(address):
         address = address.replace("\\\\", "/")
     return address
 
-def get_threshold(losses, conf_level=0.95):
-    print("Fitting reconstruction error distribution using Gamma distribution")
-
+def get_threshold(score_file_path, distance_type, conf_level=0.95):
+    print(f"Fitting \"{distance_type}\" scores using Gamma distribution")
+    scores = np.loadtxt(score_file_path, dtype='float')
     # removing zeros
-    losses = np.array(losses)
-    losses_copy = losses[losses != 0]
-    shape, loc, scale = gamma.fit(losses_copy, floc=0)
+    scores = np.array(scores)
+    scores_copy = scores[scores != 0]
+    shape, loc, scale = gamma.fit(scores_copy, floc=0)
 
     print("Creating threshold using the confidence intervals: %s" % conf_level)
     t = gamma.ppf(conf_level, shape, loc=loc, scale=scale)
@@ -935,13 +935,13 @@ def get_images(cfg, anomalous_frame, pos_mappings):
 
 def save_ax_nosave(ax, **kwargs):
     import io
-    ax.axis("off")
+    ax.axis("on")
     ax.figure.canvas.draw()
     trans = ax.figure.dpi_scale_trans.inverted() 
     bbox = ax.bbox.transformed(trans)
     buff = io.BytesIO()
     plt.savefig(buff, format="png", dpi=ax.figure.dpi, bbox_inches=bbox,  **kwargs)
-    ax.axis("on")
+    # ax.axis("on")
     buff.seek(0)
     # im = plt.imread(buff)
     im = Image.open(buff)
@@ -1066,7 +1066,7 @@ def h_minus_1_sobolev_norm(A, B):
     return np.sqrt(norm_squared)
 
 def lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg,
-             eval_var, eval_method='threshold', spine_color='black', alpha=0.4, avg_filter_length=5,
+             eval_var=None, eval_method=None, spine_color='black', alpha=0.4, avg_filter_length=5,
              pca_dimension=None, pca_plot=False, replace_initial_and_ending_values=True):
     # Plot distance scores
     # ax.set_xlabel('Frame ID', color=color)
