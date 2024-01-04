@@ -236,10 +236,10 @@ if __name__ == '__main__':
         HEATMAP_TYPES = ['SmoothGrad', 'GradCam++', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP']
 
     else:   
-        ANO_SIMULATIONS = ['gauss-journal-track1-day-night-fog'] # , 'test2', 'test3', 'test4', 'test5'
+        ANO_SIMULATIONS = ['track1-day-night-fog-10-pos'] # , 'test2', 'test3', 'test4', 'test5'
         NOM_SIMULATIONS = ['track1-sunny-positioned-nominal']
         RUN_ID_NUMBERS = [[1]]
-        SUMMARY_COLLAGES = [[True]]
+        SUMMARY_COLLAGES = [[False]]
 
         HEATMAP_TYPES = ['SmoothGrad'] #'GradCam++', 'SmoothGrad', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP'
 

@@ -894,10 +894,11 @@ def plot_crash_ranges(ax, speed_anomalous):
         else:
             ax.axvspan(rng, rng+1, color='teal', alpha=0.2)
 
-def get_heatmaps(anomalous_frame, anomalous, nominal, pos_mappings, return_size=False, return_IMAGE = False):
+def get_heatmaps(anomalous_frame, anomalous, nominal, pos_mappings, return_size=False, return_IMAGE=False, return_cte=False):
     # load the addresses of centeral camera heatmap of this anomalous frame and the closest nominal frame in terms of position
     ano_hm_address = anomalous['center'].iloc[anomalous_frame]
     closest_nom_hm_address = nominal['center'].iloc[int(pos_mappings[anomalous_frame])]
+    closest_nom_cte = nominal['cte'].iloc[int(pos_mappings[anomalous_frame])]
     # correct windows path, if necessary
     ano_hm_address = correct_windows_path(ano_hm_address)
     closest_nom_hm_address = correct_windows_path(closest_nom_hm_address)
@@ -913,7 +914,10 @@ def get_heatmaps(anomalous_frame, anomalous, nominal, pos_mappings, return_size=
     if return_size:
         return ano_hm.shape[0], ano_hm.shape[1]
     else:
-        return ano_hm, closest_nom_hm
+        if return_cte:
+            return ano_hm, closest_nom_hm, closest_nom_cte
+        else:
+            return ano_hm, closest_nom_hm
 
 def get_images(cfg, anomalous_frame, pos_mappings):
     # load the image file paths from main csv

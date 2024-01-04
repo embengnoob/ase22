@@ -555,6 +555,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
     nominal['steering_angle'] = data_df_nominal['steering_angle'].copy()
     nominal['throttle'] = data_df_nominal['throttle'].copy()
     nominal['speed'] = data_df_nominal['speed'].copy()
+    nominal['cte'] = data_df_nominal['cte'].copy()
     # total number of nominal frames
     num_nominal_frames = pd.Series.max(nominal['frameId']) + 1
     if NUM_FRAMES_NOM != num_nominal_frames:
@@ -632,6 +633,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
     ht_height, ht_width = get_heatmaps(0, anomalous, nominal, pos_mappings, return_size=True, return_IMAGE=False)
     x_ano_all_frames = np.zeros((num_anomalous_frames, ht_height*ht_width))
     x_nom_all_frames = np.zeros((num_anomalous_frames, ht_height*ht_width))
+    closest_nom_cte_all_frames = np.zeros((num_anomalous_frames))
 
     # Earth mover (wasserstein's) distance(s)
     if 'EMD' in distance_types:
@@ -684,7 +686,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
             csv_file_available.append(False)
     
     #################################### SUMMARY COLLAGES FOLDER CHECK #########################################
-            
+    
     if cfg.GENERATE_SUMMARY_COLLAGES:
         missing_collages = 0
         # path to plotted figure images folder
@@ -712,8 +714,8 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
     #################################### HEATMAP PROCESSING AND CORRELATION/DISTANCE CALCULATION #########################################
  
         # load the centeral camera heatmaps of this anomalous frame and the closest nominal frame in terms of position
-        ano_heatmap, closest_nom_heatmap = get_heatmaps(anomalous_frame, anomalous, nominal, pos_mappings, return_size=False, return_IMAGE=False)
-
+        ano_heatmap, closest_nom_heatmap, closest_nom_cte = get_heatmaps(anomalous_frame, anomalous, nominal, pos_mappings, return_size=False, return_IMAGE=False, return_cte=True)
+        closest_nom_cte_all_frames[anomalous_frame] = closest_nom_cte
         # Moran's I: spatial autocorrelation of averaged image (ano, nom)
         if 'moran' in distance_types and (not csv_file_available[distance_types.index('moran')]):
             dst = cv2.addWeighted(ano_heatmap, alpha, closest_nom_heatmap, beta, 0.0)
@@ -1124,10 +1126,12 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
 
     # Plot cross track error
     ax = fig.add_subplot(spec[num_of_axes-1, :])
-    color = 'red'
+    color_ano = 'red'
+    color_nom = 'green'
     ax.set_xlabel('Frame ID', color=color)
-    ax.set_ylabel('cross-track error', color=color)
-    ax.plot(cte_anomalous, label='cross-track error', linewidth= 0.5, linestyle = '-', color=color)
+    ax.set_ylabel('cross-track error', color=color) 
+    ax.plot(cte_anomalous, label='anomalous cross-track error', linewidth= 0.5, linestyle = '-', color=color_ano)
+    ax.plot(closest_nom_cte_all_frames, label='nominal cross-track error', linewidth= 0.5, linestyle = '-', color=color_nom)
 
     ax.axhline(y = YELLOW_BORDER, color = 'yellow', linestyle = '--')
     ax.axhline(y = -YELLOW_BORDER, color = 'yellow', linestyle = '--')
