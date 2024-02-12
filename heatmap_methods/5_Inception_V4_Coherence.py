@@ -15,7 +15,7 @@ except:
 c_dir = os.getcwd()
 
 from deepexplain.tensorflow import DeepExplain
-from utils import preprocess, pixel_range
+from utils import preprocess_atm, pixel_range
 import tf_slim as slim
 
 checkpoint = 'InceptionModel/inception_v4.ckpt'
@@ -100,11 +100,11 @@ with DeepExplain(session=sess, graph=sess.graph) as de:
         attribution = de.explain(v, yv, X, xs)
         
         if 'RectGrad' in k:
-            attributions_orig[k]   = preprocess(attribution, 0.5, 99.5)
-            attributions_sparse[k] = preprocess(attribution, 0.5, 99.5)
+            attributions_orig[k]   = preprocess_atm(attribution, 0.5, 99.5)
+            attributions_sparse[k] = preprocess_atm(attribution, 0.5, 99.5)
         else:
-            attributions_orig[k]   = preprocess(attribution, 0.5, 99.5)
-            attributions_sparse[k] = preprocess(attribution, 95, 99.5)
+            attributions_orig[k]   = preprocess_atm(attribution, 0.5, 99.5)
+            attributions_sparse[k] = preprocess_atm(attribution, 95, 99.5)
     
     print('Done!')
 

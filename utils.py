@@ -704,7 +704,7 @@ def batch_run(function, images, batch_size=5000):
     return np.concatenate(res, axis=0)
 
 
-def preprocess(attributions, q1, q2, use_abs=False):
+def preprocess_atm(attributions, q1, q2, use_abs=False):
     
     if use_abs:
         attributions = np.abs(attributions)

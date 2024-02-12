@@ -58,17 +58,17 @@ def heatmap_generator(cfg, img_addr, attention_type, saliency, attribution_metho
                     # Preprocessing based on the method used
                     if 'RectGrad' in k:
                         if cfg.SPARSE_ATTRIBUTION:
-                            attributions_sparse[k] = preprocess(attribution, 90, 99.5)
+                            attributions_sparse[k] = preprocess_atm(attribution, 90, 99.5)
                             saliency_map = attributions_sparse[k]
                         else:
-                            attributions_orig[k] = preprocess(attribution, 0.5, 99.5)
+                            attributions_orig[k] = preprocess_atm(attribution, 0.5, 99.5)
                             saliency_map = attributions_orig[k]
                     else:
                         if cfg.SPARSE_ATTRIBUTION:
-                            attributions_sparse[k] = preprocess(attribution, 95, 99.5)
+                            attributions_sparse[k] = preprocess_atm(attribution, 95, 99.5)
                             saliency_map = attributions_sparse[k]
                         else:
-                            attributions_orig[k] = preprocess(attribution, 0.5, 99.5)
+                            attributions_orig[k] = preprocess_atm(attribution, 0.5, 99.5)
                             saliency_map = attributions_orig[k]
     return saliency_map
             

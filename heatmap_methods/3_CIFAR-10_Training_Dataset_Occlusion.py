@@ -11,7 +11,7 @@ if not os.path.exists('CIFAR10_data'):
     extract_to = os.path.join(c_dir, 'CIFAR10_data')
     extract_all_files(tar_file_path, extract_to)
 
-from utils import unpickle, preprocess, batch_run, pixel_range
+from utils import unpickle, preprocess_atm, batch_run, pixel_range
 from deepexplain.tensorflow import DeepExplain
 from models import CIFAR_CNN
 from trainer import Trainer
@@ -114,9 +114,9 @@ with DeepExplain(session=sess, graph=sess.graph) as de:
         
         if 'RectGrad' in k:
             attribution = np.where(attribution > 0, attribution, 0.0)
-            attributions[k] = preprocess(attribution, 0, 100)
+            attributions[k] = preprocess_atm(attribution, 0, 100)
         else:
-            attributions[k] = preprocess(attribution, 95, 100)
+            attributions[k] = preprocess_atm(attribution, 95, 100)
     
     print('Done!')
 

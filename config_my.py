@@ -15,7 +15,7 @@ TRACK3_IMG_PER_LAP = 1375
 
 # self-driving car model settings
 SDC_MODELS_DIR = "models/"  # self-driving car models
-SDC_MODEL_NAME = "-------track1-dave2-mc-maxspeed30-withES.h5"  # self-driving car model "dave2"|"chauffeur"|"epoch"|"commaai"
+SDC_MODEL_NAME = "-------track3-dave2-mc-maxspeed30-withES.h5"  # self-driving car model "dave2"|"chauffeur"|"epoch"|"commaai"
 NUM_EPOCHS_SDC_MODEL = 62  # training epochs for the self-driving car model
 # SAMPLES_PER_EPOCH = 100  # number of samples to process before going to the next epoch
 BATCH_SIZE = 128  # number of samples per gradient update
@@ -26,7 +26,7 @@ NUM_SAMPLES_MC_DROPOUT = 20
 
 # Udacity simulation settings
 ANOMALY_DETECTOR_NAME = "track1-MSE-latent2"
-SIMULATION_NAME = "nominal2" # =======> Anomalous Simulation/Recorded Simulation save name ['test1', 'test2', 'test3', 'test4', 'test5']
+SIMULATION_NAME = "test" # =======> Anomalous Simulation/Recorded Simulation save name ['test1', 'test2', 'test3', 'test4', 'test5']
 SIMULATION_NAME_NOMINAL = "track1-sunny-positioned-nominal" # Nominal simulation used as reference
 TESTING_DATA_DIR = "simulations"  # Udacity simulations logs - "simulations"
 MAX_SPEED = 30  # car's max speed, capped at 35 mph (default)

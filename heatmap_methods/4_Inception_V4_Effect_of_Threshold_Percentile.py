@@ -35,7 +35,7 @@ sys.path.append(os.path.abspath('models/research/slim'))
 from nets import inception_v4
 
 from deepexplain.tensorflow import DeepExplain
-from utils import preprocess, pixel_range
+from utils import preprocess_atm, pixel_range
 
 import tf_slim as slim
 
@@ -126,7 +126,7 @@ with DeepExplain(session=sess, graph=sess.graph) as de:
         else:
             attribution = de.explain('rectgrad', yv, X, xs, percentile=v)
         
-        attributions[k] = preprocess(attribution, 0.5, 99.5)
+        attributions[k] = preprocess_atm(attribution, 0.5, 99.5)
     
     print('Done!')
 
