@@ -505,7 +505,8 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
     ANOMALOUS_HEATMAP_CSV_PATH = ANOMALOUS_PATHS[4]
     ANOMALOUS_HEATMAP_IMG_PATH = ANOMALOUS_PATHS[5]
     ANOMALOUS_HEATMAP_IMG_GRADIENT_PATH = ANOMALOUS_PATHS[6]
-    THRESHOLD_VECTORS_FOLDER_PATH = ANOMALOUS_PATHS[7]
+    if cfg.THRESHOLD_SIM_AVAILABLE:
+        THRESHOLD_VECTORS_FOLDER_PATH = ANOMALOUS_PATHS[7]
 
     #################################### INPUT DATA PRE-PROCESSING #########################################
 
@@ -564,7 +565,6 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
     # anomalous simulation
     cprintf(f"Path for data_df_anomalous: {ANOMALOUS_HEATMAP_CSV_PATH}", 'white')
     data_df_anomalous = pd.read_csv(ANOMALOUS_HEATMAP_CSV_PATH)
-
     anomalous = pd.DataFrame(data_df_anomalous['frameId'].copy(), columns=['frameId'])
     anomalous['position'] = data_df_anomalous['position'].copy()
     anomalous['center'] = data_df_anomalous['center'].copy()
@@ -876,8 +876,9 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
         # direct distances
         DISTANCE_VECTOR_PATH = os.path.join(ANOMALOUS_HEATMAP_FOLDER_PATH,
                                             f'dist_vect_{distance_type}.csv')
-        THRESHOLD_VECTOR_PATH = os.path.join(THRESHOLD_VECTORS_FOLDER_PATH,
-                                            f'dist_vect_{distance_type}.csv')
+        if cfg.THRESHOLD_SIM_AVAILABLE:
+            THRESHOLD_VECTOR_PATH = os.path.join(THRESHOLD_VECTORS_FOLDER_PATH,
+                                                f'dist_vect_{distance_type}.csv')
         # check if distance/correlation vectors in csv format already exist
         if not os.path.exists(DISTANCE_VECTOR_PATH):
             cprintf(f"Distance/correlation vector list of type \"{distance_type}\" does not exist. Generating list ...", 'l_blue')
@@ -920,10 +921,11 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
         distance_vectors.append(distance_vector)    
         distance_vectors_avgs.append(average_filter_1D(distance_vector))
 
-        # Calculate thresholds
-        if analyse_distance[distance_type][0]:
-            threshold = get_threshold(THRESHOLD_VECTOR_PATH, distance_type, analyse_distance[distance_type][1])
-            thresholds[distance_type] = threshold
+        if cfg.THRESHOLD_SIM_AVAILABLE:    
+            # Calculate thresholds
+            if analyse_distance[distance_type][0]:
+                threshold = get_threshold(THRESHOLD_VECTOR_PATH, distance_type, analyse_distance[distance_type][1])
+                thresholds[distance_type] = threshold
 
         
         # skip pca distance calculation if distance type is irrelevant 
@@ -934,8 +936,9 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
             # PCA distances
             DISTANCE_VECTOR_PATH = os.path.join(ANOMALOUS_HEATMAP_FOLDER_PATH,
                                                 f'dist_vect_{distance_type}_PCA_{pca_dimension}d.csv')
-            THRESHOLD_VECTOR_PATH = os.path.join(THRESHOLD_VECTORS_FOLDER_PATH,
-                                                f'dist_vect_{distance_type}_PCA_{pca_dimension}d.csv')
+            if cfg.THRESHOLD_SIM_AVAILABLE:
+                THRESHOLD_VECTOR_PATH = os.path.join(THRESHOLD_VECTORS_FOLDER_PATH,
+                                                    f'dist_vect_{distance_type}_PCA_{pca_dimension}d.csv')
             # check if distance/correlation vectors in csv format already exist
             if not os.path.exists(DISTANCE_VECTOR_PATH):
                 if (distance_type == 'euclidean') or (distance_type == 'manhattan') or (distance_type == 'cosine'):
@@ -958,10 +961,11 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
             pca_distance_vectors.append(pca_distance_vector)    
             pca_distance_vectors_avgs.append(average_filter_1D(pca_distance_vector))
 
-            # Calculate thresholds
-            if analyse_distance[distance_type][0]:
-                PCA_threshold = get_threshold(THRESHOLD_VECTOR_PATH, distance_type, analyse_distance[distance_type][1])
-                PCA_thresholds[f'PCA_{distance_type}'] = PCA_threshold
+            if cfg.THRESHOLD_SIM_AVAILABLE:
+                # Calculate thresholds
+                if analyse_distance[distance_type][0]:
+                    PCA_threshold = get_threshold(THRESHOLD_VECTOR_PATH, distance_type, analyse_distance[distance_type][1])
+                    PCA_thresholds[f'PCA_{distance_type}'] = PCA_threshold
             
     print(f'PCA distance types: {pca_distance_types}')
     print(f'Direct distance types: {distance_types}')
@@ -973,7 +977,8 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
     cte_anomalous = data_df_anomalous['cte']
     # car speed in anomaluos mode
     speed_anomalous = data_df_anomalous['speed']
-    
+    # cte difference between anomalous and nominal conditions
+    cte_diff = cte_anomalous-closest_nom_cte_all_frames
     num_of_axes = 0
     for distance_type in distance_types:
         if cfg.PCA:
@@ -1042,19 +1047,20 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
             YELLOW_BORDER = 3.6
             ORANGE_BORDER = 5.0
             RED_BORDER = 7.0
-            plot_ranges(ax, cte_anomalous, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER, ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
+            plot_ranges(ax, cte_diff, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER, ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
             plot_crash_ranges(ax, speed_anomalous)
             # plot distances
             distance_vector = pca_distance_vectors[d_type_index]
             distance_vector_avg = pca_distance_vectors_avgs[d_type_index]
             color = distance_type_colors[pca_distance_type][0]
             color_avg = distance_type_colors[pca_distance_type][1]
-
+            
             if analyse_distance[pca_distance_type][0]:
-                threshold = PCA_thresholds[f'PCA_{pca_distance_type}']
-                lineplot(ax, distance_vector, distance_vector_avg, pca_distance_type, heatmap_type, color,
-                        color_avg, eval_var=threshold, eval_method='threshold', spine_color=pca_ax_spine_color,
-                        pca_dimension=pca_dimension, pca_plot=True)
+                if cfg.THRESHOLD_SIM_AVAILABLE:
+                    threshold = PCA_thresholds[f'PCA_{pca_distance_type}']
+                    lineplot(ax, distance_vector, distance_vector_avg, pca_distance_type, heatmap_type, color,
+                            color_avg, eval_var=threshold, eval_method='threshold', spine_color=pca_ax_spine_color,
+                            pca_dimension=pca_dimension, pca_plot=True)
             else:
                 lineplot(ax, distance_vector, distance_vector_avg, pca_distance_type, heatmap_type, color,
                         color_avg, spine_color=pca_ax_spine_color, pca_dimension=pca_dimension, pca_plot=True)
@@ -1073,7 +1079,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
         YELLOW_BORDER = 3.6
         ORANGE_BORDER = 5.0
         RED_BORDER = 7.0
-        plot_ranges(ax, cte_anomalous, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER, ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
+        plot_ranges(ax, cte_diff, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER, ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
         plot_crash_ranges(ax, speed_anomalous)
         # plot distances
         distance_vector = distance_vectors[d_type_index]
@@ -1082,8 +1088,9 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
         color_avg = distance_type_colors[distance_type][1]
 
         if analyse_distance[distance_type][0]:
-            threshold = thresholds[distance_type]
-            lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg, eval_var=threshold, eval_method='threshold')
+            if cfg.THRESHOLD_SIM_AVAILABLE:
+                threshold = thresholds[distance_type]
+                lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg, eval_var=threshold, eval_method='threshold')
         else:
             lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg)
 
@@ -1100,7 +1107,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
         #     YELLOW_BORDER = 3.6
         #     ORANGE_BORDER = 5.0
         #     RED_BORDER = 7.0
-        #     plot_ranges(ax, cte_anomalous, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER, ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
+        #     plot_ranges(ax, cte_diff, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER, ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
         #     plot_crash_ranges(ax, speed_anomalous)
         #     # plot distances
         #     distance_vector = window_slope(distance_vectors[d_type_index])
@@ -1121,7 +1128,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
     title = f"p2p distances"
     ax.set_title(title)
     ax.legend(loc='upper left')
-    plot_ranges(ax, cte_anomalous, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER, ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
+    plot_ranges(ax, cte_diff, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER, ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
     plot_crash_ranges(ax, speed_anomalous)
 
     # Plot cross track error
@@ -1132,6 +1139,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
     ax.set_ylabel('cross-track error', color=color) 
     ax.plot(cte_anomalous, label='anomalous cross-track error', linewidth= 0.5, linestyle = '-', color=color_ano)
     ax.plot(closest_nom_cte_all_frames, label='nominal cross-track error', linewidth= 0.5, linestyle = '-', color=color_nom)
+    ax.plot(cte_diff, label='cross-track error difference', linewidth= 0.5, linestyle = '--', color='brown')
 
     ax.axhline(y = YELLOW_BORDER, color = 'yellow', linestyle = '--')
     ax.axhline(y = -YELLOW_BORDER, color = 'yellow', linestyle = '--')
@@ -1140,7 +1148,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
     ax.axhline(y = RED_BORDER, color = 'red', linestyle = '--')
     ax.axhline(y = -RED_BORDER, color = 'red', linestyle = '--')
 
-    plot_ranges(ax, cte_anomalous, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER, ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
+    plot_ranges(ax, cte_diff, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER, ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
     plot_crash_ranges(ax, speed_anomalous)    
 
     title = f"cross-track error"

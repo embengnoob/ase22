@@ -11,15 +11,12 @@ except:
 
 from evaluate_failure_prediction_heatmaps_scores import evaluate_failure_prediction, evaluate_p2p_failure_prediction, get_OOT_frames
 
-def simExists(cfg, run_id, sim_name, attention_type, nominal):
+def simExists(cfg, run_id, sim_name, attention_type, nominal, threshold, threshold_extras=[]):
     SIM_PATH = os.path.join(cfg.TESTING_DATA_DIR, sim_name)
     MAIN_CSV_PATH = os.path.join(SIM_PATH, "driving_log.csv")
     HEATMAP_PARENT_FOLDER_PATH = os.path.join(SIM_PATH, "heatmaps-" + attention_type.lower())
+    NUM_OF_FRAMES = get_num_frames(cfg, sim_name)
 
-    THRESHOLD_VECTORS_FOLDER_PATH = os.path.join(cfg.TESTING_DATA_DIR, cfg.THRESHOLD_SIM, "heatmaps-" + attention_type.lower(), cfg.THRESHOLD_SIM_RUN_ID)
-    if not os.path.exists(THRESHOLD_VECTORS_FOLDER_PATH):
-        raise ValueError(Fore.RED + f"The provided path for threshold simulation does not exist: {THRESHOLD_VECTORS_FOLDER_PATH}" + Fore.RESET)
-    
     if not nominal:
         if cfg.SPARSE_ATTRIBUTION:
             HEATMAP_FOLDER_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, f'{run_id}_SPARSE')
@@ -43,9 +40,6 @@ def simExists(cfg, run_id, sim_name, attention_type, nominal):
             HEATMAP_IMG_GRADIENT_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, "IMG_GRADIENT")
 
 
-
-    NUM_OF_FRAMES = get_num_frames(cfg, sim_name)
-
     if not os.path.exists(SIM_PATH):
         raise ValueError(Fore.RED + f"The provided simulation path does not exist: {SIM_PATH}" + Fore.RESET)
     else:
@@ -54,8 +48,10 @@ def simExists(cfg, run_id, sim_name, attention_type, nominal):
             MODE = 'same_img_test'
     
         else:
+
             # 1- IMG & Gradient folders don't exist 
             if (not os.path.exists(HEATMAP_IMG_PATH)) and (not os.path.exists(HEATMAP_IMG_GRADIENT_PATH)):
+                validation_warnings(False, sim_name, attention_type, run_id, nominal, threshold)
                 cprintf(f"Neither heatmap IMG folder nor gradient folder exist. Creating image folder at {HEATMAP_IMG_PATH} and {HEATMAP_IMG_GRADIENT_PATH}", 'l_blue')
                 os.makedirs(HEATMAP_IMG_PATH)
                 os.makedirs(HEATMAP_IMG_GRADIENT_PATH)
@@ -63,6 +59,7 @@ def simExists(cfg, run_id, sim_name, attention_type, nominal):
 
             # 2- Heatmap IMG folder exists but gradient folder doesn't
             elif (os.path.exists(HEATMAP_IMG_PATH)) and (not os.path.exists(HEATMAP_IMG_GRADIENT_PATH)):
+                validation_warnings(False, sim_name, attention_type, run_id, nominal, threshold)
                 if (len(os.listdir(HEATMAP_IMG_PATH)) < NUM_OF_FRAMES):
                     cprintf(f"Heatmap folder exists, but there are less heatmaps than there should be.", 'yellow')
                     cprintf(f"Deleting folder at {HEATMAP_IMG_GRADIENT_PATH}", 'yellow')
@@ -76,6 +73,7 @@ def simExists(cfg, run_id, sim_name, attention_type, nominal):
 
             # 3- Heatmap IMG folder doesn't exist but gradient folder does
             elif (not os.path.exists(HEATMAP_IMG_PATH)) and (os.path.exists(HEATMAP_IMG_GRADIENT_PATH)):
+                validation_warnings(False, sim_name, attention_type, run_id, nominal, threshold)
                 if (len(os.listdir(HEATMAP_IMG_GRADIENT_PATH)) < NUM_OF_FRAMES-1):
                     cprintf(f"Gradient folder exists, but there are less gradients than there should be.", 'yellow')
                     cprintf(f"Deleting folder at {HEATMAP_IMG_GRADIENT_PATH}", 'yellow')
@@ -89,6 +87,7 @@ def simExists(cfg, run_id, sim_name, attention_type, nominal):
 
             # 4- Both folders exist, but there are less heatmaps/gradients than there should be
             elif (len(os.listdir(HEATMAP_IMG_PATH)) < NUM_OF_FRAMES) and (len(os.listdir(HEATMAP_IMG_GRADIENT_PATH)) < NUM_OF_FRAMES-1):
+                validation_warnings(False, sim_name, attention_type, run_id, nominal, threshold)
                 cprintf(f"Both folders exist, but there are less heatmaps/gradients than there should be.", 'yellow')
                 cprintf(f"Deleting folder at {HEATMAP_IMG_PATH} and {HEATMAP_IMG_GRADIENT_PATH}", 'yellow')
                 shutil.rmtree(HEATMAP_IMG_PATH)
@@ -97,6 +96,7 @@ def simExists(cfg, run_id, sim_name, attention_type, nominal):
 
             # 5- both folders exist, but there are less heatmaps than there should be (gradients are the correct number)
             elif (len(os.listdir(HEATMAP_IMG_PATH)) < NUM_OF_FRAMES) and (len(os.listdir(HEATMAP_IMG_GRADIENT_PATH)) == NUM_OF_FRAMES-1):
+                validation_warnings(False, sim_name, attention_type, run_id, nominal, threshold)
                 cprintf(f"Both folders exist, but there are less heatmaps than there should be (gradients are the correct number).", 'yellow')
                 cprintf(f"Deleting folder at {HEATMAP_IMG_PATH}", 'yellow')
                 shutil.rmtree(HEATMAP_IMG_PATH)
@@ -104,6 +104,7 @@ def simExists(cfg, run_id, sim_name, attention_type, nominal):
 
             # 6- gradient folder exists, but there are less gradients than there should be (heatmaps are the correct number)
             elif (len(os.listdir(HEATMAP_IMG_PATH)) == NUM_OF_FRAMES) and (len(os.listdir(HEATMAP_IMG_GRADIENT_PATH)) < NUM_OF_FRAMES-1):
+                validation_warnings(False, sim_name, attention_type, run_id, nominal, threshold)
                 cprintf(f"Both folders exist, but there are less gradients than there should be (heatmaps are the correct number).", 'yellow')
                 cprintf(f"Deleting folder at {HEATMAP_IMG_GRADIENT_PATH}", 'yellow')
                 shutil.rmtree(HEATMAP_IMG_GRADIENT_PATH)
@@ -111,22 +112,63 @@ def simExists(cfg, run_id, sim_name, attention_type, nominal):
 
             # 3- heatmap folder exists and correct number of heatmaps, but no csv file was generated.
             elif not 'driving_log.csv' in os.listdir(HEATMAP_FOLDER_PATH):
+                validation_warnings(False, sim_name, attention_type, run_id, nominal, threshold)
                 cprintf(f"Correct number of heatmaps exist. CSV File doesn't.", 'yellow')
                 MODE = 'csv_missing'
                 
             else:
                 MODE = None
-                if nominal:
-                    cprintf(f"Heatmaps for nominal sim \"{sim_name}\" of attention type \"{attention_type}\" exist.", 'l_green')
-                else:
-                    cprintf(f"Heatmaps for anomalous sim \"{sim_name}\" of attention type \"{attention_type}\" and run ID \"{run_id}\" exist.", 'l_green')
+                validation_warnings(True, sim_name, attention_type, run_id, nominal, threshold)
         
         if MODE is not None:
             compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH, MODE)
 
-    PATHS = [SIM_PATH, MAIN_CSV_PATH, HEATMAP_PARENT_FOLDER_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH, THRESHOLD_VECTORS_FOLDER_PATH]
-    return NUM_OF_FRAMES, PATHS
+    PATHS = [SIM_PATH, MAIN_CSV_PATH, HEATMAP_PARENT_FOLDER_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH]
+    if threshold:
+        THRESHOLD_VECTORS_FOLDER_PATH = HEATMAP_FOLDER_PATH
+        if len(os.listdir(THRESHOLD_VECTORS_FOLDER_PATH)) <= 3:
+            NOMINAL_PATHS, NUM_FRAMES_NOM, SIMULATION_NAME_ANOMALOUS, SIMULATION_NAME_NOMINAL, DISTANCE_TYPES, ANALYSE_DISTANCE, PCA_DIMENSIONS, gen_axes, pca_axes_list = threshold_extras
+            cfg.THRESHOLD_SIM_AVAILABLE = False
+            cprintf("WARNING: Threshold sim distance data is unavailable. Calculating distances ...", "red")
+            evaluate_p2p_failure_prediction(cfg,
+                                            NOMINAL_PATHS,
+                                            PATHS,
+                                            NUM_FRAMES_NOM,
+                                            NUM_OF_FRAMES,
+                                            heatmap_type=attention_type,
+                                            anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
+                                            nominal_simulation_name=SIMULATION_NAME_NOMINAL,
+                                            distance_types=DISTANCE_TYPES,
+                                            analyse_distance=ANALYSE_DISTANCE,
+                                            pca_dimension=PCA_DIMENSIONS[0],
+                                            PCA_DIMENSIONS=PCA_DIMENSIONS,
+                                            run_id=run_id,
+                                            gen_axes=gen_axes,
+                                            pca_axes_list=pca_axes_list)
+        else:
+            cfg.THRESHOLD_SIM_AVAILABLE = True
 
+        return THRESHOLD_VECTORS_FOLDER_PATH
+    else:
+        return NUM_OF_FRAMES, PATHS
+
+
+def validation_warnings(valid, sim_name, attention_type, run_id, nominal, threshold):
+    if valid:
+        if nominal:
+            cprintf(f"Heatmaps for nominal \u2713 \"{sim_name}\" of attention type \"{attention_type}\" exist.", 'l_green')
+        elif threshold:
+            cprintf(f"Heatmaps for threshold sim \u2713 \"{sim_name}\" of attention type \"{attention_type}\" and run ID \"{run_id}\" exist.", 'l_green')
+        else:
+            cprintf(f"Heatmaps for anomalous sim \u2713 \"{sim_name}\" of attention type \"{attention_type}\" and run ID \"{run_id}\" exist.", 'l_green')
+    else:
+        if nominal:
+            cprintf(f"WARNING: Nominal \u2717 sim \"{sim_name}\" of attention type \"{attention_type}\" heatmap folder has deficiencies. Looking for a solution... ", "red")
+        elif threshold:
+            cprintf(f"WARNING: Threshold \u2717 sim \"{sim_name}\" of attention type \"{attention_type}\" and run ID \"{run_id}\" heatmap folder has deficiencies. Looking for a solution... ", "red")
+        else:
+            cprintf(f"WARNING: Anomalous \u2717 sim \"{sim_name}\" of attention type \"{attention_type}\" and run ID \"{run_id}\" heatmap folder has deficiencies. Looking for a solution... ", "red")
+    
 def correct_field_names(MAIN_CSV_PATH):
     try:
         # autonomous mode simulation data
@@ -223,6 +265,7 @@ if __name__ == '__main__':
                            'track1-sunny-positioned-nominal',
                            'track1-sunny-positioned-nominal',
                            'track1-sunny-positioned-nominal']
+        THRESHOLD_SIMULATIONS = ['nominal2', 'nominal2', 'nominal2', 'nominal2', 'nominal2']
         RUN_ID_NUMBERS = [[1],
                           [1],
                           [1],
@@ -236,14 +279,13 @@ if __name__ == '__main__':
         HEATMAP_TYPES = ['SmoothGrad', 'GradCam++', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP']
 
     else:   
-        ANO_SIMULATIONS = ['track1-day-night-fog-10-pos'] # , 'test2', 'test3', 'test4', 'test5'
+        ANO_SIMULATIONS = ['test1'] # , 'test2', 'test3', 'test4', 'test5'
         NOM_SIMULATIONS = ['track1-sunny-positioned-nominal']
         RUN_ID_NUMBERS = [[1]]
         SUMMARY_COLLAGES = [[False]]
+        THRESHOLD_SIMULATIONS = ['nominal2']
+        HEATMAP_TYPES = ['SmoothGrad', 'GradCam++', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP'] #'GradCam++', 'SmoothGrad', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP'
 
-        HEATMAP_TYPES = ['SmoothGrad'] #'GradCam++', 'SmoothGrad', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP'
-
-    
     if len(ANO_SIMULATIONS) != len(NOM_SIMULATIONS):
         raise ValueError(Fore.RED + f"Mismatch in number of specified ANO and NOM simulations: {len(ANO_SIMULATIONS)} != {len(NOM_SIMULATIONS)} " + Fore.RESET)
     elif len(ANO_SIMULATIONS) != len(RUN_ID_NUMBERS):
@@ -310,6 +352,7 @@ if __name__ == '__main__':
             run_id = RUN_ID_NUMBERS[sim_idx][run_number]
             SIMULATION_NAME_ANOMALOUS = sim_name
             SIMULATION_NAME_NOMINAL = NOM_SIMULATIONS[sim_idx]
+            SIMULATION_NAME_THRESHOLD = THRESHOLD_SIMULATIONS[sim_idx]
             cfg.SIMULATION_NAME = SIMULATION_NAME_ANOMALOUS
             cfg.SIMULATION_NAME_NOMINAL = SIMULATION_NAME_NOMINAL
             cfg.GENERATE_SUMMARY_COLLAGES = SUMMARY_COLLAGES[sim_idx][run_number]
@@ -319,9 +362,20 @@ if __name__ == '__main__':
             # check whether nominal and anomalous simulation and the corresponding heatmaps are already generated, generate them otherwise
             for heatmap_type in HEATMAP_TYPES:
                 if not cfg.SAME_IMG_TEST:
-                    NUM_FRAMES_NOM, NOMINAL_PATHS = simExists(cfg, str(run_id), sim_name=SIMULATION_NAME_NOMINAL, attention_type=heatmap_type, nominal=True) 
-                    NUM_FRAMES_ANO, ANOMALOUS_PATHS = simExists(cfg, str(run_id), sim_name=SIMULATION_NAME_ANOMALOUS, attention_type=heatmap_type, nominal=False)
-            
+                    NUM_FRAMES_NOM, NOMINAL_PATHS = simExists(cfg, str(run_id), sim_name=SIMULATION_NAME_NOMINAL, attention_type=heatmap_type, nominal=True, threshold=False)
+                    NUM_FRAMES_ANO, ANOMALOUS_PATHS = simExists(cfg, str(run_id), sim_name=SIMULATION_NAME_ANOMALOUS, attention_type=heatmap_type, nominal=False, threshold=False)
+                    THRESHOLD_VECTORS_FOLDER_PATH = simExists(cfg, '1', sim_name=SIMULATION_NAME_THRESHOLD, attention_type=heatmap_type, nominal=False, threshold=True,
+                                                              threshold_extras=[NOMINAL_PATHS,
+                                                                                NUM_FRAMES_NOM,
+                                                                                SIMULATION_NAME_ANOMALOUS,
+                                                                                SIMULATION_NAME_NOMINAL,
+                                                                                DISTANCE_TYPES,
+                                                                                ANALYSE_DISTANCE,
+                                                                                PCA_DIMENSIONS,
+                                                                                gen_axes,
+                                                                                pca_axes_list])
+                    ANOMALOUS_PATHS.append(THRESHOLD_VECTORS_FOLDER_PATH)
+                
                 if not cfg.SAME_IMG_TEST:
                     if cfg.METHOD == 'thirdeye':
                         # get number of OOTs
