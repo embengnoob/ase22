@@ -37,7 +37,6 @@ class Config:
         self.METHOD = None
         self.IGNORE_WARNINGS = None
         self.EVALUATE_ALL = None
-        self.THRESHOLD_SIM_AVAILABLE = None
         self.GENERATE_SUMMARY_COLLAGES = None
         self.SUMMARY_COLLAGE_PCA_DIMS = None
         self.SUMMARY_COLLAGE_DIST_TYPES = None

@@ -485,7 +485,7 @@ def compute_fp_and_tn(data_df_nominal, aggregation_method, condition,fig,axs,sub
 
 def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, heatmap_type,
                                     anomalous_simulation_name, nominal_simulation_name, distance_types, analyse_distance,
-                                    pca_dimension, PCA_DIMENSIONS, run_id, gen_axes, pca_axes_list):
+                                    pca_dimension, PCA_DIMENSIONS, run_id, gen_axes, pca_axes_list, threshold_sim):
 
     #################################### GETTING THE RIGHT ROOT PATHS #########################################
 
@@ -505,7 +505,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
     ANOMALOUS_HEATMAP_CSV_PATH = ANOMALOUS_PATHS[4]
     ANOMALOUS_HEATMAP_IMG_PATH = ANOMALOUS_PATHS[5]
     ANOMALOUS_HEATMAP_IMG_GRADIENT_PATH = ANOMALOUS_PATHS[6]
-    if cfg.THRESHOLD_SIM_AVAILABLE:
+    if not threshold_sim:
         THRESHOLD_VECTORS_FOLDER_PATH = ANOMALOUS_PATHS[7]
 
     #################################### INPUT DATA PRE-PROCESSING #########################################
@@ -876,7 +876,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
         # direct distances
         DISTANCE_VECTOR_PATH = os.path.join(ANOMALOUS_HEATMAP_FOLDER_PATH,
                                             f'dist_vect_{distance_type}.csv')
-        if cfg.THRESHOLD_SIM_AVAILABLE:
+        if not threshold_sim:
             THRESHOLD_VECTOR_PATH = os.path.join(THRESHOLD_VECTORS_FOLDER_PATH,
                                                 f'dist_vect_{distance_type}.csv')
         # check if distance/correlation vectors in csv format already exist
@@ -914,14 +914,15 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
             # load distance vector
             # cprintf(f"Loading CSV file for distance type {distance_type} from {DISTANCE_VECTOR_PATH} ...", 'l_yellow')
             distance_vector = np.loadtxt(DISTANCE_VECTOR_PATH, dtype='float')
-            moran_i_ano = np.loadtxt(os.path.join(ANOMALOUS_HEATMAP_FOLDER_PATH, f'dist_vect_moran_i_ano.csv'), dtype='float')
-            moran_i_nom = np.loadtxt(os.path.join(ANOMALOUS_HEATMAP_FOLDER_PATH, f'dist_vect_moran_i_nom.csv'), dtype='float')
+            ##################################################################################################################################################################
+            # moran_i_ano = np.loadtxt(os.path.join(ANOMALOUS_HEATMAP_FOLDER_PATH, f'dist_vect_moran_i_ano.csv'), dtype='float')
+            # moran_i_nom = np.loadtxt(os.path.join(ANOMALOUS_HEATMAP_FOLDER_PATH, f'dist_vect_moran_i_nom.csv'), dtype='float')
         if np.sum(distance_vector) == 0:
             cprintf(f'WARNING: All elements are zero: {distance_type}', 'l_red')
         distance_vectors.append(distance_vector)    
         distance_vectors_avgs.append(average_filter_1D(distance_vector))
 
-        if cfg.THRESHOLD_SIM_AVAILABLE:    
+        if not threshold_sim:    
             # Calculate thresholds
             if analyse_distance[distance_type][0]:
                 threshold = get_threshold(THRESHOLD_VECTOR_PATH, distance_type, analyse_distance[distance_type][1])
@@ -936,7 +937,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
             # PCA distances
             DISTANCE_VECTOR_PATH = os.path.join(ANOMALOUS_HEATMAP_FOLDER_PATH,
                                                 f'dist_vect_{distance_type}_PCA_{pca_dimension}d.csv')
-            if cfg.THRESHOLD_SIM_AVAILABLE:
+            if not threshold_sim:
                 THRESHOLD_VECTOR_PATH = os.path.join(THRESHOLD_VECTORS_FOLDER_PATH,
                                                     f'dist_vect_{distance_type}_PCA_{pca_dimension}d.csv')
             # check if distance/correlation vectors in csv format already exist
@@ -961,7 +962,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
             pca_distance_vectors.append(pca_distance_vector)    
             pca_distance_vectors_avgs.append(average_filter_1D(pca_distance_vector))
 
-            if cfg.THRESHOLD_SIM_AVAILABLE:
+            if not threshold_sim:
                 # Calculate thresholds
                 if analyse_distance[distance_type][0]:
                     PCA_threshold = get_threshold(THRESHOLD_VECTOR_PATH, distance_type, analyse_distance[distance_type][1])
@@ -1056,7 +1057,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
             color_avg = distance_type_colors[pca_distance_type][1]
             
             if analyse_distance[pca_distance_type][0]:
-                if cfg.THRESHOLD_SIM_AVAILABLE:
+                if not threshold_sim:
                     threshold = PCA_thresholds[f'PCA_{pca_distance_type}']
                     lineplot(ax, distance_vector, distance_vector_avg, pca_distance_type, heatmap_type, color,
                             color_avg, eval_var=threshold, eval_method='threshold', spine_color=pca_ax_spine_color,
@@ -1065,7 +1066,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                 lineplot(ax, distance_vector, distance_vector_avg, pca_distance_type, heatmap_type, color,
                         color_avg, spine_color=pca_ax_spine_color, pca_dimension=pca_dimension, pca_plot=True)
 
-
+    cprintf(f'{distance_types}', 'green')
     for d_type_index, distance_type in enumerate(distance_types):
 
         if cfg.PCA:
@@ -1087,8 +1088,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
         color = distance_type_colors[distance_type][0]
         color_avg = distance_type_colors[distance_type][1]
 
-        if analyse_distance[distance_type][0]:
-            if cfg.THRESHOLD_SIM_AVAILABLE:
+        if (analyse_distance[distance_type][0]) and (not threshold_sim):
                 threshold = thresholds[distance_type]
                 lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg, eval_var=threshold, eval_method='threshold')
         else:
@@ -1269,9 +1269,9 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
 
     cprintf(f'\nSaving plotted figure to {FIGURES_FOLDER_PATH} ...', 'magenta')
     if cfg.PCA:
-        fig_img_name = f"{heatmap_type}_plots_{anomalous_simulation_name}_{nominal_simulation_name}_{pca_dimension}d.png"
+        fig_img_name = f"{heatmap_type}_plots_{anomalous_simulation_name}_{nominal_simulation_name}_{pca_dimension}d.pdf"
     else:
-        fig_img_name = f"{heatmap_type}_plots_{anomalous_simulation_name}_{nominal_simulation_name}.png"
+        fig_img_name = f"{heatmap_type}_plots_{anomalous_simulation_name}_{nominal_simulation_name}.pdf"
     fig_img_address = os.path.join(FIGURES_FOLDER_PATH, fig_img_name)
     plt.savefig(fig_img_address, bbox_inches='tight', dpi=300)
     # plt.savefig(os.path.join(ALL_RUNS_FIGURE_PATH, f"run_id_{run_id}.png"), bbox_inches='tight', dpi=300)

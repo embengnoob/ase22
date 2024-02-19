@@ -15,7 +15,6 @@ def simExists(cfg, run_id, sim_name, attention_type, nominal, threshold, thresho
     SIM_PATH = os.path.join(cfg.TESTING_DATA_DIR, sim_name)
     MAIN_CSV_PATH = os.path.join(SIM_PATH, "driving_log.csv")
     HEATMAP_PARENT_FOLDER_PATH = os.path.join(SIM_PATH, "heatmaps-" + attention_type.lower())
-    NUM_OF_FRAMES = get_num_frames(cfg, sim_name)
 
     if not nominal:
         if cfg.SPARSE_ATTRIBUTION:
@@ -39,7 +38,7 @@ def simExists(cfg, run_id, sim_name, attention_type, nominal, threshold, thresho
             HEATMAP_IMG_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, "IMG")
             HEATMAP_IMG_GRADIENT_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, "IMG_GRADIENT")
 
-
+    NUM_OF_FRAMES = get_num_frames(cfg, sim_name)
     if not os.path.exists(SIM_PATH):
         raise ValueError(Fore.RED + f"The provided simulation path does not exist: {SIM_PATH}" + Fore.RESET)
     else:
@@ -125,11 +124,14 @@ def simExists(cfg, run_id, sim_name, attention_type, nominal, threshold, thresho
 
     PATHS = [SIM_PATH, MAIN_CSV_PATH, HEATMAP_PARENT_FOLDER_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH]
     if threshold:
+        calc_distances = False
         THRESHOLD_VECTORS_FOLDER_PATH = HEATMAP_FOLDER_PATH
-        if len(os.listdir(THRESHOLD_VECTORS_FOLDER_PATH)) <= 3:
-            NOMINAL_PATHS, NUM_FRAMES_NOM, SIMULATION_NAME_ANOMALOUS, SIMULATION_NAME_NOMINAL, DISTANCE_TYPES, ANALYSE_DISTANCE, PCA_DIMENSIONS, gen_axes, pca_axes_list = threshold_extras
-            cfg.THRESHOLD_SIM_AVAILABLE = False
-            cprintf("WARNING: Threshold sim distance data is unavailable. Calculating distances ...", "red")
+        NOMINAL_PATHS, NUM_FRAMES_NOM, SIMULATION_NAME_ANOMALOUS, SIMULATION_NAME_NOMINAL, DISTANCE_TYPES, ANALYSE_DISTANCE, PCA_DIMENSIONS, gen_axes, pca_axes_list = threshold_extras
+        for distance_type in DISTANCE_TYPES:
+            if f'dist_vect_{distance_type}.csv' not in os.listdir(THRESHOLD_VECTORS_FOLDER_PATH):
+                cprintf(f"WARNING: Threshold sim distance data of distance type {distance_type} is unavailable. Calculating distances ...", "red")
+                calc_distances = True
+        if calc_distances:
             evaluate_p2p_failure_prediction(cfg,
                                             NOMINAL_PATHS,
                                             PATHS,
@@ -144,9 +146,8 @@ def simExists(cfg, run_id, sim_name, attention_type, nominal, threshold, thresho
                                             PCA_DIMENSIONS=PCA_DIMENSIONS,
                                             run_id=run_id,
                                             gen_axes=gen_axes,
-                                            pca_axes_list=pca_axes_list)
-        else:
-            cfg.THRESHOLD_SIM_AVAILABLE = True
+                                            pca_axes_list=pca_axes_list,
+                                            threshold_sim = True)
 
         return THRESHOLD_VECTORS_FOLDER_PATH
     else:
@@ -169,14 +170,21 @@ def validation_warnings(valid, sim_name, attention_type, run_id, nominal, thresh
         else:
             cprintf(f"WARNING: Anomalous \u2717 sim \"{sim_name}\" of attention type \"{attention_type}\" and run ID \"{run_id}\" heatmap folder has deficiencies. Looking for a solution... ", "red")
     
-def correct_field_names(MAIN_CSV_PATH):
+def correct_field_names(SIM_PATH):
+    MAIN_CSV_PATH = os.path.join(SIM_PATH, "driving_log.csv")
+    UPDATED_CSV_PATH = os.path.join(SIM_PATH, "driving_log_updated.csv")
     try:
-        # autonomous mode simulation data
+        # autonomous mode simulation data (is going to fail if manual, since manual has address string in first column)
         data_df = pd.read_csv(MAIN_CSV_PATH)
-        data = data_df["center"]
+        NUM_OF_FRAMES = pd.Series.max(data_df["frameId"]) + 1
     except:
         # manual mode simulation data
-        df = pd.read_csv(MAIN_CSV_PATH, header=None)
+        with open(MAIN_CSV_PATH,'r') as f:
+            lines = f.readlines()[1:]
+            with open(UPDATED_CSV_PATH,'w') as f1:
+                 for line in lines:
+                    f1.write(line)
+        df = pd.read_csv(UPDATED_CSV_PATH, header=None)
         df.rename(columns={ 0: utils.csv_fieldnames_in_manual_mode[0], 1: utils.csv_fieldnames_in_manual_mode[1],
                             2: utils.csv_fieldnames_in_manual_mode[2], 3: utils.csv_fieldnames_in_manual_mode[3],
                             4: utils.csv_fieldnames_in_manual_mode[4], 5: utils.csv_fieldnames_in_manual_mode[5],
@@ -185,15 +193,15 @@ def correct_field_names(MAIN_CSV_PATH):
                             10: utils.csv_fieldnames_in_manual_mode[10]}, inplace=True)
         df['frameId'] = df.index
         df.to_csv(MAIN_CSV_PATH, index=False) # save to new csv file
+        os.remove(UPDATED_CSV_PATH)
         data_df = pd.read_csv(MAIN_CSV_PATH)
-        data = data_df["center"]
+        NUM_OF_FRAMES = pd.Series.max(data_df["frameId"]) + 1
     return data_df
 
 def get_num_frames(cfg, sim_name):
     SIM_PATH = os.path.join(cfg.TESTING_DATA_DIR, sim_name)
-    MAIN_CSV_PATH = os.path.join(SIM_PATH, "driving_log.csv")
     # add field names to main csv file if it's not there (manual training recording)
-    csv_df = correct_field_names(MAIN_CSV_PATH)
+    csv_df = correct_field_names(SIM_PATH)
     # get number of frames
     NUM_OF_FRAMES = pd.Series.max(csv_df['frameId']) + 1
     return NUM_OF_FRAMES
@@ -279,12 +287,17 @@ if __name__ == '__main__':
         HEATMAP_TYPES = ['SmoothGrad', 'GradCam++', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP']
 
     else:   
-        ANO_SIMULATIONS = ['test1'] # , 'test2', 'test3', 'test4', 'test5'
-        NOM_SIMULATIONS = ['track1-sunny-positioned-nominal']
+        ANO_SIMULATIONS = ['track1-day-night-sunny-anomalous'] # , 'test2', 'test3', 'test4', 'test5', 'track1-day-night-fog-80-pos'
+        NOM_SIMULATIONS = ['track1-day-night-sunny-nominal'] # 'track1-day-night-sunny-nominal'
         RUN_ID_NUMBERS = [[1]]
         SUMMARY_COLLAGES = [[False]]
-        THRESHOLD_SIMULATIONS = ['nominal2']
+        THRESHOLD_SIMULATIONS = ['track1-day-night-sunny-nominal-threshold'] # 'track1-day-night-sunny-nominal-threshold'
         HEATMAP_TYPES = ['SmoothGrad', 'GradCam++', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP'] #'GradCam++', 'SmoothGrad', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP'
+
+
+
+
+
 
     if len(ANO_SIMULATIONS) != len(NOM_SIMULATIONS):
         raise ValueError(Fore.RED + f"Mismatch in number of specified ANO and NOM simulations: {len(ANO_SIMULATIONS)} != {len(NOM_SIMULATIONS)} " + Fore.RESET)
@@ -294,7 +307,7 @@ if __name__ == '__main__':
         raise ValueError(Fore.RED + f"Mismatch in number of runs and specified summary collage patterns: {len(SUMMARY_COLLAGES)} != {len(RUN_ID_NUMBERS)} " + Fore.RESET)
     
   # DISTANCE_TYPES = ['euclidean', 'manhattan', 'cosine', 'EMD', 'pearson', 'spearman', 'kendall', 'moran', 'kl-divergence', 'mutual-info', 'sobolev-norm']
-    DISTANCE_TYPES = ['euclidean', 'manhattan', 'cosine', 'EMD', 'pearson', 'spearman', 'kendall', 'moran', 'mutual-info', 'sobolev-norm']
+    DISTANCE_TYPES = ['euclidean', 'sobolev-norm']
     ANALYSE_DISTANCE = {
         'euclidean' : (False, 0.95),
         'manhattan' : (False, 0.95),
@@ -315,7 +328,7 @@ if __name__ == '__main__':
     #                     'polynomial_kernel',
     #                     'sigmoid_kernel',
     #                     'rbf_kernel',
-    #                     'laplacian_kernel'] #'chi2_kernel'
+    #                     'laplacian_kernel'] #'chi2_kernel'<
 
     total_runs = 0
     for idx, run_pattern in enumerate(RUN_ID_NUMBERS):
@@ -450,7 +463,8 @@ if __name__ == '__main__':
                                                                                                         PCA_DIMENSIONS=PCA_DIMENSIONS,
                                                                                                         run_id=run_id,
                                                                                                         gen_axes=gen_axes,
-                                                                                                        pca_axes_list=pca_axes_list)
+                                                                                                        pca_axes_list=pca_axes_list,
+                                                                                                        threshold_sim = False)
                             run_figs.append(fig_img_address)
             # copy all figs of a run to a single folder
             copy_run_figs(cfg, sim_name, run_id, run_figs)
