@@ -267,19 +267,57 @@ if __name__ == '__main__':
     #                     [False, False, False],
     #                     [False, False, False]]
     if cfg.EVALUATE_ALL:
-        ANO_SIMULATIONS = ['test1', 'test2', 'test3', 'test4', 'test5'] # , 'test2', 'test3', 'test4', 'test5'
+        # ANO_SIMULATIONS = ['track1-night-moon-anomalous', 'track1-day-fog-100'] # , 'test2', 'test3', 'test4', 'test5'
+        ANO_SIMULATIONS = ['track1-night-rain-100-anomalous',
+                           'track1-night-rain-100-anomalous',
+                           'track1-night-fog-100-anomalous',
+                           'track1-night-fog-100-anomalous',
+                           'track1-night-snow-100-anomalous',
+                           'track1-night-snow-100-anomalous',
+                           'track1-day-rain-100',
+                           'track1-day-rain-100',
+                           'track1-day-snow-100',
+                           'track1-day-snow-100'] # , 'test2', 'test3', 'test4', 'test5'
+        
         NOM_SIMULATIONS = ['track1-sunny-positioned-nominal',
+                           'track1-night-rain-100-nominal',
                            'track1-sunny-positioned-nominal',
+                           'track1-night-fog-100-nominal',
                            'track1-sunny-positioned-nominal',
+                           'track1-night-snow-100-nominal',
                            'track1-sunny-positioned-nominal',
-                           'track1-sunny-positioned-nominal']
-        THRESHOLD_SIMULATIONS = ['nominal2', 'nominal2', 'nominal2', 'nominal2', 'nominal2']
+                           'track1-day-rain-100-nominal',
+                           'track1-sunny-positioned-nominal',
+                           'track1-day-snow-100-nominal']
+        # NOM_SIMULATIONS = ['track1-sunny-positioned-nominal',
+        #                    'track1-sunny-positioned-nominal']
+        THRESHOLD_SIMULATIONS = ['track1-day-sunny-nominal-threshold',
+                                 'track1-night-rain-100-threshold',
+                                 'track1-day-sunny-nominal-threshold',
+                                 'track1-night-fog-100-threshold',
+                                 'track1-day-sunny-nominal-threshold',
+                                 'track1-night-snow-100-threshold',
+                                 'track1-day-sunny-nominal-threshold',
+                                 'track1-day-rain-100-threshold',
+                                 'track1-day-sunny-nominal-threshold',
+                                 'track1-day-snow-100-threshold']
+        # THRESHOLD_SIMULATIONS = ['track1-day-sunny-nominal-threshold', 'track1-day-sunny-nominal-threshold']
         RUN_ID_NUMBERS = [[1],
+                          [1],
+                          [1],
+                          [1],
+                          [1],
+                          [1],
                           [1],
                           [1],
                           [1],
                           [1]]
         SUMMARY_COLLAGES = [[False],
+                            [False],
+                            [False],
+                            [False],
+                            [False],
+                            [False],
                             [False],
                             [False],
                             [False],
@@ -309,7 +347,7 @@ if __name__ == '__main__':
   # DISTANCE_TYPES = ['euclidean', 'manhattan', 'cosine', 'EMD', 'pearson', 'spearman', 'kendall', 'moran', 'kl-divergence', 'mutual-info', 'sobolev-norm']
     DISTANCE_TYPES = ['euclidean', 'sobolev-norm']
     ANALYSE_DISTANCE = {
-        'euclidean' : (False, 0.95),
+        'euclidean' : (True, 0.99),
         'manhattan' : (False, 0.95),
         'cosine' : (False, 0.95),
         'EMD' : (False, 0.95),
@@ -449,22 +487,22 @@ if __name__ == '__main__':
                             cprintb(f'\n############## run number {run_id} of {len(RUN_ID_NUMBERS[sim_idx])} ##############', 'l_blue')
                             cprintb(f'########### Using Heatmap Type: {heatmap_type} ({HEATMAP_TYPES.index(heatmap_type) + 1} of {len(HEATMAP_TYPES)}) ###########', 'l_blue')
                             cprintb(f'########### Using PCA Dimension: {pca_dimension} ({PCA_DIMENSIONS.index(pca_dimension) + 1} of {len(PCA_DIMENSIONS)}) ###########', 'l_blue')
-                            x_ano_all_frames, x_nom_all_frames, pca_ano, pca_nom, fig_img_address = evaluate_p2p_failure_prediction(cfg,
-                                                                                                        NOMINAL_PATHS,
-                                                                                                        ANOMALOUS_PATHS,
-                                                                                                        NUM_FRAMES_NOM,
-                                                                                                        NUM_FRAMES_ANO,
-                                                                                                        heatmap_type=heatmap_type,
-                                                                                                        anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
-                                                                                                        nominal_simulation_name=SIMULATION_NAME_NOMINAL,
-                                                                                                        distance_types=DISTANCE_TYPES,
-                                                                                                        analyse_distance=ANALYSE_DISTANCE,
-                                                                                                        pca_dimension=pca_dimension,
-                                                                                                        PCA_DIMENSIONS=PCA_DIMENSIONS,
-                                                                                                        run_id=run_id,
-                                                                                                        gen_axes=gen_axes,
-                                                                                                        pca_axes_list=pca_axes_list,
-                                                                                                        threshold_sim = False)
+                            fig_img_address = evaluate_p2p_failure_prediction(cfg,
+                                                                            NOMINAL_PATHS,
+                                                                            ANOMALOUS_PATHS,
+                                                                            NUM_FRAMES_NOM,
+                                                                            NUM_FRAMES_ANO,
+                                                                            heatmap_type=heatmap_type,
+                                                                            anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
+                                                                            nominal_simulation_name=SIMULATION_NAME_NOMINAL,
+                                                                            distance_types=DISTANCE_TYPES,
+                                                                            analyse_distance=ANALYSE_DISTANCE,
+                                                                            pca_dimension=pca_dimension,
+                                                                            PCA_DIMENSIONS=PCA_DIMENSIONS,
+                                                                            run_id=run_id,
+                                                                            gen_axes=gen_axes,
+                                                                            pca_axes_list=pca_axes_list,
+                                                                            threshold_sim = False)
                             run_figs.append(fig_img_address)
             # copy all figs of a run to a single folder
             copy_run_figs(cfg, sim_name, run_id, run_figs)

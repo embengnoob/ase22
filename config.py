@@ -34,6 +34,7 @@ class Config:
         self.PLOT_ANOMALOUS_ALL_WINDOWS = None
         self.PLOT_THIRDEYE = None
         self.PLOT_POINT_TO_POINT = None
+        self.PLOT_POSITION_CLOUD = None
         self.METHOD = None
         self.IGNORE_WARNINGS = None
         self.EVALUATE_ALL = None

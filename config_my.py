@@ -26,7 +26,7 @@ NUM_SAMPLES_MC_DROPOUT = 20
 
 # Udacity simulation settings
 ANOMALY_DETECTOR_NAME = "track1-MSE-latent2"
-SIMULATION_NAME = "track1-day-night-sunny-anomalous" # =======> Anomalous Simulation/Recorded Simulation save name ['test1', 'test2', 'test3', 'test4', 'test5']
+SIMULATION_NAME = "track1-night-rain-100-anomalous" # =======> Anomalous Simulation/Recorded Simulation save name ['test1', 'test2', 'test3', 'test4', 'test5']
 SIMULATION_NAME_NOMINAL = "track1-sunny-positioned-nominal" # Nominal simulation used as reference
 TESTING_DATA_DIR = "simulations"  # Udacity simulations logs - "simulations"
 MAX_SPEED = 30  # car's max speed, capped at 35 mph (default)
@@ -51,7 +51,7 @@ IMPROVEMENT_RATIO = 1
 # evaluation settings
 METHOD = 'p2p' # 'thirdeye', 'p2p', 'p2c'
 IGNORE_WARNINGS = True
-EVALUATE_ALL = False
+EVALUATE_ALL = True
 
 # plotting settings
 PLOT_NOMINAL = True
@@ -59,6 +59,7 @@ PLOT_NOMINAL_ALL = False
 PLOT_ANOMALOUS_ALL_WINDOWS = True
 PLOT_THIRDEYE = False
 PLOT_POINT_TO_POINT = True
+PLOT_POSITION_CLOUD = False
 
 # p2p settings
 # summary collage settings
@@ -67,7 +68,7 @@ SUMMARY_COLLAGE_PCA_DIMS = [100] #except max dims
 SUMMARY_COLLAGE_DIST_TYPES = ['sobolev-norm']
 CREATE_VIDEO = True
 
-PCA = True # principal component analysis method
+PCA = False # principal component analysis method
 SAVE_PCA = False
 
 EMD = True # Earth mover (Wasserstein) distance

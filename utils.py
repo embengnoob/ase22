@@ -21,6 +21,7 @@ import matplotlib
 matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 from matplotlib import colormaps
+import matplotlib.transforms as transforms
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from PyQt5 import QtWidgets, QtCore
@@ -787,9 +788,12 @@ def correct_windows_path(address):
         address = address.replace("\\\\", "/")
     return address
 
-def get_threshold(score_file_path, distance_type, conf_level=0.95):
+def get_threshold(score_file_path, distance_type, conf_level=0.95, text_file=True):
     print(f"Fitting \"{distance_type}\" scores using Gamma distribution")
-    scores = np.loadtxt(score_file_path, dtype='float')
+    if text_file:
+        scores = np.loadtxt(score_file_path, dtype='float')
+    else:
+        scores = score_file_path
     # removing zeros
     scores = np.array(scores)
     scores_copy = scores[scores != 0]
@@ -1070,7 +1074,7 @@ def h_minus_1_sobolev_norm(A, B):
     return np.sqrt(norm_squared)
 
 def lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg,
-             eval_var=None, eval_method=None, spine_color='black', alpha=0.4, avg_filter_length=5,
+             eval_vars=None, eval_method=None, spine_color='black', alpha=0.4, avg_filter_length=5,
              pca_dimension=None, pca_plot=False, replace_initial_and_ending_values=True):
     # Plot distance scores
     # ax.set_xlabel('Frame ID', color=color)
@@ -1093,8 +1097,19 @@ def lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_ty
     
     # persistent_slope = []
     if eval_method == 'threshold':
-        threshold = eval_var
+        if len(eval_vars) > 1:
+            MULTI_VAR = True
+        else:
+            MULTI_VAR = False
+        threshold = eval_vars[0]
+        if MULTI_VAR:
+            ano_threshold = eval_vars[1]
+            ax.axhline(y = ano_threshold, color = 'blue', linestyle = '--')
         ax.axhline(y = threshold, color = 'red', linestyle = '--')
+        trans = transforms.blended_transform_factory(ax.get_yticklabels()[0].get_transform(), ax.transData)
+        ax.text(0, threshold, "{:.0f}".format(threshold), color="red", transform=trans, ha="right", va="center")
+        if MULTI_VAR:
+            ax.text(0, ano_threshold, "{:.0f}".format(threshold), color="blue", transform=trans, ha="right", va="center")
         # avg_slope = window_slope(distance_vector_avg)
         for frame, distance_score in enumerate(distance_vector_avg):
                 
@@ -1111,8 +1126,14 @@ def lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_ty
             #     color = 'red'
             else:
                 color = 'lime'
-            ax.hlines(y=threshold, xmin=frame, xmax=frame+1, color=color, linewidth=3) # y=distance_vector.max()
-    # ax.plot(distance_vector_sobel, linewidth= 0.8, linestyle = 'dashed', color='red')
+            ax.hlines(y=threshold, xmin=frame, xmax=frame+1, color=color, linewidth=3)
+        if MULTI_VAR:
+            for frame, distance_score in enumerate(distance_vector_avg):
+                if distance_score > ano_threshold:
+                    color = 'red'
+                else:
+                    color = 'lime'
+                ax.hlines(y=ano_threshold, xmin=frame, xmax=frame+1, color=color, linewidth=3)
 
     if pca_plot:
         bolded_part = f": {distance_type} - PCA {pca_dimension}d"
