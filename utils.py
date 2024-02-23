@@ -845,15 +845,18 @@ def get_ranges(boolean_cte_array):
                 rng_max = -1
     return list_of_ranges
 
-def plot_ranges(ax, cte_anomalous, alpha=0.2, YELLOW_BORDER = 3.6,ORANGE_BORDER = 5.0, RED_BORDER = 7.0):
+def plot_ranges(ax, cte_anomalous, cte_diff, alpha=0.2, YELLOW_BORDER = 3.6,ORANGE_BORDER = 5.0, RED_BORDER = 7.0, return_frames=False):
     # plot cross track error values: 
     # yellow_condition: reaching the borders of the track: yellow
     # orange_condition: on the borders of the track (partial crossing): orange
     # red_condition: out of track (full crossing): red
 
-    yellow_condition = (abs(cte_anomalous)>YELLOW_BORDER)&(abs(cte_anomalous)<ORANGE_BORDER)
-    orange_condition = (abs(cte_anomalous)>ORANGE_BORDER)&(abs(cte_anomalous)<RED_BORDER)
-    red_condition = (abs(cte_anomalous)>RED_BORDER)
+    yellow_condition = (abs(cte_diff)>YELLOW_BORDER)&(abs(cte_diff)<ORANGE_BORDER)
+    orange_condition = (
+        ((abs(cte_anomalous) > ORANGE_BORDER) & (abs(cte_anomalous) < RED_BORDER)) |
+        ((abs(cte_diff) > ORANGE_BORDER) & (abs(cte_diff) < RED_BORDER))
+    )
+    red_condition = (abs(cte_anomalous)>RED_BORDER) | (abs(cte_diff)>RED_BORDER)
 
     yellow_ranges = get_ranges(yellow_condition)
     orange_ranges = get_ranges(orange_condition)
@@ -868,7 +871,26 @@ def plot_ranges(ax, cte_anomalous, alpha=0.2, YELLOW_BORDER = 3.6,ORANGE_BORDER 
             else:
                 ax.axvspan(rng, rng+1, color=colors[idx], alpha=alpha)
 
-def plot_crash_ranges(ax, speed_anomalous):
+    orange_frames = []
+    for orange_rng in orange_ranges:
+        if isinstance(orange_rng, list):
+            orange_frame = orange_rng[0]
+        else:
+            orange_frame = orange_rng
+        orange_frames.append(orange_frame)
+
+    red_frames = []
+    for red_rng in red_ranges:
+        if isinstance(red_rng, list):
+            red_frame = red_rng[0]
+        else:
+            red_frame = red_rng
+        red_frames.append(red_frame)
+        
+    if return_frames:
+        return red_frames, orange_frames
+
+def plot_crash_ranges(ax, speed_anomalous, return_frames=False):
     # plot crash instances: speed < 1.0 
     crash_condition = (abs(speed_anomalous)<1.0)
     # remove the first 10 frames: starting out so speed is less than 1 
@@ -877,6 +899,7 @@ def plot_crash_ranges(ax, speed_anomalous):
     # plot_ranges(crash_ranges, ax, color='blue', alpha=0.2)
     NUM_OF_FRAMES_TO_CHECK = 20
     is_crash_instance = False
+    collision_frames = []
     for rng in crash_ranges:
         # check 20 frames before first frame with speed < 1.0. if not bigger than 15 it's not
         # a crash instance it's reset instance
@@ -891,12 +914,16 @@ def plot_crash_ranges(ax, speed_anomalous):
             is_crash_instance = False
             reset_frame = crash_frame
             ax.axvline(x = reset_frame, color = 'blue', linestyle = '--')
+            collision_frames.append(crash_frame)
             continue
         # plot crash ranges (speed < 1.0)
         if isinstance(rng, list):
             ax.axvspan(rng[0], rng[1], color='teal', alpha=0.2)
         else:
             ax.axvspan(rng, rng+1, color='teal', alpha=0.2)
+    if return_frames:
+        return collision_frames
+    
 
 def get_heatmaps(anomalous_frame, anomalous, nominal, pos_mappings, return_size=False, return_IMAGE=False, return_cte=False):
     # load the addresses of centeral camera heatmap of this anomalous frame and the closest nominal frame in terms of position
