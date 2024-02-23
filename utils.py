@@ -4,8 +4,9 @@ import shutil
 import glob
 import time
 import datetime
-from datetime import timedelta
 from pathlib import Path
+import ntpath
+from datetime import datetime
 
 import csv
 import numpy as np
@@ -787,6 +788,22 @@ def correct_windows_path(address):
     elif "\\\\" in address:
         address = address.replace("\\\\", "/")
     return address
+
+def extract_time_from_str(first_img_path, last_img_path):
+    first_img_name = ntpath.basename(first_img_path)
+    last_img_name = ntpath.basename(last_img_path)
+    start_time = []
+    end_time = []
+    if 'FID' in first_img_name:
+        start_idx = 6
+        end_idx = 2
+    else:
+        start_idx = 4
+        end_idx = 0
+    for i in range(start_idx, end_idx, -1):
+        start_time.append(first_img_name.split('_')[-i].split('.')[0])
+        end_time.append(last_img_name.split('_')[-i].split('.')[0])
+    return start_time, end_time
 
 def get_threshold(score_file_path, distance_type, conf_level=0.95, text_file=True):
     print(f"Fitting \"{distance_type}\" scores using Gamma distribution")
