@@ -862,13 +862,144 @@ def get_ranges(boolean_cte_array):
                 rng_max = -1
     return list_of_ranges
 
+def get_all_ranges(boolean_cte_array):
+    list_of_ranges = []
+    true_rng_min = -1
+    true_rng_max = -1
+    false_rng_min = -1
+    false_rng_max = -1
+    counting_range_true = False
+    counting_range_false = False
+    for idx, condition in enumerate(boolean_cte_array):
+        if condition == True:
+            if not counting_range_true:
+                true_rng_min = idx
+                counting_range_true = True
+            else:
+                true_rng_max = idx
+                counting_range_true = True
+            
+            if counting_range_false:
+                if false_rng_max == -1:
+                    list_of_ranges.append(false_rng_min)
+                else:
+                    list_of_ranges.append([false_rng_min,false_rng_max])
+                counting_range_false = False
+                false_rng_min = -1
+                false_rng_max = -1
+
+            if idx == len(boolean_cte_array)-1:
+                if true_rng_max == -1:
+                    list_of_ranges.append(true_rng_min)
+                else:
+                    list_of_ranges.append([true_rng_min,true_rng_max])
+        else:
+            if not counting_range_false:
+                false_rng_min = idx
+                counting_range_false = True
+            else:
+                false_rng_max = idx
+                counting_range_false = True
+
+            if counting_range_true:
+                if true_rng_max == -1:
+                    list_of_ranges.append(true_rng_min)
+                else:
+                    list_of_ranges.append([true_rng_min,true_rng_max])
+                counting_range_true = False
+                true_rng_min = -1
+                true_rng_max = -1
+
+            if idx == len(boolean_cte_array)-1:
+                if false_rng_max == -1:
+                    list_of_ranges.append(false_rng_min)
+                else:
+                    list_of_ranges.append([false_rng_min,false_rng_max])
+    return list_of_ranges
+
+def merge_ranges(all_ranges, boolean_array):
+    if len(all_ranges) != len(boolean_array):
+        raise ValueError(Fore.RED + f"Mismatch range array and boolean array length {idx}: {len(all_ranges)} != {len(boolean_array)} " + Fore.RESET) 
+    dict_of_ranges = {True:[],False:[]}
+    true_rng_min = -1
+    true_rng_max = -1
+    false_rng_min = -1
+    false_rng_max = -1
+    counting_range_true = False
+    counting_range_false = False
+    for idx, condition in enumerate(boolean_array):
+        if isinstance(all_ranges[idx], list):
+            current_range_min = all_ranges[idx][0]
+            current_range_max = all_ranges[idx][-1]
+        else:
+            current_range_min = all_ranges[idx]
+            current_range_max = all_ranges[idx]
+
+        if condition == True:
+            if not counting_range_true:
+                true_rng_min = current_range_min
+                true_rng_max = current_range_max
+                counting_range_true = True
+            else:
+                true_rng_max = current_range_max
+                counting_range_true = True
+            
+            if counting_range_false:
+                if (false_rng_max == -1) or (false_rng_min == false_rng_max):
+                    dict_of_ranges[False].append(false_rng_min)
+                else:
+                    dict_of_ranges[False].append([false_rng_min,false_rng_max])
+                counting_range_false = False
+                false_rng_min = -1
+                false_rng_max = -1
+
+            if idx == len(boolean_array)-1:
+                if (true_rng_max == -1) or (true_rng_min == true_rng_max):
+                    dict_of_ranges[True].append(true_rng_min)
+                else:
+                    dict_of_ranges[True].append([true_rng_min,true_rng_max])
+        else:
+            if not counting_range_false:
+                false_rng_min = current_range_min
+                false_rng_max = current_range_max
+                counting_range_false = True
+            else:
+                false_rng_max = current_range_max
+                counting_range_false = True
+
+            if counting_range_true:
+                if (true_rng_max == -1) or (true_rng_min == true_rng_max):
+                    dict_of_ranges[True].append(true_rng_min)
+                else:
+                    dict_of_ranges[True].append([true_rng_min,true_rng_max])
+                counting_range_true = False
+                true_rng_min = -1
+                true_rng_max = -1
+
+            if idx == len(boolean_array)-1:
+                if (false_rng_max == -1) or (false_rng_min == false_rng_max):
+                    dict_of_ranges[False].append(false_rng_min)
+                else:
+                    dict_of_ranges[False].append([false_rng_min,false_rng_max])
+    return dict_of_ranges
+
+def get_alarm_frames(distance_vector_avg, threshold):
+    alarm_condition = (distance_vector_avg>=threshold)
+    no_alarm_condition = (distance_vector_avg<threshold)
+    alarm_ranges = get_ranges(alarm_condition)
+    no_alarm_ranges = get_ranges(no_alarm_condition)
+    all_ranges = get_all_ranges(alarm_condition)
+    return alarm_ranges, no_alarm_ranges, all_ranges
+
 def plot_ranges(ax, cte_anomalous, cte_diff, alpha=0.2, YELLOW_BORDER = 3.6,ORANGE_BORDER = 5.0, RED_BORDER = 7.0, return_frames=False):
     # plot cross track error values: 
     # yellow_condition: reaching the borders of the track: yellow
     # orange_condition: on the borders of the track (partial crossing): orange
     # red_condition: out of track (full crossing): red
 
-    yellow_condition = (abs(cte_diff)>YELLOW_BORDER)&(abs(cte_diff)<ORANGE_BORDER)
+    yellow_condition = (
+        ((abs(cte_diff)>YELLOW_BORDER)&(abs(cte_diff)<ORANGE_BORDER)) |
+        ((abs(cte_anomalous) > YELLOW_BORDER) & (abs(cte_anomalous) < ORANGE_BORDER)))
     orange_condition = (
         ((abs(cte_anomalous) > ORANGE_BORDER) & (abs(cte_anomalous) < RED_BORDER)) |
         ((abs(cte_diff) > ORANGE_BORDER) & (abs(cte_diff) < RED_BORDER))
@@ -888,6 +1019,14 @@ def plot_ranges(ax, cte_anomalous, cte_diff, alpha=0.2, YELLOW_BORDER = 3.6,ORAN
             else:
                 ax.axvspan(rng, rng+1, color=colors[idx], alpha=alpha)
 
+    yellow_frames = []
+    for yellow_rng in yellow_ranges:
+        if isinstance(yellow_rng, list):
+            yellow_frame = yellow_rng[0]
+        else:
+            yellow_frame = yellow_rng
+        yellow_frames.append(yellow_frame)
+
     orange_frames = []
     for orange_rng in orange_ranges:
         if isinstance(orange_rng, list):
@@ -905,7 +1044,7 @@ def plot_ranges(ax, cte_anomalous, cte_diff, alpha=0.2, YELLOW_BORDER = 3.6,ORAN
         red_frames.append(red_frame)
         
     if return_frames:
-        return red_frames, orange_frames
+        return red_frames, orange_frames, yellow_frames
 
 def plot_crash_ranges(ax, speed_anomalous, return_frames=False):
     # plot crash instances: speed < 1.0 
@@ -1193,3 +1332,6 @@ def lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_ty
     ax.tick_params(axis='x', colors=spine_color)    #setting up X-axis tick color to red
     ax.tick_params(axis='y', colors=spine_color)  #setting up Y-axis tick color to black
     ax.set_xticks(np.arange(0, len(distance_vector), 50.0), minor=False)
+
+
+

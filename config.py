@@ -38,6 +38,7 @@ class Config:
         self.METHOD = None
         self.IGNORE_WARNINGS = None
         self.EVALUATE_ALL = None
+        self.CALCULATE_RESULTS = None
         self.GENERATE_SUMMARY_COLLAGES = None
         self.SUMMARY_COLLAGE_PCA_DIMS = None
         self.SUMMARY_COLLAGE_DIST_TYPES = None

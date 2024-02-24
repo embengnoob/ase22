@@ -268,7 +268,8 @@ if __name__ == '__main__':
     #                     [False, False, False]]
     if cfg.EVALUATE_ALL:
         # ANO_SIMULATIONS = ['track1-night-moon-anomalous', 'track1-day-fog-100'] # , 'test2', 'test3', 'test4', 'test5'
-        ANO_SIMULATIONS = ['track1-night-rain-100-anomalous',
+        ANO_SIMULATIONS = ['test1',
+                           'track1-night-rain-100-anomalous',
                            'track1-night-rain-100-anomalous',
                            'track1-night-fog-100-anomalous',
                            'track1-night-fog-100-anomalous',
@@ -280,6 +281,7 @@ if __name__ == '__main__':
                            'track1-day-snow-100'] # , 'test2', 'test3', 'test4', 'test5'
         
         NOM_SIMULATIONS = ['track1-sunny-positioned-nominal',
+                           'track1-sunny-positioned-nominal',
                            'track1-night-rain-100-nominal',
                            'track1-sunny-positioned-nominal',
                            'track1-night-fog-100-nominal',
@@ -292,6 +294,7 @@ if __name__ == '__main__':
         # NOM_SIMULATIONS = ['track1-sunny-positioned-nominal',
         #                    'track1-sunny-positioned-nominal']
         THRESHOLD_SIMULATIONS = ['track1-day-sunny-nominal-threshold',
+                                 'track1-day-sunny-nominal-threshold',
                                  'track1-night-rain-100-threshold',
                                  'track1-day-sunny-nominal-threshold',
                                  'track1-night-fog-100-threshold',
@@ -311,8 +314,10 @@ if __name__ == '__main__':
                           [1],
                           [1],
                           [1],
+                          [1],
                           [1]]
         SUMMARY_COLLAGES = [[False],
+                            [False],
                             [False],
                             [False],
                             [False],
@@ -507,67 +512,5 @@ if __name__ == '__main__':
             # copy all figs of a run to a single folder
             copy_run_figs(cfg, sim_name, run_id, run_figs)
 
-
-
-            #                 if cfg.NOM_VS_NOM_TEST:
-            #                     pca_values.append([x_ano_all_frames, x_nom_all_frames, pca_ano, pca_nom])
-            #                     pca_keys.append([f'x_ano_all_frames-{pca_dimension}d', f'x_nom_all_frames-{pca_dimension}d', f'pca_ano-{pca_dimension}d', f'pca_nom-{pca_dimension}d'])
-
-            #     if cfg.NOM_VS_NOM_TEST:
-            #         run_results.append(pca_values)
-            #         run_keys.append(pca_keys)
-            # if cfg.NOM_VS_NOM_TEST:
-            #     COMP_VARIABLES = ['x_ano_all_frames', 'x_nom_all_frames', 'pca_ano', 'pca_nom']
-            #     for pca_idx in range(3):
-            #         for var_idx in range(4):
-            #             for run_num in range(3):
-            #                 print(f'run num:{run_num+1}, pca_dim:{PCA_DIMENSIONS[pca_idx]}[{pca_idx}], len({COMP_VARIABLES[var_idx]}): {run_results[run_num][pca_idx][var_idx].shape}')
-
-                # for pca_dim_idx in range(3):
-                #     for compared_var_idx in range(4):
-                #         print(f"\npca_dim_idx: {pca_dim_idx}, compared_var_idx: {compared_var_idx}")    
-                #         if np.array_equal(run_results[0][pca_dim_idx][compared_var_idx], run_results[1][pca_dim_idx][compared_var_idx]):
-                #             pass
-                #         else:
-                #             term1 = run_results[0][pca_dim_idx][compared_var_idx]
-                #             term2 = run_results[1][pca_dim_idx][compared_var_idx]
-                #             print(f'1: run1 {run_keys[0][pca_dim_idx][compared_var_idx]}: {term1.shape}')
-                #             print(f'2: run2 {run_keys[1][pca_dim_idx][compared_var_idx]}: {term2.shape}')
-                #             cprintf(f"different results run1 vs run2, pca_dim:{PCA_DIMENSIONS[pca_dim_idx]}, {COMP_VARIABLES[compared_var_idx]}", 'l_red')
-                #             num_of_different = np.sum(term1 == term2)
-                #             cprintf(f"number of different results: {num_of_different} of {term1.shape[0]*term1.shape[1]}\n", 'l_yellow')
-
-
-                        # if np.array_equal(run_results[1][pca_dim_idx][compared_var_idx], run_results[2][pca_dim_idx][compared_var_idx]):
-                        #     pass
-                        # else:
-                        #     term1 = run_results[1][pca_dim_idx][compared_var_idx]
-                        #     term2 = run_results[2][pca_dim_idx][compared_var_idx]
-                        #     print(f'1: run2 {run_keys[1][pca_dim_idx][compared_var_idx]}: {term1.shape}')
-                        #     print(f'2: run3 {run_keys[2][pca_dim_idx][compared_var_idx]}: {term2.shape}')
-                        #     cprintf(f"different results run2 vs run3, pca_dim:{PCA_DIMENSIONS[pca_dim_idx]}, {COMP_VARIABLES[compared_var_idx]}", 'l_red')
-                        #     num_of_different = np.sum(term1 == term2)
-                        #     cprintf(f"number of different results: {num_of_different} of {term1.shape[0]*term1.shape[1]}\n", 'l_yellow')
-
-                        # if np.array_equal(run_results[0][pca_dim_idx][compared_var_idx], run_results[2][pca_dim_idx][compared_var_idx]):
-                        #     pass
-                        # else:
-                        #     term1 = run_results[0][pca_dim_idx][compared_var_idx]
-                        #     term2 = run_results[2][pca_dim_idx][compared_var_idx]
-                        #     print(f'1: run1 {run_keys[0][pca_dim_idx][compared_var_idx]}: {term1.shape}')
-                        #     print(f'2: run3 {run_keys[2][pca_dim_idx][compared_var_idx]}: {term2.shape}')
-                        #     cprintf(f"different results run1 vs run3, pca_dim:{PCA_DIMENSIONS[pca_dim_idx]}, {COMP_VARIABLES[compared_var_idx]}", 'l_red')
-                        #     num_of_different = np.sum(term1 == term2)
-                        #     cprintf(f"number of different results: {num_of_different} of {term1.shape[0]*term1.shape[1]}\n", 'l_yellow')
-
-            # # save png of run comparisons
-            # if cfg.COMPARE_RUNS:
-            #     RUN_ID_NUMBERS_STR = '-'.join(str(rn) for rn in RUN_ID_NUMBERS[sim_idx])
-            #     ANOMALOUS_HEATMAP_PARENT_FOLDER_PATH = ANOMALOUS_PATHS[2]
-            #     cprintf(f'\nSaving comparison figures of runs {RUN_ID_NUMBERS_STR} ...', 'magenta') 
-            #     gen_comp_fig.savefig(os.path.join(ANOMALOUS_HEATMAP_PARENT_FOLDER_PATH, f"comparison_of_runs_{RUN_ID_NUMBERS_STR}_all.png"), bbox_inches='tight', dpi=300)
-            #     for idx, pca_based_comp_fig in enumerate(pca_comp_fig_list):
-            #         pca_based_comp_fig.savefig(os.path.join(ANOMALOUS_HEATMAP_PARENT_FOLDER_PATH, f"comparison_of_runs_{RUN_ID_NUMBERS_STR}_pca_dim_{PCA_DIMENSIONS[idx]}.png"), bbox_inches='tight', dpi=300)
-
     end_time = time.monotonic()
-    cprintf(f"Completed {total_runs} evaluation run(s) of {len(ANO_SIMULATIONS)} simulation(s) in {timedelta(seconds=end_time-start_time)}", 'yellow')
+    cprintf(f"Completed {total_runs} evaluation run(s) of {len(ANO_SIMULATIONS)} simulation(s) in {datetime.timedelta(seconds=end_time-start_time)}", 'yellow')
