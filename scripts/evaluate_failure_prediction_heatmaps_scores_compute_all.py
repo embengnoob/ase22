@@ -268,8 +268,7 @@ if __name__ == '__main__':
     #                     [False, False, False]]
     if cfg.EVALUATE_ALL:
         # ANO_SIMULATIONS = ['track1-night-moon-anomalous', 'track1-day-fog-100'] # , 'test2', 'test3', 'test4', 'test5'
-        ANO_SIMULATIONS = ['test1',
-                           'track1-night-rain-100-anomalous',
+        ANO_SIMULATIONS = ['track1-night-rain-100-anomalous',
                            'track1-night-rain-100-anomalous',
                            'track1-night-fog-100-anomalous',
                            'track1-night-fog-100-anomalous',
@@ -281,7 +280,6 @@ if __name__ == '__main__':
                            'track1-day-snow-100'] # , 'test2', 'test3', 'test4', 'test5'
         
         NOM_SIMULATIONS = ['track1-sunny-positioned-nominal',
-                           'track1-sunny-positioned-nominal',
                            'track1-night-rain-100-nominal',
                            'track1-sunny-positioned-nominal',
                            'track1-night-fog-100-nominal',
@@ -294,7 +292,6 @@ if __name__ == '__main__':
         # NOM_SIMULATIONS = ['track1-sunny-positioned-nominal',
         #                    'track1-sunny-positioned-nominal']
         THRESHOLD_SIMULATIONS = ['track1-day-sunny-nominal-threshold',
-                                 'track1-day-sunny-nominal-threshold',
                                  'track1-night-rain-100-threshold',
                                  'track1-day-sunny-nominal-threshold',
                                  'track1-night-fog-100-threshold',
@@ -314,10 +311,8 @@ if __name__ == '__main__':
                           [1],
                           [1],
                           [1],
-                          [1],
                           [1]]
         SUMMARY_COLLAGES = [[False],
-                            [False],
                             [False],
                             [False],
                             [False],
@@ -330,11 +325,11 @@ if __name__ == '__main__':
         HEATMAP_TYPES = ['SmoothGrad', 'GradCam++', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP']
 
     else:   
-        ANO_SIMULATIONS = ['track1-day-night-sunny-anomalous'] # , 'test2', 'test3', 'test4', 'test5', 'track1-day-night-fog-80-pos'
-        NOM_SIMULATIONS = ['track1-day-night-sunny-nominal'] # 'track1-day-night-sunny-nominal'
+        ANO_SIMULATIONS = ['test1'] # , 'test2', 'test3', 'test4', 'test5', 'track1-day-night-fog-80-pos'
+        NOM_SIMULATIONS = ['track1-sunny-positioned-nominal'] # 'track1-day-night-sunny-nominal'
         RUN_ID_NUMBERS = [[1]]
         SUMMARY_COLLAGES = [[False]]
-        THRESHOLD_SIMULATIONS = ['track1-day-night-sunny-nominal-threshold'] # 'track1-day-night-sunny-nominal-threshold'
+        THRESHOLD_SIMULATIONS = ['track1-day-sunny-nominal-threshold'] # 'track1-day-night-sunny-nominal-threshold'
         HEATMAP_TYPES = ['SmoothGrad', 'GradCam++', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP'] #'GradCam++', 'SmoothGrad', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP'
 
 
@@ -350,18 +345,30 @@ if __name__ == '__main__':
         raise ValueError(Fore.RED + f"Mismatch in number of runs and specified summary collage patterns: {len(SUMMARY_COLLAGES)} != {len(RUN_ID_NUMBERS)} " + Fore.RESET)
     
   # DISTANCE_TYPES = ['euclidean', 'manhattan', 'cosine', 'EMD', 'pearson', 'spearman', 'kendall', 'moran', 'kl-divergence', 'mutual-info', 'sobolev-norm']
-    DISTANCE_TYPES = ['euclidean', 'sobolev-norm']
+    DISTANCE_TYPES = ['euclidean', 'EMD', 'moran', 'mutual-info', 'sobolev-norm']
+    # ANALYSE_DISTANCE = {
+    #     'euclidean' : (True, 0.99),
+    #     'manhattan' : (False, 0.95),
+    #     'cosine' : (False, 0.95),
+    #     'EMD' : (False, 0.95),
+    #     'pearson' : (False, 0.95),
+    #     'spearman' : (False, 0.95),
+    #     'kendall' : (False, 0.95),
+    #     'moran' : (False, 0.95),
+    #     'kl-divergence' : (False, 0.95),
+    #     'mutual-info' : (False, 0.95),
+    #     'sobolev-norm' : (True, 0.99)}
     ANALYSE_DISTANCE = {
         'euclidean' : (True, 0.99),
-        'manhattan' : (False, 0.95),
-        'cosine' : (False, 0.95),
-        'EMD' : (False, 0.95),
-        'pearson' : (False, 0.95),
-        'spearman' : (False, 0.95),
-        'kendall' : (False, 0.95),
-        'moran' : (False, 0.95),
-        'kl-divergence' : (False, 0.95),
-        'mutual-info' : (False, 0.95),
+        'manhattan' : (True, 0.99),
+        'cosine' : (True, 0.99),
+        'EMD' : (True, 0.99),
+        'pearson' : (False, 0.99),
+        'spearman' : (False, 0.99),
+        'kendall' : (False, 0.99),
+        'moran' : (True, 0.50),
+        'kl-divergence' : (False, 0.99),
+        'mutual-info' : (True, 0.50),
         'sobolev-norm' : (True, 0.99)}
     summary_types = ['-avg', '-avg-grad']
     aggregation_methods = ['mean', 'max']

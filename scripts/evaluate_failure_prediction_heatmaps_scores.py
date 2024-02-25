@@ -737,10 +737,9 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
         x_ano_std = ano_std_scale.transform(x_ano)
         nom_std_scale = preprocessing.StandardScaler().fit(x_nom)
         x_nom_std = nom_std_scale.transform(x_nom)
-        
         # Kullback-Leibler Divergence
         if 'kl-divergence' in distance_types and (not csv_file_available[distance_types.index('kl-divergence')]): 
-            kl_divergence_std[anomalous_frame] = entropy(x_ano_std.flatten()//255., x_nom_std.flatten()/255.)
+            kl_divergence_std[anomalous_frame] = entropy(x_ano_std.flatten()//np.sum(x_ano_std), x_nom_std.flatten()//np.sum(x_nom_std))
             # kl_divergence[anomalous_frame] = kl_div(x_ano.flatten(), x_nom.flatten())
         
         # Mutual information
@@ -1032,15 +1031,15 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
     # ['euclidean', 'manhattan', 'cosine', 'EMD', 'pearson', 'spearman', 'kendall', 'moran']
     distance_type_colors = {
         'euclidean' : ('deepskyblue', 'navy'),
-        'manhattan' : ('mediumseagreen', 'darkgreen'),
+        'manhattan' : ('indianred', 'brown'),
         'cosine' : ('mediumslateblue', 'darkslateblue'),
-        'EMD' : ('indianred', 'brown'),
+        'EMD' : ('mediumseagreen', 'darkgreen'),
         'pearson' :('lightslategrey', 'darkslategrey'),
-        'spearman' : ('pink', 'mediumvioletred'),
-        'kendall' : ('goldenrod', 'darkgoldenrod'),
-        'moran' : ('darkseagreen', 'darkolivegreen'),
-        'kl-divergence': ('wheat','orange'),
-        'mutual-info': ('salmon', 'maroon'),
+        'spearman' : ('wheat','orange'),
+        'kendall' : ('darkseagreen', 'darkolivegreen'),
+        'moran' : ('goldenrod', 'darkgoldenrod'),
+        'kl-divergence': ('salmon', 'maroon'),
+        'mutual-info': ('pink', 'mediumvioletred'),
         'sobolev-norm': ('paleturquoise', 'teal')}
     
     if cfg.PCA:

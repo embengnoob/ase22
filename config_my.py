@@ -51,7 +51,7 @@ IMPROVEMENT_RATIO = 1
 # evaluation settings
 METHOD = 'p2p' # 'thirdeye', 'p2p', 'p2c'
 IGNORE_WARNINGS = True
-EVALUATE_ALL = True
+EVALUATE_ALL = False
 CALCULATE_RESULTS = False
 
 # plotting settings
