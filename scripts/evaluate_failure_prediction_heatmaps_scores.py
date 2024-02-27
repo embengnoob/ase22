@@ -932,8 +932,14 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
         if not threshold_sim:    
             # Calculate thresholds
             if analyse_distance[distance_type][0]:
-                threshold = get_threshold(THRESHOLD_VECTOR_PATH, distance_type, analyse_distance[distance_type][1])
-                ano_threshold = get_threshold(average_filter_1D(distance_vector), distance_type, 0.50, text_file=False)
+                try:
+                    threshold = get_threshold(THRESHOLD_VECTOR_PATH, distance_type, analyse_distance[distance_type][1])
+                except:
+                    threshold = -1
+                try:
+                    ano_threshold = get_threshold(average_filter_1D(distance_vector), distance_type, 0.50, text_file=False)
+                except:
+                    threshold = -1
                 thresholds[distance_type] = threshold
                 ano_thresholds[distance_type] = ano_threshold 
 
@@ -974,7 +980,10 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
             if not threshold_sim:
                 # Calculate thresholds
                 if analyse_distance[distance_type][0]:
-                    PCA_threshold = get_threshold(THRESHOLD_VECTOR_PATH, distance_type, analyse_distance[distance_type][1])
+                    try:
+                        PCA_threshold = get_threshold(THRESHOLD_VECTOR_PATH, distance_type, analyse_distance[distance_type][1])
+                    except:
+                        PCA_threshold = -1
                     PCA_thresholds[f'PCA_{distance_type}'] = PCA_threshold
             
     print(f'PCA distance types: {pca_distance_types}')
