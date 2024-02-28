@@ -471,6 +471,9 @@ if __name__ == '__main__':
 
             if not os.path.exists(figs_dir):
                 cfg.PLOT_POINT_TO_POINT = True
+            else:
+                if len(os.listdir(figs_dir)) < (len(HEATMAP_TYPES)*3):
+                    cfg.PLOT_POINT_TO_POINT = True
             # check whether nominal and anomalous simulation and the corresponding heatmaps are already generated, generate them otherwise
             for heatmap_type in HEATMAP_TYPES:
                 if not cfg.SAME_IMG_TEST:

@@ -932,8 +932,9 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
             # moran_i_nom = np.loadtxt(os.path.join(ANOMALOUS_HEATMAP_FOLDER_PATH, f'dist_vect_moran_i_nom.csv'), dtype='float')
         if np.sum(distance_vector) == 0:
             cprintf(f'WARNING: All elements are zero: {distance_type}', 'l_red')
-        distance_vectors.append(distance_vector)    
-        distance_vectors_avgs.append(average_filter_1D(distance_vector))
+        distance_vectors.append(distance_vector)
+        distance_vector_averaged = average_filter_1D(distance_vector)   
+        distance_vectors_avgs.append(distance_vector_averaged)
 
         if not threshold_sim:    
             if analyse_distance[distance_type][0]:
@@ -942,14 +943,25 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                     if (distance_type == 'moran') or (distance_type == 'mutual-info'):
                         scores = np.loadtxt(THRESHOLD_VECTOR_PATH, dtype='float')
                         threshold = np.average(scores)
-                        ano_threshold = np.average(average_filter_1D(distance_vector))
+                        ano_threshold = np.average(distance_vector_averaged)
                     else:
                         threshold = get_threshold(THRESHOLD_VECTOR_PATH, distance_type, analyse_distance[distance_type][1], min_log=cfg.MINIMAL_LOGGING)
-                        ano_threshold = get_threshold(average_filter_1D(distance_vector), distance_type, 0.50, text_file=False, min_log=cfg.MINIMAL_LOGGING)
+                        ano_threshold = get_threshold(distance_vector_averaged, distance_type, 0.50, text_file=False, min_log=cfg.MINIMAL_LOGGING)
 
                     if cfg.THRESHOLD_CORRECTION:
-                        if (threshold < average_filter_1D(distance_vector).min()) or (threshold > average_filter_1D(distance_vector).max()):
-                            threshold = (threshold + ano_threshold)/2
+                        last_frame_idx = len(distance_vector_averaged) - 1
+                        number_of_frames_to_cut = 50
+                        offset_weight = 2
+                        if distance_type == 'euclidean' and heatmap_type == 'Epsilon_LRP':
+                            print('####################################################################################################################################')
+                            print(ano_threshold)
+                            print(threshold)
+                            print(distance_vector_averaged[number_of_frames_to_cut:last_frame_idx-number_of_frames_to_cut].min())
+                            print(np.argmin(distance_vector_averaged[number_of_frames_to_cut:last_frame_idx-number_of_frames_to_cut]))
+                            print(distance_vector_averaged[number_of_frames_to_cut:last_frame_idx-number_of_frames_to_cut].max())
+                            print(np.argmax(distance_vector_averaged[number_of_frames_to_cut:last_frame_idx-number_of_frames_to_cut]))
+                        if (threshold < distance_vector_averaged[number_of_frames_to_cut:last_frame_idx-number_of_frames_to_cut].min()) or (threshold > distance_vector_averaged[number_of_frames_to_cut:last_frame_idx-number_of_frames_to_cut].max()):
+                            threshold = (threshold + offset_weight*ano_threshold)/3
         
                     thresholds[distance_type] = threshold
                     ano_thresholds[distance_type] = ano_threshold 
@@ -957,12 +969,12 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                     threshold = averaged_thresholds[distance_type]
                     if (distance_type == 'moran') or (distance_type == 'mutual-info'):
                         scores = np.loadtxt(THRESHOLD_VECTOR_PATH, dtype='float')
-                        ano_threshold = np.average(average_filter_1D(distance_vector))
+                        ano_threshold = np.average(distance_vector_averaged)
                     else:
-                        ano_threshold = get_threshold(average_filter_1D(distance_vector), distance_type, 0.50, text_file=False, min_log=cfg.MINIMAL_LOGGING)
+                        ano_threshold = get_threshold(distance_vector_averaged, distance_type, 0.50, text_file=False, min_log=cfg.MINIMAL_LOGGING)
 
                     if cfg.THRESHOLD_CORRECTION:
-                        if (threshold < average_filter_1D(distance_vector).min()) or (threshold > average_filter_1D(distance_vector).max()):
+                        if (threshold < distance_vector_averaged.min()) or (threshold > distance_vector_averaged.max()):
                             threshold = (threshold + ano_threshold)/2
                     thresholds[distance_type] = threshold
                     ano_thresholds[distance_type] = ano_threshold 
@@ -1519,7 +1531,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                             print("Recall: " + recall_percent + "%")
                             print("F-3: " + f3_percent + "%\n")
                     else:
-                        precision = recall = f3 = accuracy = fpr = 0
+                        precision = recall = f3 = accuracy = fpr = precision_percent = recall_percent = f3_percent = accuracy_percent = fpr_percent = 0
                         if not cfg.MINIMAL_LOGGING:
                             print("Accuracy: undefined")
                             print("False Positive Rate: undefined")
@@ -1527,7 +1539,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                             print("Recall: undefined")
                             print("F-3: undefined\n")
                 else:
-                    precision = recall = f3 = accuracy = fpr = 0
+                    precision = recall = f3 = accuracy = fpr = precision_percent = recall_percent = f3_percent = accuracy_percent = fpr_percent = 0
                     if not cfg.MINIMAL_LOGGING:
                         print("Accuracy: undefined")
                         print("False Positive Rate: undefined")
