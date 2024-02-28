@@ -936,26 +936,36 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
         distance_vectors_avgs.append(average_filter_1D(distance_vector))
 
         if not threshold_sim:    
-            # Calculate thresholds
-            if not average_threshold_acquired:
-                if analyse_distance[distance_type][0]:
-                    try:
+            if analyse_distance[distance_type][0]:
+                # Calculate thresholds
+                if not average_threshold_acquired:
+                    if (distance_type == 'moran') or (distance_type == 'mutual-info'):
+                        scores = np.loadtxt(THRESHOLD_VECTOR_PATH, dtype='float')
+                        threshold = np.average(scores)
+                        ano_threshold = np.average(average_filter_1D(distance_vector))
+                    else:
                         threshold = get_threshold(THRESHOLD_VECTOR_PATH, distance_type, analyse_distance[distance_type][1], min_log=cfg.MINIMAL_LOGGING)
-                    except:
-                        threshold = -1
-                    try:
                         ano_threshold = get_threshold(average_filter_1D(distance_vector), distance_type, 0.50, text_file=False, min_log=cfg.MINIMAL_LOGGING)
-                    except:
-                        threshold = -1
+
+                    if cfg.THRESHOLD_CORRECTION:
+                        if (threshold < average_filter_1D(distance_vector).min()) or (threshold > average_filter_1D(distance_vector).max()):
+                            threshold = (threshold + ano_threshold)/2
+        
                     thresholds[distance_type] = threshold
                     ano_thresholds[distance_type] = ano_threshold 
-            else:
-                thresholds = averaged_thresholds
-                try:
-                    ano_threshold = get_threshold(average_filter_1D(distance_vector), distance_type, 0.50, text_file=False, min_log=cfg.MINIMAL_LOGGING)
-                except:
-                    threshold = -1
-                ano_thresholds[distance_type] = ano_threshold 
+                else:
+                    threshold = averaged_thresholds[distance_type]
+                    if (distance_type == 'moran') or (distance_type == 'mutual-info'):
+                        scores = np.loadtxt(THRESHOLD_VECTOR_PATH, dtype='float')
+                        ano_threshold = np.average(average_filter_1D(distance_vector))
+                    else:
+                        ano_threshold = get_threshold(average_filter_1D(distance_vector), distance_type, 0.50, text_file=False, min_log=cfg.MINIMAL_LOGGING)
+
+                    if cfg.THRESHOLD_CORRECTION:
+                        if (threshold < average_filter_1D(distance_vector).min()) or (threshold > average_filter_1D(distance_vector).max()):
+                            threshold = (threshold + ano_threshold)/2
+                    thresholds[distance_type] = threshold
+                    ano_thresholds[distance_type] = ano_threshold 
 
         
         # skip pca distance calculation if distance type is irrelevant 

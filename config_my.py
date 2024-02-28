@@ -57,6 +57,7 @@ CALCULATE_RESULTS = True
 THRESHOLD_ASSESSMENT = True
 BASE_NOMINAL_SUNNY_SIM = 'track1-sunny-positioned-nominal'
 BASE_THRESHOLD_SUNNY_SIM = 'track1-day-sunny-nominal-threshold'
+THRESHOLD_CORRECTION = True
 # plotting settings
 PLOT_NOMINAL = True
 PLOT_NOMINAL_ALL = False

@@ -42,6 +42,7 @@ class Config:
         self.THRESHOLD_ASSESSMENT = None
         self.BASE_NOMINAL_SUNNY_SIM = None
         self.BASE_THRESHOLD_SUNNY_SIM = None
+        self.THRESHOLD_CORRECTION = None
         self.MINIMAL_LOGGING = None
         self.GENERATE_SUMMARY_COLLAGES = None
         self.SUMMARY_COLLAGE_PCA_DIMS = None
