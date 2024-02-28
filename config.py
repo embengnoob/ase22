@@ -39,6 +39,10 @@ class Config:
         self.IGNORE_WARNINGS = None
         self.EVALUATE_ALL = None
         self.CALCULATE_RESULTS = None
+        self.THRESHOLD_ASSESSMENT = None
+        self.BASE_NOMINAL_SUNNY_SIM = None
+        self.BASE_THRESHOLD_SUNNY_SIM = None
+        self.MINIMAL_LOGGING = None
         self.GENERATE_SUMMARY_COLLAGES = None
         self.SUMMARY_COLLAGE_PCA_DIMS = None
         self.SUMMARY_COLLAGE_DIST_TYPES = None

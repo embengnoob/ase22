@@ -3,10 +3,9 @@ import os
 import shutil
 import glob
 import time
-import datetime
 from pathlib import Path
 import ntpath
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import csv
 import numpy as np
@@ -805,8 +804,9 @@ def extract_time_from_str(first_img_path, last_img_path):
         end_time.append(last_img_name.split('_')[-i].split('.')[0])
     return start_time, end_time
 
-def get_threshold(score_file_path, distance_type, conf_level=0.95, text_file=True):
-    print(f"Fitting \"{distance_type}\" scores using Gamma distribution")
+def get_threshold(score_file_path, distance_type, conf_level=0.95, text_file=True, min_log=True):
+    if not min_log:
+        print(f"Fitting \"{distance_type}\" scores using Gamma distribution")
     if text_file:
         scores = np.loadtxt(score_file_path, dtype='float')
     else:
@@ -815,10 +815,11 @@ def get_threshold(score_file_path, distance_type, conf_level=0.95, text_file=Tru
     scores = np.array(scores)
     scores_copy = scores[scores != 0]
     shape, loc, scale = gamma.fit(scores_copy, floc=0)
-
-    print("Creating threshold using the confidence intervals: %s" % conf_level)
+    if not min_log:
+        print("Creating threshold using the confidence intervals: %s" % conf_level)
     t = gamma.ppf(conf_level, shape, loc=loc, scale=scale)
-    print('threshold: ' + str(t))
+    if not min_log:
+        print('threshold: ' + str(t))
     return t
 
 def get_OOT_frames(data_df_anomalous, number_frames_anomalous):
@@ -991,7 +992,75 @@ def get_alarm_frames(distance_vector_avg, threshold):
     all_ranges = get_all_ranges(alarm_condition)
     return alarm_ranges, no_alarm_ranges, all_ranges
 
-def plot_ranges(ax, cte_anomalous, cte_diff, alpha=0.2, YELLOW_BORDER = 3.6,ORANGE_BORDER = 5.0, RED_BORDER = 7.0, return_frames=False):
+def colored_ranges(speed_anomalous, cte_anomalous, cte_diff, alpha=0.2, YELLOW_BORDER = 3.6,ORANGE_BORDER = 5.0, RED_BORDER = 7.0):
+    # plot cross track error values: 
+    # yellow_condition: reaching the borders of the track: yellow
+    # orange_condition: on the borders of the track (partial crossing): orange
+    # red_condition: out of track (full crossing): red
+
+    yellow_condition = (
+        ((abs(cte_diff)>YELLOW_BORDER)&(abs(cte_diff)<ORANGE_BORDER)) |
+        ((abs(cte_anomalous) > YELLOW_BORDER) & (abs(cte_anomalous) < ORANGE_BORDER)))
+    orange_condition = (
+        ((abs(cte_anomalous) > ORANGE_BORDER) & (abs(cte_anomalous) < RED_BORDER)) |
+        ((abs(cte_diff) > ORANGE_BORDER) & (abs(cte_diff) < RED_BORDER))
+    )
+    red_condition = (abs(cte_anomalous)>RED_BORDER) | (abs(cte_diff)>RED_BORDER)
+
+    yellow_ranges = get_ranges(yellow_condition)
+    orange_ranges = get_ranges(orange_condition)
+    red_ranges = get_ranges(red_condition)
+
+    yellow_frames = []
+    for yellow_rng in yellow_ranges:
+        if isinstance(yellow_rng, list):
+            yellow_frame = yellow_rng[0]
+        else:
+            yellow_frame = yellow_rng
+        yellow_frames.append(yellow_frame)
+
+    orange_frames = []
+    for orange_rng in orange_ranges:
+        if isinstance(orange_rng, list):
+            orange_frame = orange_rng[0]
+        else:
+            orange_frame = orange_rng
+        orange_frames.append(orange_frame)
+
+    red_frames = []
+    for red_rng in red_ranges:
+        if isinstance(red_rng, list):
+            red_frame = red_rng[0]
+        else:
+            red_frame = red_rng
+        red_frames.append(red_frame)
+
+    # plot crash instances: speed < 1.0 
+    crash_condition = (abs(speed_anomalous)<1.0)
+    # remove the first 10 frames: starting out so speed is less than 1 
+    crash_condition[:10] = False
+    crash_ranges = get_ranges(crash_condition)
+    # plot_ranges(crash_ranges, ax, color='blue', alpha=0.2)
+    NUM_OF_FRAMES_TO_CHECK = 20
+    is_crash_instance = False
+    collision_frames = []
+    for rng in crash_ranges:
+        # check 20 frames before first frame with speed < 1.0. if not bigger than 15 it's not
+        # a crash instance it's reset instance
+        if isinstance(rng, list):
+            crash_frame = rng[0]
+        else:
+            crash_frame = rng
+        for speed in speed_anomalous[crash_frame-NUM_OF_FRAMES_TO_CHECK:crash_frame]:
+            if speed > 15.0:
+                is_crash_instance = True
+        if is_crash_instance == True:
+            is_crash_instance = False
+            collision_frames.append(crash_frame)
+            continue
+    return red_frames, orange_frames, yellow_frames, collision_frames
+
+def plot_ranges(ax, cte_anomalous, cte_diff, alpha=0.2, YELLOW_BORDER = 3.6,ORANGE_BORDER = 5.0, RED_BORDER = 7.0):
     # plot cross track error values: 
     # yellow_condition: reaching the borders of the track: yellow
     # orange_condition: on the borders of the track (partial crossing): orange
@@ -1018,33 +1087,6 @@ def plot_ranges(ax, cte_anomalous, cte_diff, alpha=0.2, YELLOW_BORDER = 3.6,ORAN
                 ax.axvspan(rng[0], rng[1], color=colors[idx], alpha=alpha)
             else:
                 ax.axvspan(rng, rng+1, color=colors[idx], alpha=alpha)
-
-    yellow_frames = []
-    for yellow_rng in yellow_ranges:
-        if isinstance(yellow_rng, list):
-            yellow_frame = yellow_rng[0]
-        else:
-            yellow_frame = yellow_rng
-        yellow_frames.append(yellow_frame)
-
-    orange_frames = []
-    for orange_rng in orange_ranges:
-        if isinstance(orange_rng, list):
-            orange_frame = orange_rng[0]
-        else:
-            orange_frame = orange_rng
-        orange_frames.append(orange_frame)
-
-    red_frames = []
-    for red_rng in red_ranges:
-        if isinstance(red_rng, list):
-            red_frame = red_rng[0]
-        else:
-            red_frame = red_rng
-        red_frames.append(red_frame)
-        
-    if return_frames:
-        return red_frames, orange_frames, yellow_frames
 
 def plot_crash_ranges(ax, speed_anomalous, return_frames=False):
     # plot crash instances: speed < 1.0 
@@ -1258,7 +1300,7 @@ def h_minus_1_sobolev_norm(A, B):
 
 def lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg,
              eval_vars=None, eval_method=None, spine_color='black', alpha=0.4, avg_filter_length=5,
-             pca_dimension=None, pca_plot=False, replace_initial_and_ending_values=True):
+             pca_dimension=None, pca_plot=False, replace_initial_and_ending_values=True, avg_threshold=False):
     # Plot distance scores
     # ax.set_xlabel('Frame ID', color=color)
     ax.set_ylabel(f'{distance_type} scores', color=color)
@@ -1308,7 +1350,10 @@ def lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_ty
             # elif len(persistent_slope) > 3:
             #     color = 'red'
             else:
-                color = 'lime'
+                if avg_threshold:
+                    color = 'cyan'
+                else:
+                    color = 'lime'
             ax.hlines(y=threshold, xmin=frame, xmax=frame+1, color=color, linewidth=3)
         if MULTI_VAR:
             for frame, distance_score in enumerate(distance_vector_avg):
@@ -1332,6 +1377,3 @@ def lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_ty
     ax.tick_params(axis='x', colors=spine_color)    #setting up X-axis tick color to red
     ax.tick_params(axis='y', colors=spine_color)  #setting up Y-axis tick color to black
     ax.set_xticks(np.arange(0, len(distance_vector), 50.0), minor=False)
-
-
-

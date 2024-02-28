@@ -233,6 +233,22 @@ def copy_run_figs(cfg, sim_name, run_id, run_figs):
     for run_fig_address in tqdm(run_figs):
         shutil.copy(run_fig_address, RUN_FIGS_FOLDER_PATH)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 if __name__ == '__main__':
     start_time = time.monotonic()
     os.chdir(os.getcwd().replace('scripts', ''))
@@ -248,12 +264,12 @@ if __name__ == '__main__':
         warnings.filterwarnings("ignore")
 
     # ANO_SIMULATIONS = ['test1', 'test2', 'test3', 'test4', 'test5', 'track1-sunny-positioned-nominal-as-anomalous'] # , 'test2', 'test3', 'test4', 'test5'
-    # NOM_SIMULATIONS = ['track1-sunny-positioned-nominal',
-    #                    'track1-sunny-positioned-nominal',
-    #                    'track1-sunny-positioned-nominal',
-    #                    'track1-sunny-positioned-nominal',
-    #                    'track1-sunny-positioned-nominal',
-    #                    'track1-sunny-positioned-nominal']
+    # NOM_SIMULATIONS = [cfg.BASE_NOMINAL_SUNNY_SIM,
+    #                    cfg.BASE_NOMINAL_SUNNY_SIM,
+    #                    cfg.BASE_NOMINAL_SUNNY_SIM,
+    #                    cfg.BASE_NOMINAL_SUNNY_SIM,
+    #                    cfg.BASE_NOMINAL_SUNNY_SIM,
+    #                    cfg.BASE_NOMINAL_SUNNY_SIM]
     # RUN_ID_NUMBERS = [[1, 2, 3],
     #                   [1, 2, 3],
     #                   [1, 2, 3],
@@ -267,69 +283,54 @@ if __name__ == '__main__':
     #                     [False, False, False],
     #                     [False, False, False]]
     if cfg.EVALUATE_ALL:
-        # ANO_SIMULATIONS = ['track1-night-moon-anomalous', 'track1-day-fog-100'] # , 'test2', 'test3', 'test4', 'test5'
-        ANO_SIMULATIONS = ['track1-night-rain-100-anomalous',
-                           'track1-night-rain-100-anomalous',
-                           'track1-night-fog-100-anomalous',
-                           'track1-night-fog-100-anomalous',
+
+                           
+        ANO_SIMULATIONS = ['track1-night-snow-100-anomalous',
                            'track1-night-snow-100-anomalous',
-                           'track1-night-snow-100-anomalous',
-                           'track1-day-rain-100',
-                           'track1-day-rain-100',
-                           'track1-day-snow-100',
-                           'track1-day-snow-100'] # , 'test2', 'test3', 'test4', 'test5'
+                           'track1-night-snow-100-anomalous']
+                        #    'track1-day-fog-100',
+                        #    'track1-day-fog-100']
         
-        NOM_SIMULATIONS = ['track1-sunny-positioned-nominal',
-                           'track1-night-rain-100-nominal',
-                           'track1-sunny-positioned-nominal',
-                           'track1-night-fog-100-nominal',
-                           'track1-sunny-positioned-nominal',
+                        #     cfg.BASE_NOMINAL_SUNNY_SIM,
+                        #    'track1-night-rain-100-nominal',
+                        #    cfg.BASE_NOMINAL_SUNNY_SIM,
+                        #    'track1-night-fog-100-nominal',
+                        #    cfg.BASE_NOMINAL_SUNNY_SIM,
+                        #    'track1-night-snow-100-nominal',
+        
+        NOM_SIMULATIONS = [cfg.BASE_NOMINAL_SUNNY_SIM,
                            'track1-night-snow-100-nominal',
-                           'track1-sunny-positioned-nominal',
-                           'track1-day-rain-100-nominal',
-                           'track1-sunny-positioned-nominal',
-                           'track1-day-snow-100-nominal']
-        # NOM_SIMULATIONS = ['track1-sunny-positioned-nominal',
-        #                    'track1-sunny-positioned-nominal']
-        THRESHOLD_SIMULATIONS = ['track1-day-sunny-nominal-threshold',
-                                 'track1-night-rain-100-threshold',
-                                 'track1-day-sunny-nominal-threshold',
-                                 'track1-night-fog-100-threshold',
-                                 'track1-day-sunny-nominal-threshold',
+                           'track1-night-snow-100-nominal']
+                        #    cfg.BASE_NOMINAL_SUNNY_SIM,
+                        #    'track1-day-fog-100-nominal']
+
+                                #  cfg.BASE_THRESHOLD_SUNNY_SIM,
+                                #  'track1-night-rain-100-threshold',
+                                #  cfg.BASE_THRESHOLD_SUNNY_SIM,
+                                #  'track1-night-fog-100-threshold',
+                                #  cfg.BASE_THRESHOLD_SUNNY_SIM,
+                                #  'track1-night-snow-100-threshold',
+
+        THRESHOLD_SIMULATIONS = [cfg.BASE_THRESHOLD_SUNNY_SIM,
                                  'track1-night-snow-100-threshold',
-                                 'track1-day-sunny-nominal-threshold',
-                                 'track1-day-rain-100-threshold',
-                                 'track1-day-sunny-nominal-threshold',
-                                 'track1-day-snow-100-threshold']
-        # THRESHOLD_SIMULATIONS = ['track1-day-sunny-nominal-threshold', 'track1-day-sunny-nominal-threshold']
+                                 'track1-night-snow-100-threshold']
+                                #  cfg.BASE_THRESHOLD_SUNNY_SIM,
+                                #  'track1-day-fog-100-threshold']
+        # THRESHOLD_SIMULATIONS = [cfg.BASE_THRESHOLD_SUNNY_SIM, cfg.BASE_THRESHOLD_SUNNY_SIM]
         RUN_ID_NUMBERS = [[1],
-                          [1],
-                          [1],
-                          [1],
-                          [1],
-                          [1],
-                          [1],
-                          [1],
                           [1],
                           [1]]
         SUMMARY_COLLAGES = [[False],
-                            [False],
-                            [False],
-                            [False],
-                            [False],
-                            [False],
-                            [False],
-                            [False],
                             [False],
                             [False]]
         HEATMAP_TYPES = ['SmoothGrad', 'GradCam++', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP']
 
     else:   
         ANO_SIMULATIONS = ['test1'] # , 'test2', 'test3', 'test4', 'test5', 'track1-day-night-fog-80-pos'
-        NOM_SIMULATIONS = ['track1-sunny-positioned-nominal'] # 'track1-day-night-sunny-nominal'
+        NOM_SIMULATIONS = [cfg.BASE_NOMINAL_SUNNY_SIM] # 'track1-day-night-sunny-nominal'
         RUN_ID_NUMBERS = [[1]]
         SUMMARY_COLLAGES = [[False]]
-        THRESHOLD_SIMULATIONS = ['track1-day-sunny-nominal-threshold'] # 'track1-day-night-sunny-nominal-threshold'
+        THRESHOLD_SIMULATIONS = [cfg.BASE_THRESHOLD_SUNNY_SIM] # 'track1-day-night-sunny-nominal-threshold'
         HEATMAP_TYPES = ['SmoothGrad', 'GradCam++', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP'] #'GradCam++', 'SmoothGrad', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP'
 
 
@@ -384,13 +385,17 @@ if __name__ == '__main__':
     for idx, run_pattern in enumerate(RUN_ID_NUMBERS):
         total_runs += len(run_pattern)
         if len(run_pattern) != len(SUMMARY_COLLAGES[idx]):
-            raise ValueError(Fore.RED + f"Mismatch in number of runs per simlation and specified summary collage binary pattern of simulation {idx}: {len(run_pattern)} != {len(SUMMARY_COLLAGES[idx])} " + Fore.RESET) 
-    
-
-
+            raise ValueError(Fore.RED + f"Mismatch in number of runs per simlation and specified summary collage binary pattern of simulation {idx}: {len(run_pattern)} != {len(SUMMARY_COLLAGES[idx])} " + Fore.RESET)
+        
+    average_thresholds_path = ''
     # Starting evaluation
     for sim_idx, sim_name in enumerate(ANO_SIMULATIONS):
-    
+        if (sim_idx+1) % 3 == 0:
+            averaged_theshold = True
+            cfg.PLOT_POINT_TO_POINT = True
+        else:
+            averaged_theshold = False
+            cfg.PLOT_POINT_TO_POINT = False
         num_of_frames = get_num_frames(cfg, sim_name)
         # Number between 0 and min(n_samples, n_features)
         PCA_DIMENSIONS = [100] # [100, 500, num_of_frames]
@@ -491,33 +496,213 @@ if __name__ == '__main__':
                         print(subplot_counter)
 
                     elif cfg.METHOD == 'p2p':
-                        # if cfg.NOM_VS_NOM_TEST:
-                        #     pca_values = []
-                        #     pca_keys = []
+                            
+                        if averaged_theshold:
+                            average_thresholds = {}
+
+                            with open(average_thresholds_path, 'r') as csvfile:
+                                reader = csv.DictReader(csvfile)
+                                for row in reader:
+                                    hm_type = row['heatmap_type']
+                                    dt_type = row['distance_type']
+                                    average_threshold = float(row['average_threshold'])  # Assuming the threshold is a float
+                                    
+                                    if hm_type not in average_thresholds:
+                                        average_thresholds[hm_type] = {}
+                                    average_thresholds[hm_type][dt_type] = average_threshold
+
+                            average_thresholds = average_thresholds[heatmap_type]
+                        else:
+                            average_thresholds = {}
                         for pca_dimension in PCA_DIMENSIONS:
-                            cprintb(f'\n\n########### Simulation {sim_name} ({sim_idx + 1} of {len(ANO_SIMULATIONS)}) ###########', 'l_red')
+                            cprintb(f'\n########### Simulation {sim_name} ({sim_idx + 1} of {len(ANO_SIMULATIONS)}) ###########', 'l_red')
+                            cprintb(f'########### Nominal Sim: {SIMULATION_NAME_NOMINAL}  ###########', 'l_red')
+                            cprintb(f'########### Threshold Sim: {SIMULATION_NAME_THRESHOLD}  ###########', 'l_red')
                             cprintb(f'\n############## run number {run_id} of {len(RUN_ID_NUMBERS[sim_idx])} ##############', 'l_blue')
                             cprintb(f'########### Using Heatmap Type: {heatmap_type} ({HEATMAP_TYPES.index(heatmap_type) + 1} of {len(HEATMAP_TYPES)}) ###########', 'l_blue')
                             cprintb(f'########### Using PCA Dimension: {pca_dimension} ({PCA_DIMENSIONS.index(pca_dimension) + 1} of {len(PCA_DIMENSIONS)}) ###########', 'l_blue')
-                            fig_img_address = evaluate_p2p_failure_prediction(cfg,
-                                                                            NOMINAL_PATHS,
-                                                                            ANOMALOUS_PATHS,
-                                                                            NUM_FRAMES_NOM,
-                                                                            NUM_FRAMES_ANO,
-                                                                            heatmap_type=heatmap_type,
-                                                                            anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
-                                                                            nominal_simulation_name=SIMULATION_NAME_NOMINAL,
-                                                                            distance_types=DISTANCE_TYPES,
-                                                                            analyse_distance=ANALYSE_DISTANCE,
-                                                                            pca_dimension=pca_dimension,
-                                                                            PCA_DIMENSIONS=PCA_DIMENSIONS,
-                                                                            run_id=run_id,
-                                                                            gen_axes=gen_axes,
-                                                                            pca_axes_list=pca_axes_list,
-                                                                            threshold_sim = False)
+                            fig_img_address, results_csv_path, seconds_to_anticipate_list = evaluate_p2p_failure_prediction(cfg,
+                                                                                                                            NOMINAL_PATHS,
+                                                                                                                            ANOMALOUS_PATHS,
+                                                                                                                            NUM_FRAMES_NOM,
+                                                                                                                            NUM_FRAMES_ANO,
+                                                                                                                            heatmap_type=heatmap_type,
+                                                                                                                            anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
+                                                                                                                            nominal_simulation_name=SIMULATION_NAME_NOMINAL,
+                                                                                                                            distance_types=DISTANCE_TYPES,
+                                                                                                                            analyse_distance=ANALYSE_DISTANCE,
+                                                                                                                            pca_dimension=pca_dimension,
+                                                                                                                            PCA_DIMENSIONS=PCA_DIMENSIONS,
+                                                                                                                            run_id=run_id,
+                                                                                                                            gen_axes=gen_axes,
+                                                                                                                            pca_axes_list=pca_axes_list,
+                                                                                                                            threshold_sim = False,
+                                                                                                                            averaged_thresholds=average_thresholds)
                             run_figs.append(fig_img_address)
+
             # copy all figs of a run to a single folder
-            copy_run_figs(cfg, sim_name, run_id, run_figs)
+            if cfg.PLOT_POINT_TO_POINT:
+                copy_run_figs(cfg, sim_name, run_id, run_figs)
+
+            ##################### Results Evaluation #####################
+
+            # calcuate scores + get number of invalid thresholds
+            results_df = pd.read_csv(results_csv_path)
+            if averaged_theshold:
+                total_scores = os.path.join(ANOMALOUS_PATHS[0], str(run_id), 'averaged_theshold', f'results_ano_{SIMULATION_NAME_ANOMALOUS}_nom_{SIMULATION_NAME_NOMINAL}_total_scores.csv')
+            else:
+                total_scores = os.path.join(ANOMALOUS_PATHS[0], str(run_id), f'results_ano_{SIMULATION_NAME_ANOMALOUS}_nom_{SIMULATION_NAME_NOMINAL}_total_scores.csv')
+            if not os.path.exists(total_scores):
+                with open(total_scores, mode='w',
+                            newline='') as invalid_thresholds_file:
+                    writer = csv.writer(invalid_thresholds_file,
+                                        delimiter=',',
+                                        quotechar='"',
+                                        quoting=csv.QUOTE_MINIMAL,
+                                        lineterminator='\n')
+                    writer.writerow(["time_stamp","heatmap_type", "is_threshold_too_low_count", "is_threshold_too_high_count", "sta", "TP", "FP", "TN", "FN", "precision", "recall", "accuracy", "fpr","TP_all", "FP_all", "TN_all", "FN_all", "precision_all", "recall_all", "accuracy_all", "fpr_all"])
+                            
+                    for heatmap_type in HEATMAP_TYPES:
+                        for sta in seconds_to_anticipate_list:
+                            num_crashes = results_df['crashes'].values[0]
+                            # Filter the DataFrame for heatmap type and 'is_threshold_too_low' being True
+                            too_low_count = len(results_df[(results_df['heatmap_type'] == f'{heatmap_type}') & (results_df['is_threshold_too_low'] == True) & (results_df['sta'] == sta)])
+                            too_high_count = len(results_df[(results_df['heatmap_type'] == f'{heatmap_type}') & (results_df['is_threshold_too_high'] == True) & (results_df['sta'] == sta)])
+                            # cases where thresholds are not too high or too low
+                            heatmap_filter_valid_threshold = results_df[(results_df['heatmap_type'] == f'{heatmap_type}') & (results_df['is_threshold_too_low'] == False) & (results_df['is_threshold_too_high'] == False & (results_df['sta'] == sta))]
+                            TP = np.sum(heatmap_filter_valid_threshold['TP'].values)
+                            FP = np.sum(heatmap_filter_valid_threshold['FP'].values) + too_low_count*num_crashes
+                            TN = np.sum(heatmap_filter_valid_threshold['TN'].values)
+                            FN = np.sum(heatmap_filter_valid_threshold['FN'].values) + too_high_count*num_crashes
+                            precision = TP/(TP+FP)
+                            recall = TP/(TP+FN)
+                            accuracy = (TP+TN)/(TP+TN+FP+FN)
+                            fpr = FP/(FP+TN)
+
+                            # Filter the DataFrame for heatmap type and 'is_threshold_too_low' being True
+                            too_low_count_all = len(results_df[(results_df['heatmap_type'] == f'{heatmap_type}') & (results_df['is_threshold_too_low'] == True)])
+                            too_high_count_all = len(results_df[(results_df['heatmap_type'] == f'{heatmap_type}') & (results_df['is_threshold_too_high'] == True)])
+                            # cases where thresholds are not too high or too low
+                            heatmap_filter_valid_threshold_all = results_df[(results_df['heatmap_type'] == f'{heatmap_type}') & (results_df['is_threshold_too_low'] == False) & (results_df['is_threshold_too_high'] == False)]
+                            TP_all = np.sum(heatmap_filter_valid_threshold_all['TP'].values)
+                            FP_all = np.sum(heatmap_filter_valid_threshold_all['FP'].values) + too_low_count_all*num_crashes
+                            TN_all = np.sum(heatmap_filter_valid_threshold_all['TN'].values)
+                            FN_all = np.sum(heatmap_filter_valid_threshold_all['FN'].values) + too_high_count_all*num_crashes
+                            precision_all = TP_all/(TP_all+FP_all)
+                            recall_all = TP_all/(TP_all+FN_all)
+                            accuracy_all = (TP_all+TN_all)/(TP_all+TN_all+FP_all+FN_all)
+                            fpr_all = FP_all/(FP_all+TN_all)
+
+                            writer.writerow([datetime.now().strftime("%Y_%m_%d_%H_%M_%S"), heatmap_type, str(too_low_count), str(too_high_count), str(sta), str(TP), str(FP), str(TN), str(FN), str(precision), str(recall), str(accuracy), str(fpr), str(TP_all), str(FP_all), str(TN_all), str(FN_all), str(precision_all), str(recall_all), str(accuracy_all), str(fpr_all)])
+                                
+                    writer.writerow(["time_stamp","distance_type", "is_threshold_too_low_count", "is_threshold_too_high_count", "sta", "TP", "FP", "TN", "FN", "precision", "recall", "accuracy", "fpr","TP_all", "FP_all", "TN_all", "FN_all", "precision_all", "recall_all", "accuracy_all", "fpr_all"])
+                        
+                    for distance_type in DISTANCE_TYPES:
+                        for sta in seconds_to_anticipate_list:
+                            num_crashes = results_df['crashes'].values[0]
+                            # Filter the DataFrame for distance type and 'is_threshold_too_low' being True
+                            too_low_count = len(results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['is_threshold_too_low'] == True) & (results_df['sta'] == sta)])
+                            too_high_count = len(results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['is_threshold_too_high'] == True) & (results_df['sta'] == sta)])
+                            # cases where thresholds are not too high or too low
+                            distance_filter_valid_threshold = results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['is_threshold_too_low'] == False) & (results_df['is_threshold_too_high'] == False & (results_df['sta'] == sta))]
+                            TP = np.sum(distance_filter_valid_threshold['TP'].values)
+                            FP = np.sum(distance_filter_valid_threshold['FP'].values) + too_low_count*num_crashes
+                            TN = np.sum(distance_filter_valid_threshold['TN'].values)
+                            FN = np.sum(distance_filter_valid_threshold['FN'].values) + too_high_count*num_crashes
+                            precision = TP/(TP+FP)
+                            recall = TP/(TP+FN)
+                            accuracy = (TP+TN)/(TP+TN+FP+FN)
+                            fpr = FP/(FP+TN)
+
+                            # Filter the DataFrame for distance type and 'is_threshold_too_low' being True
+                            too_low_count_all = len(results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['is_threshold_too_low'] == True)])
+                            too_high_count_all = len(results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['is_threshold_too_high'] == True)])
+                            # cases where thresholds are not too high or too low
+                            distance_filter_valid_threshold_all = results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['is_threshold_too_low'] == False) & (results_df['is_threshold_too_high'] == False)]
+                            TP_all = np.sum(distance_filter_valid_threshold_all['TP'].values)
+                            FP_all = np.sum(distance_filter_valid_threshold_all['FP'].values) + too_low_count_all*num_crashes
+                            TN_all = np.sum(distance_filter_valid_threshold_all['TN'].values)
+                            FN_all = np.sum(distance_filter_valid_threshold_all['FN'].values) + too_high_count_all*num_crashes
+                            precision_all = TP_all/(TP_all+FP_all)
+                            recall_all = TP_all/(TP_all+FN_all)
+                            accuracy_all = (TP_all+TN_all)/(TP_all+TN_all+FP_all+FN_all)
+                            fpr_all = FP_all/(FP_all+TN_all)
+
+
+                            writer.writerow([datetime.now().strftime("%Y_%m_%d_%H_%M_%S"), distance_type, str(too_low_count), str(too_high_count), str(sta), str(TP), str(FP), str(TN), str(FN), str(precision), str(recall), str(accuracy), str(fpr), str(TP_all), str(FP_all), str(TN_all), str(FN_all), str(precision_all), str(recall_all), str(accuracy_all), str(fpr_all)])
+
+            if cfg.THRESHOLD_ASSESSMENT:
+                # get all indexes of current ano sim
+                indices = [i for i, x in enumerate(ANO_SIMULATIONS) if x == SIMULATION_NAME_ANOMALOUS]
+                # find the nom sim name other than base nominal sunny sim
+                for i in indices:
+                    if NOM_SIMULATIONS[i] != cfg.BASE_NOMINAL_SUNNY_SIM:
+                        th_assess_nom_sim = NOM_SIMULATIONS[i]
+                if averaged_theshold:
+                    threshold_assessment_csv_path_sunny = os.path.join(ANOMALOUS_PATHS[0], str(run_id), 'averaged_theshold', f'results_ano_{SIMULATION_NAME_ANOMALOUS}_nom_{cfg.BASE_NOMINAL_SUNNY_SIM}.csv')
+                    threshold_assessment_csv_path_similar = os.path.join(ANOMALOUS_PATHS[0], str(run_id), 'averaged_theshold', f'results_ano_{SIMULATION_NAME_ANOMALOUS}_nom_{th_assess_nom_sim}.csv')
+                else:
+                    threshold_assessment_csv_path_sunny = os.path.join(ANOMALOUS_PATHS[0], str(run_id), f'results_ano_{SIMULATION_NAME_ANOMALOUS}_nom_{cfg.BASE_NOMINAL_SUNNY_SIM}.csv')
+                    threshold_assessment_csv_path_similar = os.path.join(ANOMALOUS_PATHS[0], str(run_id), f'results_ano_{SIMULATION_NAME_ANOMALOUS}_nom_{th_assess_nom_sim}.csv')
+                if (os.path.exists(threshold_assessment_csv_path_sunny)) and (os.path.exists(threshold_assessment_csv_path_similar)):
+                    if averaged_theshold:
+                        threshold_assessment_csv_path = os.path.join(ANOMALOUS_PATHS[0], str(run_id), 'averaged_theshold', f'results_ano_{SIMULATION_NAME_ANOMALOUS}_nom_{th_assess_nom_sim}_threshold_assessment.csv')
+                    else:
+                        threshold_assessment_csv_path = os.path.join(ANOMALOUS_PATHS[0], str(run_id), f'results_ano_{SIMULATION_NAME_ANOMALOUS}_nom_{th_assess_nom_sim}_threshold_assessment.csv')
+                    if not os.path.exists(threshold_assessment_csv_path):
+                        with open(threshold_assessment_csv_path, mode='w',
+                                    newline='') as invalid_thresholds_file:
+                            writer = csv.writer(invalid_thresholds_file,
+                                                delimiter=',',
+                                                quotechar='"',
+                                                quoting=csv.QUOTE_MINIMAL,
+                                                lineterminator='\n')
+                            writer.writerow(
+                                ["time_stamp","heatmap_type", "distance_type", "similar_nominal_threshold", "sunny_nominal_threshold", "threshold_diff", "threshold_diff_sunny_percentage", "threshold_diff_similar_percentage", "average_threshold"])
+                            sunny_df = pd.read_csv(threshold_assessment_csv_path_sunny)
+                            similar_df = pd.read_csv(threshold_assessment_csv_path_similar)
+                            average_thresholds = {}
+                            for heatmap_type in HEATMAP_TYPES:
+                                average_thresholds[heatmap_type] = {}
+                                for distance_type in DISTANCE_TYPES:
+                                    thresholds = []
+                                    # Filter the DataFrame for heatmap type and distance type
+                                    filtered_sunny = sunny_df[(sunny_df['heatmap_type'] == f'{heatmap_type}') & (sunny_df['distance_type'] == f'{distance_type}')]
+                                    filtered_similar = similar_df[(similar_df['heatmap_type'] == f'{heatmap_type}') & (similar_df['distance_type'] == f'{distance_type}')]
+                                    # Get the value of threshold
+                                    threshold_sunny = filtered_sunny['threshold'].values[0]
+                                    threshold_similar = filtered_similar['threshold'].values[0]
+                                    thresholds.append(threshold_similar)
+                                    thresholds.append(threshold_sunny)
+                                    max_val_sunny = filtered_sunny['max_val'].values[0]
+                                    min_val_sunny = filtered_sunny['min_val'].values[0]
+                                    max_val_similar = filtered_similar['max_val'].values[0]
+                                    min_val_similar = filtered_similar['min_val'].values[0]
+
+                                    threshold_diff = threshold_similar - threshold_sunny
+                                    threshold_diff_sunny_percentage = threshold_diff / (max_val_sunny - min_val_sunny)
+                                    threshold_diff_similar_percentage = threshold_diff / (max_val_similar - min_val_similar)
+                                    average_threshold = np.mean(thresholds)     
+                                    # (threshold_similar + threshold_sunny)//2.0
+                                    writer.writerow([datetime.now().strftime("%Y_%m_%d_%H_%M_%S"), heatmap_type, distance_type, threshold_similar, threshold_sunny, str(threshold_diff), str(threshold_diff_sunny_percentage), str(threshold_diff_similar_percentage), str(average_threshold)])
+
+                                    if ANALYSE_DISTANCE[distance_type][0]:
+                                        average_thresholds[heatmap_type][distance_type] = average_threshold
+
+                        average_thresholds_path = os.path.join(ANOMALOUS_PATHS[0], str(run_id), 'averaged_theshold', f'average_thresholds_{SIMULATION_NAME_ANOMALOUS}_nom_{th_assess_nom_sim}.csv')
+                        average_thresholds_folder = os.path.join(ANOMALOUS_PATHS[0], str(run_id), 'averaged_theshold')
+                        if not os.path.exists(average_thresholds_folder):
+                            os.makedirs(average_thresholds_folder)
+                        # Assuming average_thresholds is a 2D dictionary
+                        with open(average_thresholds_path, 'w', newline='') as csvfile:
+                            fieldnames = ['heatmap_type', 'distance_type', 'average_threshold']
+                            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                            
+                            writer.writeheader()
+                            for heatmap_type, distance_data in average_thresholds.items():
+                                for distance_type, average_threshold in distance_data.items():
+                                    writer.writerow({'heatmap_type': heatmap_type, 'distance_type': distance_type, 'average_threshold': average_threshold})
+
 
     end_time = time.monotonic()
-    cprintf(f"Completed {total_runs} evaluation run(s) of {len(ANO_SIMULATIONS)} simulation(s) in {datetime.timedelta(seconds=end_time-start_time)}", 'yellow')
+    cprintf(f"Completed {total_runs} evaluation run(s) of {len(ANO_SIMULATIONS)} simulation(s) in {timedelta(seconds=end_time-start_time)}", 'yellow')

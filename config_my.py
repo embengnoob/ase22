@@ -52,15 +52,20 @@ IMPROVEMENT_RATIO = 1
 METHOD = 'p2p' # 'thirdeye', 'p2p', 'p2c'
 IGNORE_WARNINGS = True
 EVALUATE_ALL = True
-CALCULATE_RESULTS = False
-
+CALCULATE_RESULTS = True
+# in case thresholds are to be compared between nominal sims between similar weather/lighting conditions as ano vs sunny conditions
+THRESHOLD_ASSESSMENT = True
+BASE_NOMINAL_SUNNY_SIM = 'track1-sunny-positioned-nominal'
+BASE_THRESHOLD_SUNNY_SIM = 'track1-day-sunny-nominal-threshold'
 # plotting settings
 PLOT_NOMINAL = True
 PLOT_NOMINAL_ALL = False
 PLOT_ANOMALOUS_ALL_WINDOWS = True
 PLOT_THIRDEYE = False
-PLOT_POINT_TO_POINT = True
+PLOT_POINT_TO_POINT = False
 PLOT_POSITION_CLOUD = False
+# logging settings
+MINIMAL_LOGGING = True
 
 # p2p settings
 # summary collage settings

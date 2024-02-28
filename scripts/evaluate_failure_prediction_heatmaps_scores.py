@@ -485,7 +485,7 @@ def compute_fp_and_tn(data_df_nominal, aggregation_method, condition,fig,axs,sub
 
 def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, heatmap_type,
                                     anomalous_simulation_name, nominal_simulation_name, distance_types, analyse_distance,
-                                    pca_dimension, PCA_DIMENSIONS, run_id, gen_axes, pca_axes_list, threshold_sim):
+                                    pca_dimension, PCA_DIMENSIONS, run_id, gen_axes, pca_axes_list, threshold_sim, averaged_thresholds={}):
 
     #################################### GETTING THE RIGHT ROOT PATHS #########################################
 
@@ -507,9 +507,11 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
     ANOMALOUS_HEATMAP_IMG_GRADIENT_PATH = ANOMALOUS_PATHS[6]
     if not threshold_sim:
         THRESHOLD_VECTORS_FOLDER_PATH = ANOMALOUS_PATHS[7]
-
+    if len(averaged_thresholds) == 0:
+        average_threshold_acquired = False
+    else:
+        average_threshold_acquired = True
     #################################### INPUT DATA PRE-PROCESSING #########################################
-
     if cfg.NOM_VS_NOM_TEST:
         # check if nominal and anomalous heatmaps are exactly the same
         ano_heatmap = pd.read_csv(ANOMALOUS_HEATMAP_CSV_PATH)
@@ -548,7 +550,8 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
 
     # 1. find the closest frame from anomalous sim to the frame in nominal sim (comparing car position)
     # nominal simulation
-    cprintf(f"Path for data_df_nominal: {NOMINAL_HEATMAP_CSV_PATH}", 'white')
+    if not cfg.MINIMAL_LOGGING:
+        cprintf(f"Path for data_df_nominal: {NOMINAL_HEATMAP_CSV_PATH}", 'white')
     data_df_nominal = pd.read_csv(NOMINAL_HEATMAP_CSV_PATH)
     nominal = pd.DataFrame(data_df_nominal['frameId'].copy(), columns=['frameId'])
     nominal['position'] = data_df_nominal['position'].copy()
@@ -563,7 +566,8 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
         raise ValueError(Fore.RED + f'Mismatch in number of \"nominal\" frames: {NUM_FRAMES_NOM} != {num_nominal_frames}' + Fore.RESET)
     
     # anomalous simulation
-    cprintf(f"Path for data_df_anomalous: {ANOMALOUS_HEATMAP_CSV_PATH}", 'white')
+    if not cfg.MINIMAL_LOGGING:
+        cprintf(f"Path for data_df_anomalous: {ANOMALOUS_HEATMAP_CSV_PATH}", 'white')
     data_df_anomalous = pd.read_csv(ANOMALOUS_HEATMAP_CSV_PATH)
     anomalous = pd.DataFrame(data_df_anomalous['frameId'].copy(), columns=['frameId'])
     anomalous['position'] = data_df_anomalous['position'].copy()
@@ -616,7 +620,8 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
     else:
         cprintf(f"Positional mapping and point distances list exist.", 'l_green')
         # load list of mapped positions
-        cprintf(f"Loading CSV file from {POSITIONAL_MAPPING_PATH} and at {POINT_DISTANCES_PATH} ...", 'l_yellow')
+        if not cfg.MINIMAL_LOGGING:
+            cprintf(f"Loading CSV file from {POSITIONAL_MAPPING_PATH} and at {POINT_DISTANCES_PATH} ...", 'l_yellow')
         pos_mappings = np.loadtxt(POSITIONAL_MAPPING_PATH, dtype='int')
         point_distances = np.loadtxt(POINT_DISTANCES_PATH, dtype='float')
 
@@ -825,11 +830,11 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
             raise ValueError(Fore.RED + "Error in number of saved collages. Removing all the collages! Please rerun the code." + Fore.RESET)
         elif missing_collages == 0:
             cprintf(f"All base collages already exist.", 'l_green')
-        
-    print(f'x_ano_std.shape is {x_ano_std.shape}')
-    print(f'x_nom_std.shape is {x_nom_std.shape}')
-    print(f'x_ano_all_frames.shape is {x_ano_all_frames.shape}')
-    print(f'x_nom_all_frames.shape is {x_nom_all_frames.shape}')
+    if not cfg.MINIMAL_LOGGING:    
+        print(f'x_ano_std.shape is {x_ano_std.shape}')
+        print(f'x_nom_std.shape is {x_nom_std.shape}')
+        print(f'x_ano_all_frames.shape is {x_ano_all_frames.shape}')
+        print(f'x_nom_all_frames.shape is {x_nom_all_frames.shape}')
 
     #################################### PCA CALCULATION #########################################
     # Save PCA arrays
@@ -866,8 +871,9 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
             pca_nom = pca.fit_transform(x_nom_all_frames)
             if cfg.NOM_VS_NOM_TEST:
                 pca_ano_2 = pca.fit_transform(x_ano_all_frames)
-            cprintf(f'pca_ano.shape is {pca_ano.shape}', 'l_magenta')
-            cprintf(f'pca_nom.shape is {pca_nom.shape}', 'l_magenta')
+            if not cfg.MINIMAL_LOGGING:
+                cprintf(f'pca_ano.shape is {pca_ano.shape}', 'l_magenta')
+                cprintf(f'pca_nom.shape is {pca_nom.shape}', 'l_magenta')
 
     #################################### DISTANCE/CORRELATION VECTORS #########################################
         
@@ -931,16 +937,24 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
 
         if not threshold_sim:    
             # Calculate thresholds
-            if analyse_distance[distance_type][0]:
+            if not average_threshold_acquired:
+                if analyse_distance[distance_type][0]:
+                    try:
+                        threshold = get_threshold(THRESHOLD_VECTOR_PATH, distance_type, analyse_distance[distance_type][1], min_log=cfg.MINIMAL_LOGGING)
+                    except:
+                        threshold = -1
+                    try:
+                        ano_threshold = get_threshold(average_filter_1D(distance_vector), distance_type, 0.50, text_file=False, min_log=cfg.MINIMAL_LOGGING)
+                    except:
+                        threshold = -1
+                    thresholds[distance_type] = threshold
+                    ano_thresholds[distance_type] = ano_threshold 
+            else:
+                thresholds = averaged_thresholds
                 try:
-                    threshold = get_threshold(THRESHOLD_VECTOR_PATH, distance_type, analyse_distance[distance_type][1])
+                    ano_threshold = get_threshold(average_filter_1D(distance_vector), distance_type, 0.50, text_file=False, min_log=cfg.MINIMAL_LOGGING)
                 except:
                     threshold = -1
-                try:
-                    ano_threshold = get_threshold(average_filter_1D(distance_vector), distance_type, 0.50, text_file=False)
-                except:
-                    threshold = -1
-                thresholds[distance_type] = threshold
                 ano_thresholds[distance_type] = ano_threshold 
 
         
@@ -981,16 +995,16 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                 # Calculate thresholds
                 if analyse_distance[distance_type][0]:
                     try:
-                        PCA_threshold = get_threshold(THRESHOLD_VECTOR_PATH, distance_type, analyse_distance[distance_type][1])
+                        PCA_threshold = get_threshold(THRESHOLD_VECTOR_PATH, distance_type, analyse_distance[distance_type][1], min_log=cfg.MINIMAL_LOGGING)
                     except:
                         PCA_threshold = -1
                     PCA_thresholds[f'PCA_{distance_type}'] = PCA_threshold
-            
-    print(f'PCA distance types: {pca_distance_types}')
-    print(f'Direct distance types: {distance_types}')
+    if not cfg.MINIMAL_LOGGING:
+        print(f'PCA distance types: {pca_distance_types}')
+        print(f'Direct distance types: {distance_types}')
 
     #################################### PLOTTING SECTION #########################################
-            
+
     # plot preprocessing
     # anomalous cross track errors
     cte_anomalous = data_df_anomalous['cte']
@@ -1004,77 +1018,110 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
             abs_diff = -abs_diff
         cte_diff[cte_idx] = abs_diff
     # cte_anomalous = cte_anomalous.to_numpy()
-    num_of_axes = 0
-    for distance_type in distance_types:
-        if cfg.PCA:
-            if (distance_type == 'euclidean') or (distance_type == 'manhattan') or (distance_type == 'cosine') or (distance_type == 'EMD'):
-                num_of_axes += 2
+    if cfg.PLOT_POINT_TO_POINT:
+        num_of_axes = 0
+        for distance_type in distance_types:
+            if cfg.PCA:
+                if (distance_type == 'euclidean') or (distance_type == 'manhattan') or (distance_type == 'cosine') or (distance_type == 'EMD'):
+                    num_of_axes += 2
+                else:
+                    num_of_axes += 1
             else:
                 num_of_axes += 1
-        else:
+        
+        if cfg.PCA:
+            # 3d plot
             num_of_axes += 1
-    
-    if cfg.PCA:
-        # 3d plot
+
+        # p2p distance plot 
         num_of_axes += 1
 
-    # p2p distance plot 
-    num_of_axes += 1
-
-    # cross track plot
-    num_of_axes += 1
-    
-    height_ratios = []
-    for i in range(num_of_axes):
-        if cfg.PCA:
-            if i==0:
-                #3d plot
-                height_ratios.append(3)
+        # cross track plot
+        num_of_axes += 1
+        
+        height_ratios = []
+        for i in range(num_of_axes):
+            if cfg.PCA:
+                if i==0:
+                    #3d plot
+                    height_ratios.append(3)
+                else:
+                    height_ratios.append(1)
             else:
                 height_ratios.append(1)
-        else:
-            height_ratios.append(1)
-    fig = plt.figure(figsize=(24,4*num_of_axes), constrained_layout=False)
-    spec = fig.add_gridspec(nrows=num_of_axes, ncols=1, width_ratios= [1], height_ratios=height_ratios)
+        fig = plt.figure(figsize=(24,4*num_of_axes), constrained_layout=False)
+        spec = fig.add_gridspec(nrows=num_of_axes, ncols=1, width_ratios= [1], height_ratios=height_ratios)
 
-    # ['euclidean', 'manhattan', 'cosine', 'EMD', 'pearson', 'spearman', 'kendall', 'moran']
-    distance_type_colors = {
-        'euclidean' : ('deepskyblue', 'navy'),
-        'manhattan' : ('indianred', 'brown'),
-        'cosine' : ('mediumslateblue', 'darkslateblue'),
-        'EMD' : ('mediumseagreen', 'darkgreen'),
-        'pearson' :('lightslategrey', 'darkslategrey'),
-        'spearman' : ('wheat','orange'),
-        'kendall' : ('darkseagreen', 'darkolivegreen'),
-        'moran' : ('goldenrod', 'darkgoldenrod'),
-        'kl-divergence': ('salmon', 'maroon'),
-        'mutual-info': ('pink', 'mediumvioletred'),
-        'sobolev-norm': ('paleturquoise', 'teal')}
-    
-    if cfg.PCA:
-        # Plot pca cluster
-        if pca_dimension == 2:
-            ax = fig.add_subplot(spec[0, :])
-            ax.scatter(pca_ano[:,0], pca_ano[:,1], color = 'r')
-            ax.scatter(pca_nom[:,0], pca_nom[:,1], color = 'b')  
-        elif pca_dimension == 3:
-            nominal_positions
-            anomalous_positions
-            ax = fig.add_subplot(spec[0, :], projection='3d')
-            ax.scatter(pca_ano[:,0], pca_ano[:,1], pca_ano[:,2], color = 'r')
-            ax.scatter(pca_nom[:,0], pca_nom[:,1], pca_nom[:,2], color = 'b')
-        else:
-            ax = fig.add_subplot(spec[0, :], projection='3d')
-            ax.scatter(anomalous_positions[:,0], anomalous_positions[:,1], anomalous_positions[:,2], color = 'r')
-            ax.scatter(nominal_positions[:,0], nominal_positions[:,1], nominal_positions[:,2], color = 'b')
-            ax.scatter(closest_point_nominal_positions[:,0], closest_point_nominal_positions[:,1], closest_point_nominal_positions[:,2], color = 'g')
+        # ['euclidean', 'manhattan', 'cosine', 'EMD', 'pearson', 'spearman', 'kendall', 'moran']
+        distance_type_colors = {
+            'euclidean' : ('deepskyblue', 'navy'),
+            'manhattan' : ('indianred', 'brown'),
+            'cosine' : ('mediumslateblue', 'darkslateblue'),
+            'EMD' : ('mediumseagreen', 'darkgreen'),
+            'pearson' :('lightslategrey', 'darkslategrey'),
+            'spearman' : ('wheat','orange'),
+            'kendall' : ('darkseagreen', 'darkolivegreen'),
+            'moran' : ('goldenrod', 'darkgoldenrod'),
+            'kl-divergence': ('salmon', 'maroon'),
+            'mutual-info': ('pink', 'mediumvioletred'),
+            'sobolev-norm': ('paleturquoise', 'teal')}
+        
+        if cfg.PCA:
+            # Plot pca cluster
+            if pca_dimension == 2:
+                ax = fig.add_subplot(spec[0, :])
+                ax.scatter(pca_ano[:,0], pca_ano[:,1], color = 'r')
+                ax.scatter(pca_nom[:,0], pca_nom[:,1], color = 'b')  
+            elif pca_dimension == 3:
+                nominal_positions
+                anomalous_positions
+                ax = fig.add_subplot(spec[0, :], projection='3d')
+                ax.scatter(pca_ano[:,0], pca_ano[:,1], pca_ano[:,2], color = 'r')
+                ax.scatter(pca_nom[:,0], pca_nom[:,1], pca_nom[:,2], color = 'b')
+            else:
+                ax = fig.add_subplot(spec[0, :], projection='3d')
+                ax.scatter(anomalous_positions[:,0], anomalous_positions[:,1], anomalous_positions[:,2], color = 'r')
+                ax.scatter(nominal_positions[:,0], nominal_positions[:,1], nominal_positions[:,2], color = 'b')
+                ax.scatter(closest_point_nominal_positions[:,0], closest_point_nominal_positions[:,1], closest_point_nominal_positions[:,2], color = 'g')
 
-        pca_ax_spine_color = 'blue'
-        for d_type_index, pca_distance_type in enumerate(pca_distance_types):
-            # Plot pca distance vector/ranges
-            # cprintf(f'{d_type_index+1}', 'yellow')
-            # cprintf(f'{(d_type_index, pca_distance_type)}', 'l_yellow')
-            ax = fig.add_subplot(spec[d_type_index+1, :])
+            pca_ax_spine_color = 'blue'
+            for d_type_index, pca_distance_type in enumerate(pca_distance_types):
+                # Plot pca distance vector/ranges
+                # cprintf(f'{d_type_index+1}', 'yellow')
+                # cprintf(f'{(d_type_index, pca_distance_type)}', 'l_yellow')
+                ax = fig.add_subplot(spec[d_type_index+1, :])
+                # plot ranges
+                YELLOW_BORDER = 3.6
+                ORANGE_BORDER = 5.0
+                RED_BORDER = 7.0
+                plot_ranges(ax, cte_anomalous, cte_diff, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER, ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
+                plot_crash_ranges(ax, speed_anomalous)
+                # plot distances
+                distance_vector = pca_distance_vectors[d_type_index]
+                distance_vector_avg = pca_distance_vectors_avgs[d_type_index]
+                color = distance_type_colors[pca_distance_type][0]
+                color_avg = distance_type_colors[pca_distance_type][1]
+                
+                if analyse_distance[pca_distance_type][0]:
+                    if not threshold_sim:
+                        threshold = PCA_thresholds[f'PCA_{pca_distance_type}']
+                        lineplot(ax, distance_vector, distance_vector_avg, pca_distance_type, heatmap_type, color,
+                                color_avg, eval_vars=[threshold], eval_method='threshold', spine_color=pca_ax_spine_color,
+                                pca_dimension=pca_dimension, pca_plot=True)
+                else:
+                    lineplot(ax, distance_vector, distance_vector_avg, pca_distance_type, heatmap_type, color,
+                            color_avg, spine_color=pca_ax_spine_color, pca_dimension=pca_dimension, pca_plot=True)
+
+        cprintf(f'{distance_types}', 'green')
+        for d_type_index, distance_type in enumerate(distance_types):
+
+            if cfg.PCA:
+                fig_idx = d_type_index + len(pca_distance_types) + 1
+            else:
+                fig_idx = d_type_index
+            # cprintf(f'{fig_idx}', 'blue')
+            # cprintf(f'{(d_type_index, distance_type)}', 'cyan')
+            ax = fig.add_subplot(spec[fig_idx, :])
             # plot ranges
             YELLOW_BORDER = 3.6
             ORANGE_BORDER = 5.0
@@ -1082,110 +1129,78 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
             plot_ranges(ax, cte_anomalous, cte_diff, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER, ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
             plot_crash_ranges(ax, speed_anomalous)
             # plot distances
-            distance_vector = pca_distance_vectors[d_type_index]
-            distance_vector_avg = pca_distance_vectors_avgs[d_type_index]
-            color = distance_type_colors[pca_distance_type][0]
-            color_avg = distance_type_colors[pca_distance_type][1]
-            
-            if analyse_distance[pca_distance_type][0]:
-                if not threshold_sim:
-                    threshold = PCA_thresholds[f'PCA_{pca_distance_type}']
-                    lineplot(ax, distance_vector, distance_vector_avg, pca_distance_type, heatmap_type, color,
-                            color_avg, eval_vars=[threshold], eval_method='threshold', spine_color=pca_ax_spine_color,
-                            pca_dimension=pca_dimension, pca_plot=True)
+            distance_vector = distance_vectors[d_type_index]
+            distance_vector_avg = distance_vectors_avgs[d_type_index]
+            color = distance_type_colors[distance_type][0]
+            color_avg = distance_type_colors[distance_type][1]
+
+            if (analyse_distance[distance_type][0]) and (not threshold_sim):
+                    threshold = thresholds[distance_type]
+                    ano_threshold = ano_thresholds[distance_type]
+                    lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg, eval_vars=[threshold], eval_method='threshold', avg_threshold=average_threshold_acquired)
             else:
-                lineplot(ax, distance_vector, distance_vector_avg, pca_distance_type, heatmap_type, color,
-                        color_avg, spine_color=pca_ax_spine_color, pca_dimension=pca_dimension, pca_plot=True)
+                lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg)
 
-    cprintf(f'{distance_types}', 'green')
-    for d_type_index, distance_type in enumerate(distance_types):
+            # if distance_type == 'moran':
+            #     # lineplot(ax, moran_i_ano, average_filter_1D(moran_i_ano), distance_type, heatmap_type, color='red', color_avg='red')
+            #     # lineplot(ax, moran_i_nom, average_filter_1D(moran_i_nom), distance_type, heatmap_type, color='blue', color_avg='blue')
+            #     lineplot(ax, moran_i_ano, average_filter_1D(moran_i_ano), distance_type, heatmap_type, color, color_avg, eval_var=threshold, eval_method='no_threshold')
+            # else:
+            #     lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg, eval_var=threshold)
 
-        if cfg.PCA:
-            fig_idx = d_type_index + len(pca_distance_types) + 1
-        else:
-            fig_idx = d_type_index
-        # cprintf(f'{fig_idx}', 'blue')
-        # cprintf(f'{(d_type_index, distance_type)}', 'cyan')
-        ax = fig.add_subplot(spec[fig_idx, :])
-        # plot ranges
-        YELLOW_BORDER = 3.6
-        ORANGE_BORDER = 5.0
-        RED_BORDER = 7.0
+            # if distance_type == 'sobolev-norm':
+            #     ax = fig.add_subplot(spec[num_of_axes-2, :])
+            #     # plot ranges
+            #     YELLOW_BORDER = 3.6
+            #     ORANGE_BORDER = 5.0
+            #     RED_BORDER = 7.0
+            #     plot_ranges(ax, cte_anomalous, cte_diff, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER, ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
+            #     plot_crash_ranges(ax, speed_anomalous)
+            #     # plot distances
+            #     distance_vector = window_slope(distance_vectors[d_type_index])
+            #     distance_vector_avg = average_filter_1D(distance_vector)
+            #     color = distance_type_colors[distance_type][0]
+            #     color_avg = distance_type_colors[distance_type][1]
+            #     # calculate threshold via averaging
+            #     # threshold = np.average(distance_vector_avg)
+            #     # calculate threshold via gamma fitting
+            #     # threshold = get_threshold(distance_vector_avg)
+            #     lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg, eval_var=threshold)
+
+        # plot positional point distances between nominal and anomalous sims
+        ax = fig.add_subplot(spec[num_of_axes-2, :])
+        color = 'darkgoldenrod'
+        ax.set_ylabel('p2p distances', color=color)
+        ax.plot(point_distances, label='p2p distances', linewidth= 0.5, linestyle = '-', color=color)
+        title = f"p2p distances"
+        ax.set_title(title)
+        ax.legend(loc='upper left')
         plot_ranges(ax, cte_anomalous, cte_diff, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER, ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
         plot_crash_ranges(ax, speed_anomalous)
-        # plot distances
-        distance_vector = distance_vectors[d_type_index]
-        distance_vector_avg = distance_vectors_avgs[d_type_index]
-        color = distance_type_colors[distance_type][0]
-        color_avg = distance_type_colors[distance_type][1]
 
-        if (analyse_distance[distance_type][0]) and (not threshold_sim):
-                threshold = thresholds[distance_type]
-                ano_threshold = ano_thresholds[distance_type]
-                lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg, eval_vars=[threshold], eval_method='threshold')
-        else:
-            lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg)
+        # Plot cross track error
+        ax = fig.add_subplot(spec[num_of_axes-1, :])
+        color_ano = 'red'
+        color_nom = 'green'
+        ax.set_xlabel('Frame ID', color=color)
+        ax.set_ylabel('cross-track error', color=color) 
+        ax.plot(cte_anomalous, label='anomalous cross-track error', linewidth= 0.5, linestyle = '-', color=color_ano)
+        ax.plot(closest_nom_cte_all_frames, label='nominal cross-track error', linewidth= 0.5, linestyle = '-', color=color_nom)
+        ax.plot(cte_diff, label='cross-track error difference', linewidth= 0.5, linestyle = '--', color='brown')
 
-        # if distance_type == 'moran':
-        #     # lineplot(ax, moran_i_ano, average_filter_1D(moran_i_ano), distance_type, heatmap_type, color='red', color_avg='red')
-        #     # lineplot(ax, moran_i_nom, average_filter_1D(moran_i_nom), distance_type, heatmap_type, color='blue', color_avg='blue')
-        #     lineplot(ax, moran_i_ano, average_filter_1D(moran_i_ano), distance_type, heatmap_type, color, color_avg, eval_var=threshold, eval_method='no_threshold')
-        # else:
-        #     lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg, eval_var=threshold)
+        ax.axhline(y = YELLOW_BORDER, color = 'yellow', linestyle = '--')
+        ax.axhline(y = -YELLOW_BORDER, color = 'yellow', linestyle = '--')
+        ax.axhline(y = ORANGE_BORDER, color = 'orange', linestyle = '--')
+        ax.axhline(y = -ORANGE_BORDER, color = 'orange', linestyle = '--')
+        ax.axhline(y = RED_BORDER, color = 'red', linestyle = '--')
+        ax.axhline(y = -RED_BORDER, color = 'red', linestyle = '--')
 
-        # if distance_type == 'sobolev-norm':
-        #     ax = fig.add_subplot(spec[num_of_axes-2, :])
-        #     # plot ranges
-        #     YELLOW_BORDER = 3.6
-        #     ORANGE_BORDER = 5.0
-        #     RED_BORDER = 7.0
-        #     plot_ranges(ax, cte_anomalous, cte_diff, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER, ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
-        #     plot_crash_ranges(ax, speed_anomalous)
-        #     # plot distances
-        #     distance_vector = window_slope(distance_vectors[d_type_index])
-        #     distance_vector_avg = average_filter_1D(distance_vector)
-        #     color = distance_type_colors[distance_type][0]
-        #     color_avg = distance_type_colors[distance_type][1]
-        #     # calculate threshold via averaging
-        #     # threshold = np.average(distance_vector_avg)
-        #     # calculate threshold via gamma fitting
-        #     # threshold = get_threshold(distance_vector_avg)
-        #     lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg, eval_var=threshold)
+        plot_ranges(ax, cte_anomalous, cte_diff, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER, ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
+        plot_crash_ranges(ax, speed_anomalous, return_frames=False)
 
-    # plot positional point distances between nominal and anomalous sims
-    ax = fig.add_subplot(spec[num_of_axes-2, :])
-    color = 'darkgoldenrod'
-    ax.set_ylabel('p2p distances', color=color)
-    ax.plot(point_distances, label='p2p distances', linewidth= 0.5, linestyle = '-', color=color)
-    title = f"p2p distances"
-    ax.set_title(title)
-    ax.legend(loc='upper left')
-    plot_ranges(ax, cte_anomalous, cte_diff, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER, ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER)
-    plot_crash_ranges(ax, speed_anomalous)
-
-    # Plot cross track error
-    ax = fig.add_subplot(spec[num_of_axes-1, :])
-    color_ano = 'red'
-    color_nom = 'green'
-    ax.set_xlabel('Frame ID', color=color)
-    ax.set_ylabel('cross-track error', color=color) 
-    ax.plot(cte_anomalous, label='anomalous cross-track error', linewidth= 0.5, linestyle = '-', color=color_ano)
-    ax.plot(closest_nom_cte_all_frames, label='nominal cross-track error', linewidth= 0.5, linestyle = '-', color=color_nom)
-    ax.plot(cte_diff, label='cross-track error difference', linewidth= 0.5, linestyle = '--', color='brown')
-
-    ax.axhline(y = YELLOW_BORDER, color = 'yellow', linestyle = '--')
-    ax.axhline(y = -YELLOW_BORDER, color = 'yellow', linestyle = '--')
-    ax.axhline(y = ORANGE_BORDER, color = 'orange', linestyle = '--')
-    ax.axhline(y = -ORANGE_BORDER, color = 'orange', linestyle = '--')
-    ax.axhline(y = RED_BORDER, color = 'red', linestyle = '--')
-    ax.axhline(y = -RED_BORDER, color = 'red', linestyle = '--')
-
-    red_frames, orange_frames, yellow_frames = plot_ranges(ax, cte_anomalous, cte_diff, alpha=0.2, YELLOW_BORDER=YELLOW_BORDER, ORANGE_BORDER=ORANGE_BORDER, RED_BORDER=RED_BORDER, return_frames=True)
-    collision_frames = plot_crash_ranges(ax, speed_anomalous, return_frames=True)
-
-    title = f"cross-track error"
-    ax.set_title(title)
-    ax.legend(loc='upper left')
+        title = f"cross-track error"
+        ax.set_title(title)
+        ax.legend(loc='upper left')
 
     #################################### GENERATE COMPLETED COLLAGES #########################################
     if cfg.GENERATE_SUMMARY_COLLAGES:
@@ -1288,22 +1303,19 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
     if not os.path.exists(FIGURES_FOLDER_PATH):
         os.makedirs(FIGURES_FOLDER_PATH)
 
-    # ALL_RUNS_FIGURES_FOLDER_PATH = os.path.join(ANOMALOUS_HEATMAP_PARENT_FOLDER_PATH, "figures_all_runs")
-    # ALL_RUNS_FIGURE_PATH = os.path.join(ALL_RUNS_FIGURES_FOLDER_PATH,
-    #                                     f"{anomalous_simulation_name}_{nominal_simulation_name}",
-    #                                     f"pca_{pca_dimension}d")
-    # if not os.path.exists(ALL_RUNS_FIGURE_PATH):
-    #     cprintf(f'All runs\' figures folder does not exist. Creating folder ...', 'l_blue')
-    #     os.makedirs(ALL_RUNS_FIGURE_PATH)
 
-
-    cprintf(f'\nSaving plotted figure to {FIGURES_FOLDER_PATH} ...', 'magenta')
     if cfg.PCA:
         fig_img_name = f"{heatmap_type}_plots_{anomalous_simulation_name}_{nominal_simulation_name}_{pca_dimension}d.pdf"
     else:
-        fig_img_name = f"{heatmap_type}_plots_{anomalous_simulation_name}_{nominal_simulation_name}.pdf"
+        if not average_threshold_acquired:
+            fig_img_name = f"{heatmap_type}_plots_{anomalous_simulation_name}_{nominal_simulation_name}.pdf"
+        else:
+            fig_img_name = f"{heatmap_type}_plots_{anomalous_simulation_name}_{nominal_simulation_name}_avg_threshold.pdf"
     fig_img_address = os.path.join(FIGURES_FOLDER_PATH, fig_img_name)
-    plt.savefig(fig_img_address, bbox_inches='tight', dpi=300)
+    if cfg.PLOT_POINT_TO_POINT:
+        cprintf(f'\nSaving plotted figure to {FIGURES_FOLDER_PATH} ...', 'magenta')
+        plt.savefig(fig_img_address, bbox_inches='tight', dpi=300)
+
     # plt.savefig(os.path.join(ALL_RUNS_FIGURE_PATH, f"run_id_{run_id}.png"), bbox_inches='tight', dpi=300)
 
     # plt.show()
@@ -1333,12 +1345,16 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
         # ano FPS
         fps_anomalous = number_frames_anomalous // simulation_time_anomalous.total_seconds()
         # Every thing that is considered crash
+        red_frames, orange_frames, yellow_frames, collision_frames = colored_ranges(speed_anomalous, cte_anomalous, cte_diff,
+                                                                                    alpha=0.2, YELLOW_BORDER = 3.6,ORANGE_BORDER = 5.0, RED_BORDER = 7.0)
         all_crash_frames = sorted(red_frames + orange_frames + yellow_frames + collision_frames)
 
         print(f"Identified %d crash(es): {len(all_crash_frames)}")
         print(all_crash_frames)
         print(f"Simulation FPS: {fps_anomalous}")
         # initializing arrays
+        threshold_too_low = {}
+        threshold_too_high = {}
         true_positive_windows = np.zeros((len(distance_types), 3))
         false_negative_windows = np.zeros((len(distance_types), 3))
         false_positive_windows = np.zeros((len(distance_types), 3))
@@ -1347,7 +1363,10 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
         
         for seconds_to_anticipate in seconds_to_anticipate_list:
             for d_type_index, distance_type in enumerate(distance_types):
-                cprintb(f'FP && TN: {distance_type}', 'l_yellow')
+                if not cfg.MINIMAL_LOGGING:
+                    cprintb(f'FP && TN: {distance_type}', 'l_yellow')
+                threshold_too_low[distance_type] = False
+                threshold_too_high[distance_type] = False
                 distance_vector_avg = distance_vectors_avgs[d_type_index]
                 threshold = thresholds[distance_type]
                 _, no_alarm_ranges, all_ranges = get_alarm_frames(distance_vector_avg, threshold)
@@ -1373,52 +1392,62 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                             boolean_ranges[rng_idx] = True
                 # merge smaller no_alarm range into surrounding alarm ranges
                 merged_ranges = merge_ranges(all_ranges, boolean_ranges)
-
+                if len(merged_ranges[True]) == 0:
+                    threshold_too_low[distance_type] = True
+                elif len(merged_ranges[False]) == 0:
+                    threshold_too_high[distance_type] = True
                 ################ Calculate True and False Positives ################
-                for alarm_range in merged_ranges[False]:
-                    if not isinstance(alarm_range, list):
-                        discarded_alarms.append(alarm_range)
-                        continue
-                    alarm_range_start = alarm_range[0]
-                    alarm_range_end = alarm_range[-1]
-                    
-                    # check if any crashes happend inside the alarm range
-                    # or inside the window starting from the end of alarm range
-                    # + window size (yes? TP per crash instance no? FP per alarm range)
-                    alarm_rng_is_tp = False
-                    cprintf(f'Assessing alarm range: {alarm_range}', 'l_yellow')
-                    for crash_frame in all_crash_frames:
-                        if (alarm_range_start <= crash_frame <= alarm_range_end) or (alarm_range_end <= crash_frame <= (alarm_range_end + window_size)):
-                            alarm_rng_is_tp = True
-                            true_positive_windows[d_type_index][seconds_to_anticipate-1] += 1
-                            cprintf(f'crash is predicted: {alarm_range_start} <= {crash_frame} <= {alarm_range_end} or {alarm_range_end} <= {crash_frame} <= {alarm_range_end + window_size}', 'l_green')
-                    if not alarm_rng_is_tp:
-                        false_positive_windows[d_type_index][seconds_to_anticipate-1] += 1
+                if not threshold_too_high[distance_type]:
+                    for alarm_range in merged_ranges[False]:
+                        if not isinstance(alarm_range, list):
+                            discarded_alarms.append(alarm_range)
+                            continue
+                        alarm_range_start = alarm_range[0]
+                        alarm_range_end = alarm_range[-1]
+                        
+                        # check if any crashes happend inside the alarm range
+                        # or inside the window starting from the end of alarm range
+                        # + window size (yes? TP per crash instance no? FP per alarm range)
+                        alarm_rng_is_tp = False
+                        if not cfg.MINIMAL_LOGGING:
+                            cprintf(f'Assessing alarm range: {alarm_range}', 'l_yellow')
+                        for crash_frame in all_crash_frames:
+                            if (alarm_range_start <= crash_frame <= alarm_range_end) or (alarm_range_end <= crash_frame <= (alarm_range_end + window_size)):
+                                alarm_rng_is_tp = True
+                                true_positive_windows[d_type_index][seconds_to_anticipate-1] += 1
+                                # cprintf(f'crash is predicted: {alarm_range_start} <= {crash_frame} <= {alarm_range_end} or {alarm_range_end} <= {crash_frame} <= {alarm_range_end + window_size}', 'l_green')
+                        if not alarm_rng_is_tp:
+                            false_positive_windows[d_type_index][seconds_to_anticipate-1] += 1
 
 
                 ################ Calculate True and False Negatives ################
-                for no_alarm_range in merged_ranges[True]:
-                    if not isinstance(no_alarm_range, list):
-                        discarded_no_alarms.append(no_alarm_range)
-                        continue
-                    no_alarm_range_start = no_alarm_range[0]
-                    no_alarm_range_end = no_alarm_range[-1]
-                    
-                    # check if any crashes happend inside the NO alarm range
-                    # or inside the window starting from the end of NO alarm range
-                    # + window size (yes? FN per crash instance no? FP per no alarm range)
-                    no_alarm_rng_is_fn = False
-                    cprintf(f'Assessing NO alarm range: {no_alarm_range}', 'l_yellow')
-                    for crash_frame in all_crash_frames:
-                        if (no_alarm_range_start <= crash_frame <= no_alarm_range_end) or (no_alarm_range_end <= crash_frame <= (no_alarm_range_end + window_size)):
-                            no_alarm_rng_is_fn = True
-                            false_negative_windows[d_type_index][seconds_to_anticipate-1] += 1
-                            cprintf(f'crash in no_alarm_area: {no_alarm_range_start} <= {crash_frame} <= {no_alarm_range_end} or {no_alarm_range_end} <= {crash_frame} <= {no_alarm_range_end + window_size}', 'l_red')
-                    if not no_alarm_rng_is_fn:
-                        true_negative_windows[d_type_index][seconds_to_anticipate-1] += 1
+                if not threshold_too_low[distance_type]:
+                    for no_alarm_range in merged_ranges[True]:
+                        if not isinstance(no_alarm_range, list):
+                            discarded_no_alarms.append(no_alarm_range)
+                            continue
+                        no_alarm_range_start = no_alarm_range[0]
+                        no_alarm_range_end = no_alarm_range[-1]
+                        
+                        # check if any crashes happend inside the NO alarm range
+                        # or inside the window starting from the end of NO alarm range
+                        # + window size (yes? FN per crash instance no? FP per no alarm range)
+                        no_alarm_rng_is_fn = False
+                        # cprintf(f'Assessing NO alarm range: {no_alarm_range}', 'l_yellow')
+                        for crash_frame in all_crash_frames:
+                            if (no_alarm_range_start <= crash_frame <= no_alarm_range_end) or (no_alarm_range_end <= crash_frame <= (no_alarm_range_end + window_size)):
+                                no_alarm_rng_is_fn = True
+                                false_negative_windows[d_type_index][seconds_to_anticipate-1] += 1
+                                # cprintf(f'crash in no_alarm_area: {no_alarm_range_start} <= {crash_frame} <= {no_alarm_range_end} or {no_alarm_range_end} <= {crash_frame} <= {no_alarm_range_end + window_size}', 'l_red')
+                        if not no_alarm_rng_is_fn:
+                            true_negative_windows[d_type_index][seconds_to_anticipate-1] += 1
 
         # prepare CSV file to write the results in
-        results_csv_path = os.path.join(ANOMALOUS_SIM_PATH, str(run_id), f'results_ano_{anomalous_simulation_name}_nom_{nominal_simulation_name}.csv')
+        if average_threshold_acquired:
+            results_csv_path = os.path.join(ANOMALOUS_SIM_PATH, str(run_id), f'results_ano_{anomalous_simulation_name}_nom_{nominal_simulation_name}_avg_threshold.csv')
+        else:
+            results_csv_path = os.path.join(ANOMALOUS_SIM_PATH, str(run_id), f'results_ano_{anomalous_simulation_name}_nom_{nominal_simulation_name}.csv')
+
         if not os.path.exists(results_csv_path):
             with open(results_csv_path, mode='w',
                         newline='') as result_file:
@@ -1428,15 +1457,16 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                                     quoting=csv.QUOTE_MINIMAL,
                                     lineterminator='\n')
                 writer.writerow(
-                    ["time_stamp","heatmap_type", "distance_type", "crashes", "sta", "TP", "FP", "TN", "FN", "accuracy", "fpr", "precision", "recall", "f3"])
+                    ["time_stamp","heatmap_type", "distance_type", "threshold", "is_threshold_too_low", "is_threshold_too_high", "crashes", "sta", "TP", "FP", "TN", "FN", "accuracy", "fpr", "precision", "recall", "f3", "max_val", "min_val"])
 
         for seconds_to_anticipate in seconds_to_anticipate_list:
             for d_type_index, distance_type in enumerate(distance_types):
-                cprintb(f'Results for distance type {distance_type} and {seconds_to_anticipate} seconds', 'l_green')
-                print('TP: ' + f'{true_positive_windows[d_type_index][seconds_to_anticipate-1]}')
-                print('FP: ' + f'{false_positive_windows[d_type_index][seconds_to_anticipate-1]}')
-                print('TN: ' + f'{true_negative_windows[d_type_index][seconds_to_anticipate-1]}')
-                print('FN: ' + f'{false_negative_windows[d_type_index][seconds_to_anticipate-1]}')
+                if not cfg.MINIMAL_LOGGING:
+                    cprintb(f'Results for distance type {distance_type} and {seconds_to_anticipate} seconds', 'l_green')
+                    print('TP: ' + f'{true_positive_windows[d_type_index][seconds_to_anticipate-1]}')
+                    print('FP: ' + f'{false_positive_windows[d_type_index][seconds_to_anticipate-1]}')
+                    print('TN: ' + f'{true_negative_windows[d_type_index][seconds_to_anticipate-1]}')
+                    print('FN: ' + f'{false_negative_windows[d_type_index][seconds_to_anticipate-1]}')
 
                 if true_positive_windows[d_type_index][seconds_to_anticipate-1] != 0:
                     precision = true_positive_windows[d_type_index][seconds_to_anticipate-1] / (true_positive_windows[d_type_index][seconds_to_anticipate-1] + false_positive_windows[d_type_index][seconds_to_anticipate-1])
@@ -1448,27 +1478,53 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                     if precision != 0 or recall != 0:
                         f3 = true_positive_windows[d_type_index][seconds_to_anticipate-1] / (
                                 true_positive_windows[d_type_index][seconds_to_anticipate-1] + 0.1 * false_positive_windows[d_type_index][seconds_to_anticipate-1] + 0.9 * false_negative_windows[d_type_index][seconds_to_anticipate-1])
+                        try:
+                            accuracy_percent = str(round(accuracy * 100))
+                        except:
+                            accuracy_percent = str(accuracy)
 
-                        print("Accuracy: " + str(round(accuracy * 100)) + "%")
-                        print("False Positive Rate: " + str(round(fpr * 100)) + "%")
-                        print("Precision: " + str(round(precision * 100)) + "%")
-                        print("Recall: " + str(round(recall * 100)) + "%")
-                        print("F-3: " + str(round(f3 * 100)) + "%\n")
+                        try:
+                            fpr_percent = str(round(fpr * 100))
+                        except:
+                            fpr_percent = str(fpr)
+
+                        try:
+                            precision_percent = str(round(precision * 100))
+                        except:
+                            precision_percent = str(precision)
+
+                        try:
+                            recall_percent = str(round(recall * 100))
+                        except:
+                            recall_percent = str(recall)
+
+                        try:
+                            f3_percent = str(round(f3 * 100))
+                        except:
+                            f3_percent = str(f3)
+                        if not cfg.MINIMAL_LOGGING:
+                            print("Accuracy: " + accuracy_percent + "%")
+                            print("False Positive Rate: " + fpr_percent + "%")
+                            print("Precision: " + precision_percent + "%")
+                            print("Recall: " + recall_percent + "%")
+                            print("F-3: " + f3_percent + "%\n")
                     else:
                         precision = recall = f3 = accuracy = fpr = 0
+                        if not cfg.MINIMAL_LOGGING:
+                            print("Accuracy: undefined")
+                            print("False Positive Rate: undefined")
+                            print("Precision: undefined")
+                            print("Recall: undefined")
+                            print("F-3: undefined\n")
+                else:
+                    precision = recall = f3 = accuracy = fpr = 0
+                    if not cfg.MINIMAL_LOGGING:
                         print("Accuracy: undefined")
                         print("False Positive Rate: undefined")
                         print("Precision: undefined")
                         print("Recall: undefined")
+                        print("F-1: undefined")
                         print("F-3: undefined\n")
-                else:
-                    precision = recall = f3 = accuracy = fpr = 0
-                    print("Accuracy: undefined")
-                    print("False Positive Rate: undefined")
-                    print("Precision: undefined")
-                    print("Recall: undefined")
-                    print("F-1: undefined")
-                    print("F-3: undefined\n")
 
                 with open(results_csv_path, mode='a',
                             newline='') as result_file:
@@ -1480,18 +1536,23 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                     writer.writerow([datetime.now().strftime("%Y_%m_%d_%H_%M_%S"),
                                     heatmap_type,
                                     distance_type,
+                                    thresholds[distance_type],
+                                    threshold_too_low[distance_type],
+                                    threshold_too_high[distance_type],
                                     str(len(all_crash_frames)),
                                     str(seconds_to_anticipate),
                                     str(true_positive_windows[d_type_index][seconds_to_anticipate-1]),
                                     str(false_positive_windows[d_type_index][seconds_to_anticipate-1]),
                                     str(true_negative_windows[d_type_index][seconds_to_anticipate-1]),
                                     str(false_negative_windows[d_type_index][seconds_to_anticipate-1]),
-                                    str(round(accuracy * 100)),
-                                    str(round(fpr * 100)),
-                                    str(round(precision * 100)),
-                                    str(round(recall * 100)),
-                                    str(round(f3 * 100))])
-    return fig_img_address
+                                    accuracy_percent,
+                                    fpr_percent,
+                                    precision_percent,
+                                    recall_percent,
+                                    f3_percent,
+                                    distance_vectors_avgs[d_type_index].max(),
+                                    distance_vectors_avgs[d_type_index].min()])
+    return fig_img_address, results_csv_path, seconds_to_anticipate_list
 
 
 
