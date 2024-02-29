@@ -290,17 +290,28 @@ if __name__ == '__main__':
     if cfg.EVALUATE_ALL:
 
                            
-        ANO_SIMULATIONS = ['track1-night-rain-100-anomalous',
-                           'track1-night-rain-100-anomalous',
-                           'track1-night-rain-100-anomalous',
-                           'track1-night-fog-100-anomalous',
-                           'track1-night-fog-100-anomalous',
-                           'track1-night-fog-100-anomalous',
-                           'track1-night-snow-100-anomalous',
-                           'track1-night-snow-100-anomalous',
-                           'track1-night-snow-100-anomalous']
-                        #    'track1-day-fog-100',
-                        #    'track1-day-fog-100']
+        ANO_SIMULATIONS = ['track1-day-fog-100',
+                           'track1-day-fog-100',
+                           'track1-day-fog-100',
+                           'track1-day-rain-100',
+                           'track1-day-rain-100',
+                           'track1-day-rain-100',
+                        #    'track1-day-snow-100',
+                        #    'track1-day-snow-100',
+                        #    'track1-day-snow-100',
+                           'track1-night-moon-anomalous',
+                           'track1-night-moon-anomalous',
+                           'track1-night-moon-anomalous']
+                        #    'track1-night-rain-100-anomalous',
+                        #    'track1-night-rain-100-anomalous',
+                        #    'track1-night-rain-100-anomalous',
+                        #    'track1-night-fog-100-anomalous',
+                        #    'track1-night-fog-100-anomalous',
+                        #    'track1-night-fog-100-anomalous',
+                        #    'track1-night-snow-100-anomalous',
+                        #    'track1-night-snow-100-anomalous',
+                        #    'track1-night-snow-100-anomalous']
+
         
                         #     cfg.BASE_NOMINAL_SUNNY_SIM,
                         #    'track1-night-rain-100-nominal',
@@ -310,16 +321,27 @@ if __name__ == '__main__':
                         #    'track1-night-snow-100-nominal',
         
         NOM_SIMULATIONS = [cfg.BASE_NOMINAL_SUNNY_SIM,
-                           'track1-night-rain-100-nominal',
-                           'track1-night-rain-100-nominal',
+                           'track1-day-fog-100-nominal',
+                           'track1-day-fog-100-nominal',
                            cfg.BASE_NOMINAL_SUNNY_SIM,
-                           'track1-night-fog-100-nominal',
-                           'track1-night-fog-100-nominal',
-                           cfg.BASE_NOMINAL_SUNNY_SIM,
-                           'track1-night-snow-100-nominal',
-                           'track1-night-snow-100-nominal']
+                           'track1-day-rain-100-nominal',
+                           'track1-day-rain-100-nominal',
                         #    cfg.BASE_NOMINAL_SUNNY_SIM,
-                        #    'track1-day-fog-100-nominal']
+                        #    'track1-day-snow-100-nominal',
+                        #    'track1-day-snow-100-nominal',
+                           cfg.BASE_NOMINAL_SUNNY_SIM,
+                           'track1-night-moon-nominal',
+                           'track1-night-moon-nominal']
+                        #    cfg.BASE_NOMINAL_SUNNY_SIM,
+                        #    'track1-night-rain-100-nominal',
+                        #    'track1-night-rain-100-nominal',
+                        #    cfg.BASE_NOMINAL_SUNNY_SIM,
+                        #    'track1-night-fog-100-nominal',
+                        #    'track1-night-fog-100-nominal',
+                        #    cfg.BASE_NOMINAL_SUNNY_SIM,
+                        #    'track1-night-snow-100-nominal',
+                        #    'track1-night-snow-100-nominal']
+                           
 
                                 #  cfg.BASE_THRESHOLD_SUNNY_SIM,
                                 #  'track1-night-rain-100-threshold',
@@ -329,16 +351,26 @@ if __name__ == '__main__':
                                 #  'track1-night-snow-100-threshold',
 
         THRESHOLD_SIMULATIONS = [cfg.BASE_THRESHOLD_SUNNY_SIM,
-                                 'track1-night-rain-100-threshold',
-                                 'track1-night-rain-100-threshold',
+                                 'track1-day-fog-100-threshold',
+                                 'track1-day-fog-100-threshold',
                                  cfg.BASE_THRESHOLD_SUNNY_SIM,
-                                 'track1-night-fog-100-threshold',
-                                 'track1-night-fog-100-threshold',
-                                 cfg.BASE_THRESHOLD_SUNNY_SIM,
-                                 'track1-night-snow-100-threshold',
-                                 'track1-night-snow-100-threshold']
+                                 'track1-day-rain-100-threshold',
+                                 'track1-day-rain-100-threshold',
                                 #  cfg.BASE_THRESHOLD_SUNNY_SIM,
-                                #  'track1-day-fog-100-threshold']
+                                #  'track1-day-snow-100-threshold',
+                                #  'track1-day-snow-100-threshold',
+                                 cfg.BASE_THRESHOLD_SUNNY_SIM,
+                                 'track1-night-moon-threshold',
+                                 'track1-night-moon-threshold']
+                                #  cfg.BASE_THRESHOLD_SUNNY_SIM,
+                                #  'track1-night-rain-100-threshold',
+                                #  'track1-night-rain-100-threshold',
+                                #  cfg.BASE_THRESHOLD_SUNNY_SIM,
+                                #  'track1-night-fog-100-threshold',
+                                #  'track1-night-fog-100-threshold',
+                                #  cfg.BASE_THRESHOLD_SUNNY_SIM,
+                                #  'track1-night-snow-100-threshold',
+                                #  'track1-night-snow-100-threshold']
         # THRESHOLD_SIMULATIONS = [cfg.BASE_THRESHOLD_SUNNY_SIM, cfg.BASE_THRESHOLD_SUNNY_SIM]
         RUN_ID_NUMBERS = [[1],
                           [1],
@@ -467,7 +499,8 @@ if __name__ == '__main__':
                 # clear previous result CSVs:
                 results_folder_path = os.path.join(cfg.TESTING_DATA_DIR, sim_name, str(run_id))
                 figs_dir = os.path.join(cfg.TESTING_DATA_DIR, sim_name, str(run_id), 'FIGS')
-                delete_contents_except(results_folder_path, figs_dir)
+                if os.path.exists(figs_dir) and os.path.exists(results_folder_path):
+                    delete_contents_except(results_folder_path, figs_dir)
 
             if not os.path.exists(figs_dir):
                 cfg.PLOT_POINT_TO_POINT = True
@@ -546,7 +579,13 @@ if __name__ == '__main__':
                             
                         if averaged_theshold:
                             average_thresholds = {}
-
+                            # get all indexes of current ano sim
+                            indices = [i for i, x in enumerate(ANO_SIMULATIONS) if x == SIMULATION_NAME_ANOMALOUS]
+                            # find the nom sim name other than base nominal sunny sim
+                            for i in indices:
+                                if NOM_SIMULATIONS[i] != cfg.BASE_NOMINAL_SUNNY_SIM:
+                                    th_assess_nom_sim = NOM_SIMULATIONS[i]
+                            average_thresholds_path = os.path.join(ANOMALOUS_PATHS[0], str(run_id), 'averaged_theshold', f'average_thresholds_{SIMULATION_NAME_ANOMALOUS}_nom_{th_assess_nom_sim}.csv')
                             with open(average_thresholds_path, 'r') as csvfile:
                                 reader = csv.DictReader(csvfile)
                                 for row in reader:
@@ -607,76 +646,85 @@ if __name__ == '__main__':
                                             quotechar='"',
                                             quoting=csv.QUOTE_MINIMAL,
                                             lineterminator='\n')
-                        writer.writerow(["time_stamp","heatmap_type", "is_threshold_too_low_count", "is_threshold_too_high_count", "sta", "TP", "FP", "TN", "FN", "precision", "recall", "accuracy", "fpr","TP_all", "FP_all", "TN_all", "FN_all", "precision_all", "recall_all", "accuracy_all", "fpr_all"])
+                        # writer.writerow(["time_stamp","heatmap_type", "is_threshold_too_low_count", "is_threshold_too_high_count", "sta", "TP", "FP", "TN", "FN", "precision", "recall", "accuracy", "fpr","TP_all", "FP_all", "TN_all", "FN_all", "precision_all", "recall_all", "accuracy_all", "fpr_all"])
+                        writer.writerow(["time_stamp","heatmap_type", "sta", "TP", "FP", "TN", "FN", "precision", "recall", "accuracy", "fpr","TP_all", "FP_all", "TN_all", "FN_all", "precision_all", "recall_all", "accuracy_all", "fpr_all"])
                                 
                         for heatmap_type in HEATMAP_TYPES:
                             for sta in seconds_to_anticipate_list:
                                 num_crashes = results_df['crashes'].values[0]
-                                # Filter the DataFrame for heatmap type and 'is_threshold_too_low' being True
-                                too_low_count = len(results_df[(results_df['heatmap_type'] == f'{heatmap_type}') & (results_df['is_threshold_too_low'] == True) & (results_df['sta'] == sta)])
-                                too_high_count = len(results_df[(results_df['heatmap_type'] == f'{heatmap_type}') & (results_df['is_threshold_too_high'] == True) & (results_df['sta'] == sta)])
+                                # # Filter the DataFrame for heatmap type and 'is_threshold_too_low' being True
+                                # too_low_count = len(results_df[(results_df['heatmap_type'] == f'{heatmap_type}') & (results_df['is_threshold_too_low'] == True) & (results_df['sta'] == sta)])
+                                # too_high_count = len(results_df[(results_df['heatmap_type'] == f'{heatmap_type}') & (results_df['is_threshold_too_high'] == True) & (results_df['sta'] == sta)])
                                 # cases where thresholds are not too high or too low
-                                heatmap_filter_valid_threshold = results_df[(results_df['heatmap_type'] == f'{heatmap_type}') & (results_df['is_threshold_too_low'] == False) & (results_df['is_threshold_too_high'] == False & (results_df['sta'] == sta))]
+                                # heatmap_filter_valid_threshold = results_df[(results_df['heatmap_type'] == f'{heatmap_type}') & (results_df['is_threshold_too_low'] == False) & (results_df['is_threshold_too_high'] == False & (results_df['sta'] == sta))]
+                                heatmap_filter_valid_threshold = results_df[(results_df['heatmap_type'] == f'{heatmap_type}')]
                                 TP = np.sum(heatmap_filter_valid_threshold['TP'].values)
-                                FP = np.sum(heatmap_filter_valid_threshold['FP'].values) + too_low_count*num_crashes
+                                FP = np.sum(heatmap_filter_valid_threshold['FP'].values)
                                 TN = np.sum(heatmap_filter_valid_threshold['TN'].values)
-                                FN = np.sum(heatmap_filter_valid_threshold['FN'].values) + too_high_count*num_crashes
+                                FN = np.sum(heatmap_filter_valid_threshold['FN'].values)
                                 precision = TP/(TP+FP)
                                 recall = TP/(TP+FN)
                                 accuracy = (TP+TN)/(TP+TN+FP+FN)
                                 fpr = FP/(FP+TN)
 
-                                # Filter the DataFrame for heatmap type and 'is_threshold_too_low' being True
-                                too_low_count_all = len(results_df[(results_df['heatmap_type'] == f'{heatmap_type}') & (results_df['is_threshold_too_low'] == True)])
-                                too_high_count_all = len(results_df[(results_df['heatmap_type'] == f'{heatmap_type}') & (results_df['is_threshold_too_high'] == True)])
+                                # # Filter the DataFrame for heatmap type and 'is_threshold_too_low' being True
+                                # too_low_count_all = len(results_df[(results_df['heatmap_type'] == f'{heatmap_type}') & (results_df['is_threshold_too_low'] == True)])
+                                # too_high_count_all = len(results_df[(results_df['heatmap_type'] == f'{heatmap_type}') & (results_df['is_threshold_too_high'] == True)])
                                 # cases where thresholds are not too high or too low
-                                heatmap_filter_valid_threshold_all = results_df[(results_df['heatmap_type'] == f'{heatmap_type}') & (results_df['is_threshold_too_low'] == False) & (results_df['is_threshold_too_high'] == False)]
+                                # heatmap_filter_valid_threshold_all = results_df[(results_df['heatmap_type'] == f'{heatmap_type}') & (results_df['is_threshold_too_low'] == False) & (results_df['is_threshold_too_high'] == False)]
+                                heatmap_filter_valid_threshold_all = results_df[(results_df['heatmap_type'] == f'{heatmap_type}')]
                                 TP_all = np.sum(heatmap_filter_valid_threshold_all['TP'].values)
-                                FP_all = np.sum(heatmap_filter_valid_threshold_all['FP'].values) + too_low_count_all*num_crashes
+                                FP_all = np.sum(heatmap_filter_valid_threshold_all['FP'].values)
                                 TN_all = np.sum(heatmap_filter_valid_threshold_all['TN'].values)
-                                FN_all = np.sum(heatmap_filter_valid_threshold_all['FN'].values) + too_high_count_all*num_crashes
+                                FN_all = np.sum(heatmap_filter_valid_threshold_all['FN'].values)
                                 precision_all = TP_all/(TP_all+FP_all)
                                 recall_all = TP_all/(TP_all+FN_all)
                                 accuracy_all = (TP_all+TN_all)/(TP_all+TN_all+FP_all+FN_all)
                                 fpr_all = FP_all/(FP_all+TN_all)
 
-                                writer.writerow([datetime.now().strftime("%Y_%m_%d_%H_%M_%S"), heatmap_type, str(too_low_count), str(too_high_count), str(sta), str(TP), str(FP), str(TN), str(FN), str(precision), str(recall), str(accuracy), str(fpr), str(TP_all), str(FP_all), str(TN_all), str(FN_all), str(precision_all), str(recall_all), str(accuracy_all), str(fpr_all)])
+                                writer.writerow([datetime.now().strftime("%Y_%m_%d_%H_%M_%S"), heatmap_type,
+                                                #   str(too_low_count), str(too_high_count),
+                                                str(sta), str(TP), str(FP), str(TN), str(FN), str(precision), str(recall), str(accuracy), str(fpr), str(TP_all), str(FP_all), str(TN_all), str(FN_all), str(precision_all), str(recall_all), str(accuracy_all), str(fpr_all)])
                                     
                         writer.writerow(["time_stamp","distance_type", "is_threshold_too_low_count", "is_threshold_too_high_count", "sta", "TP", "FP", "TN", "FN", "precision", "recall", "accuracy", "fpr","TP_all", "FP_all", "TN_all", "FN_all", "precision_all", "recall_all", "accuracy_all", "fpr_all"])
                             
                         for distance_type in DISTANCE_TYPES:
                             for sta in seconds_to_anticipate_list:
                                 num_crashes = results_df['crashes'].values[0]
-                                # Filter the DataFrame for distance type and 'is_threshold_too_low' being True
-                                too_low_count = len(results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['is_threshold_too_low'] == True) & (results_df['sta'] == sta)])
-                                too_high_count = len(results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['is_threshold_too_high'] == True) & (results_df['sta'] == sta)])
+                                # # Filter the DataFrame for distance type and 'is_threshold_too_low' being True
+                                # too_low_count = len(results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['is_threshold_too_low'] == True) & (results_df['sta'] == sta)])
+                                # too_high_count = len(results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['is_threshold_too_high'] == True) & (results_df['sta'] == sta)])
                                 # cases where thresholds are not too high or too low
-                                distance_filter_valid_threshold = results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['is_threshold_too_low'] == False) & (results_df['is_threshold_too_high'] == False & (results_df['sta'] == sta))]
+                                # distance_filter_valid_threshold = results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['is_threshold_too_low'] == False) & (results_df['is_threshold_too_high'] == False & (results_df['sta'] == sta))]
+                                distance_filter_valid_threshold = results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['sta'] == sta)]
                                 TP = np.sum(distance_filter_valid_threshold['TP'].values)
-                                FP = np.sum(distance_filter_valid_threshold['FP'].values) + too_low_count*num_crashes
+                                FP = np.sum(distance_filter_valid_threshold['FP'].values)
                                 TN = np.sum(distance_filter_valid_threshold['TN'].values)
-                                FN = np.sum(distance_filter_valid_threshold['FN'].values) + too_high_count*num_crashes
+                                FN = np.sum(distance_filter_valid_threshold['FN'].values)
                                 precision = TP/(TP+FP)
                                 recall = TP/(TP+FN)
                                 accuracy = (TP+TN)/(TP+TN+FP+FN)
                                 fpr = FP/(FP+TN)
 
-                                # Filter the DataFrame for distance type and 'is_threshold_too_low' being True
-                                too_low_count_all = len(results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['is_threshold_too_low'] == True)])
-                                too_high_count_all = len(results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['is_threshold_too_high'] == True)])
+                                # # Filter the DataFrame for distance type and 'is_threshold_too_low' being True
+                                # too_low_count_all = len(results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['is_threshold_too_low'] == True)])
+                                # too_high_count_all = len(results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['is_threshold_too_high'] == True)])
                                 # cases where thresholds are not too high or too low
-                                distance_filter_valid_threshold_all = results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['is_threshold_too_low'] == False) & (results_df['is_threshold_too_high'] == False)]
+                                # distance_filter_valid_threshold_all = results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['is_threshold_too_low'] == False) & (results_df['is_threshold_too_high'] == False)]
+                                distance_filter_valid_threshold_all = results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['sta'] == sta)]
                                 TP_all = np.sum(distance_filter_valid_threshold_all['TP'].values)
-                                FP_all = np.sum(distance_filter_valid_threshold_all['FP'].values) + too_low_count_all*num_crashes
+                                FP_all = np.sum(distance_filter_valid_threshold_all['FP'].values)
                                 TN_all = np.sum(distance_filter_valid_threshold_all['TN'].values)
-                                FN_all = np.sum(distance_filter_valid_threshold_all['FN'].values) + too_high_count_all*num_crashes
+                                FN_all = np.sum(distance_filter_valid_threshold_all['FN'].values)
                                 precision_all = TP_all/(TP_all+FP_all)
                                 recall_all = TP_all/(TP_all+FN_all)
                                 accuracy_all = (TP_all+TN_all)/(TP_all+TN_all+FP_all+FN_all)
                                 fpr_all = FP_all/(FP_all+TN_all)
 
 
-                                writer.writerow([datetime.now().strftime("%Y_%m_%d_%H_%M_%S"), distance_type, str(too_low_count), str(too_high_count), str(sta), str(TP), str(FP), str(TN), str(FN), str(precision), str(recall), str(accuracy), str(fpr), str(TP_all), str(FP_all), str(TN_all), str(FN_all), str(precision_all), str(recall_all), str(accuracy_all), str(fpr_all)])
+                                writer.writerow([datetime.now().strftime("%Y_%m_%d_%H_%M_%S"), distance_type,
+                                                #   str(too_low_count), str(too_high_count),
+                                                    str(sta), str(TP), str(FP), str(TN), str(FN), str(precision), str(recall), str(accuracy), str(fpr), str(TP_all), str(FP_all), str(TN_all), str(FN_all), str(precision_all), str(recall_all), str(accuracy_all), str(fpr_all)])
 
                 if cfg.THRESHOLD_ASSESSMENT:
                     # get all indexes of current ano sim

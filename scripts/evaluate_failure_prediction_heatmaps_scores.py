@@ -952,14 +952,14 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                         last_frame_idx = len(distance_vector_averaged) - 1
                         number_of_frames_to_cut = 50
                         offset_weight = 2
-                        if distance_type == 'euclidean' and heatmap_type == 'Epsilon_LRP':
-                            print('####################################################################################################################################')
-                            print(ano_threshold)
-                            print(threshold)
-                            print(distance_vector_averaged[number_of_frames_to_cut:last_frame_idx-number_of_frames_to_cut].min())
-                            print(np.argmin(distance_vector_averaged[number_of_frames_to_cut:last_frame_idx-number_of_frames_to_cut]))
-                            print(distance_vector_averaged[number_of_frames_to_cut:last_frame_idx-number_of_frames_to_cut].max())
-                            print(np.argmax(distance_vector_averaged[number_of_frames_to_cut:last_frame_idx-number_of_frames_to_cut]))
+                        # if distance_type == 'euclidean' and heatmap_type == 'Epsilon_LRP':
+                        #     print('####################################################################################################################################')
+                        #     print(ano_threshold)
+                        #     print(threshold)
+                        #     print(distance_vector_averaged[number_of_frames_to_cut:last_frame_idx-number_of_frames_to_cut].min())
+                        #     print(np.argmin(distance_vector_averaged[number_of_frames_to_cut:last_frame_idx-number_of_frames_to_cut]))
+                        #     print(distance_vector_averaged[number_of_frames_to_cut:last_frame_idx-number_of_frames_to_cut].max())
+                        #     print(np.argmax(distance_vector_averaged[number_of_frames_to_cut:last_frame_idx-number_of_frames_to_cut]))
                         if (threshold < distance_vector_averaged[number_of_frames_to_cut:last_frame_idx-number_of_frames_to_cut].min()) or (threshold > distance_vector_averaged[number_of_frames_to_cut:last_frame_idx-number_of_frames_to_cut].max()):
                             threshold = (threshold + offset_weight*ano_threshold)/3
         
@@ -1414,62 +1414,64 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                             boolean_ranges[rng_idx] = True
                 # merge smaller no_alarm range into surrounding alarm ranges
                 merged_ranges = merge_ranges(all_ranges, boolean_ranges)
-                if len(merged_ranges[True]) == 0:
-                    threshold_too_low[distance_type] = True
-                elif len(merged_ranges[False]) == 0:
-                    threshold_too_high[distance_type] = True
+                # if len(merged_ranges[True]) == 0:
+                #     threshold_too_low[distance_type] = True
+                # elif len(merged_ranges[False]) == 0:
+                #     threshold_too_high[distance_type] = True
                 ################ Calculate True and False Positives ################
-                if not threshold_too_high[distance_type]:
-                    for alarm_range in merged_ranges[False]:
-                        if not isinstance(alarm_range, list):
-                            discarded_alarms.append(alarm_range)
-                            continue
-                        alarm_range_start = alarm_range[0]
-                        alarm_range_end = alarm_range[-1]
-                        
-                        # check if any crashes happend inside the alarm range
-                        # or inside the window starting from the end of alarm range
-                        # + window size (yes? TP per crash instance no? FP per alarm range)
-                        alarm_rng_is_tp = False
-                        if not cfg.MINIMAL_LOGGING:
-                            cprintf(f'Assessing alarm range: {alarm_range}', 'l_yellow')
-                        for crash_frame in all_crash_frames:
-                            if (alarm_range_start <= crash_frame <= alarm_range_end) or (alarm_range_end <= crash_frame <= (alarm_range_end + window_size)):
-                                alarm_rng_is_tp = True
-                                true_positive_windows[d_type_index][seconds_to_anticipate-1] += 1
-                                # cprintf(f'crash is predicted: {alarm_range_start} <= {crash_frame} <= {alarm_range_end} or {alarm_range_end} <= {crash_frame} <= {alarm_range_end + window_size}', 'l_green')
-                        if not alarm_rng_is_tp:
-                            false_positive_windows[d_type_index][seconds_to_anticipate-1] += 1
+                # if not threshold_too_high[distance_type]:
+                for alarm_range in merged_ranges[False]:
+                    if not isinstance(alarm_range, list):
+                        discarded_alarms.append(alarm_range)
+                        continue
+                    alarm_range_start = alarm_range[0]
+                    alarm_range_end = alarm_range[-1]
+                    
+                    # check if any crashes happend inside the alarm range
+                    # or inside the window starting from the end of alarm range
+                    # + window size (yes? TP per crash instance no? FP per alarm range)
+                    alarm_rng_is_tp = False
+                    if not cfg.MINIMAL_LOGGING:
+                        cprintf(f'Assessing alarm range: {alarm_range}', 'l_yellow')
+                    for crash_frame in all_crash_frames:
+                        if (alarm_range_start <= crash_frame <= alarm_range_end) or (alarm_range_end <= crash_frame <= (alarm_range_end + window_size)):
+                            alarm_rng_is_tp = True
+                            true_positive_windows[d_type_index][seconds_to_anticipate-1] += 1
+                            # cprintf(f'crash is predicted: {alarm_range_start} <= {crash_frame} <= {alarm_range_end} or {alarm_range_end} <= {crash_frame} <= {alarm_range_end + window_size}', 'l_green')
+                    if not alarm_rng_is_tp:
+                        false_positive_windows[d_type_index][seconds_to_anticipate-1] += 1
 
 
                 ################ Calculate True and False Negatives ################
-                if not threshold_too_low[distance_type]:
-                    for no_alarm_range in merged_ranges[True]:
-                        if not isinstance(no_alarm_range, list):
-                            discarded_no_alarms.append(no_alarm_range)
-                            continue
-                        no_alarm_range_start = no_alarm_range[0]
-                        no_alarm_range_end = no_alarm_range[-1]
-                        
-                        # check if any crashes happend inside the NO alarm range
-                        # or inside the window starting from the end of NO alarm range
-                        # + window size (yes? FN per crash instance no? FP per no alarm range)
-                        no_alarm_rng_is_fn = False
-                        # cprintf(f'Assessing NO alarm range: {no_alarm_range}', 'l_yellow')
-                        for crash_frame in all_crash_frames:
-                            if (no_alarm_range_start <= crash_frame <= no_alarm_range_end) or (no_alarm_range_end <= crash_frame <= (no_alarm_range_end + window_size)):
-                                no_alarm_rng_is_fn = True
-                                false_negative_windows[d_type_index][seconds_to_anticipate-1] += 1
-                                # cprintf(f'crash in no_alarm_area: {no_alarm_range_start} <= {crash_frame} <= {no_alarm_range_end} or {no_alarm_range_end} <= {crash_frame} <= {no_alarm_range_end + window_size}', 'l_red')
-                        if not no_alarm_rng_is_fn:
-                            true_negative_windows[d_type_index][seconds_to_anticipate-1] += 1
+                # if not threshold_too_low[distance_type]:
+                for no_alarm_range in merged_ranges[True]:
+                    if not isinstance(no_alarm_range, list):
+                        discarded_no_alarms.append(no_alarm_range)
+                        continue
+                    no_alarm_range_start = no_alarm_range[0]
+                    no_alarm_range_end = no_alarm_range[-1]
+                    
+                    # check if any crashes happend inside the NO alarm range
+                    # or inside the window starting from the end of NO alarm range
+                    # + window size (yes? FN per crash instance no? FP per no alarm range)
+                    no_alarm_rng_is_fn = False
+                    # cprintf(f'Assessing NO alarm range: {no_alarm_range}', 'l_yellow')
+                    for crash_frame in all_crash_frames:
+                        if (no_alarm_range_start <= crash_frame <= no_alarm_range_end) or (no_alarm_range_end <= crash_frame <= (no_alarm_range_end + window_size)):
+                            no_alarm_rng_is_fn = True
+                            false_negative_windows[d_type_index][seconds_to_anticipate-1] += 1
+                            # cprintf(f'crash in no_alarm_area: {no_alarm_range_start} <= {crash_frame} <= {no_alarm_range_end} or {no_alarm_range_end} <= {crash_frame} <= {no_alarm_range_end + window_size}', 'l_red')
+                    if not no_alarm_rng_is_fn:
+                        true_negative_windows[d_type_index][seconds_to_anticipate-1] += 1
 
         # prepare CSV file to write the results in
+        results_folder_path = os.path.join(ANOMALOUS_SIM_PATH, str(run_id))
         if average_threshold_acquired:
-            results_csv_path = os.path.join(ANOMALOUS_SIM_PATH, str(run_id), f'results_ano_{anomalous_simulation_name}_nom_{nominal_simulation_name}_avg_threshold.csv')
+            results_csv_path = os.path.join(results_folder_path, f'results_ano_{anomalous_simulation_name}_nom_{nominal_simulation_name}_avg_threshold.csv')
         else:
-            results_csv_path = os.path.join(ANOMALOUS_SIM_PATH, str(run_id), f'results_ano_{anomalous_simulation_name}_nom_{nominal_simulation_name}.csv')
-
+            results_csv_path = os.path.join(results_folder_path, f'results_ano_{anomalous_simulation_name}_nom_{nominal_simulation_name}.csv')
+        if not os.path.exists(results_folder_path):
+            os.makedirs(results_folder_path)
         if not os.path.exists(results_csv_path):
             with open(results_csv_path, mode='w',
                         newline='') as result_file:
@@ -1478,8 +1480,10 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                                     quotechar='"',
                                     quoting=csv.QUOTE_MINIMAL,
                                     lineterminator='\n')
+                # writer.writerow(
+                #     ["time_stamp","heatmap_type", "distance_type", "threshold", "is_threshold_too_low", "is_threshold_too_high", "crashes", "sta", "TP", "FP", "TN", "FN", "accuracy", "fpr", "precision", "recall", "f3", "max_val", "min_val"])
                 writer.writerow(
-                    ["time_stamp","heatmap_type", "distance_type", "threshold", "is_threshold_too_low", "is_threshold_too_high", "crashes", "sta", "TP", "FP", "TN", "FN", "accuracy", "fpr", "precision", "recall", "f3", "max_val", "min_val"])
+                    ["time_stamp","heatmap_type", "distance_type", "threshold", "crashes", "sta", "TP", "FP", "TN", "FN", "accuracy", "fpr", "precision", "recall", "f3", "max_val", "min_val"])
 
         for seconds_to_anticipate in seconds_to_anticipate_list:
             for d_type_index, distance_type in enumerate(distance_types):
@@ -1559,8 +1563,8 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                                     heatmap_type,
                                     distance_type,
                                     thresholds[distance_type],
-                                    threshold_too_low[distance_type],
-                                    threshold_too_high[distance_type],
+                                    # threshold_too_low[distance_type],
+                                    # threshold_too_high[distance_type],
                                     str(len(all_crash_frames)),
                                     str(seconds_to_anticipate),
                                     str(true_positive_windows[d_type_index][seconds_to_anticipate-1]),
