@@ -1345,7 +1345,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
     # b = ScrollableGraph(fig, ax)
 
     #################################### CALCULATE RESULTS #########################################
-    if cfg.CALCULATE_RESULTS:
+    if cfg.CALCULATE_RESULTS and not threshold_sim:
         # get total simulation time
         main_csv_anomalous = pd.read_csv(ANOMALOUS_MAIN_CSV_PATH)
         main_csv = pd.DataFrame(main_csv_anomalous['center'].copy(), columns=['center'])
@@ -1375,8 +1375,8 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
         print(all_crash_frames)
         print(f"Simulation FPS: {fps_anomalous}")
         # initializing arrays
-        threshold_too_low = {}
-        threshold_too_high = {}
+        # threshold_too_low = {}
+        # threshold_too_high = {}
         true_positive_windows = np.zeros((len(distance_types), 3))
         false_negative_windows = np.zeros((len(distance_types), 3))
         false_positive_windows = np.zeros((len(distance_types), 3))
@@ -1387,8 +1387,8 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
             for d_type_index, distance_type in enumerate(distance_types):
                 if not cfg.MINIMAL_LOGGING:
                     cprintb(f'FP && TN: {distance_type}', 'l_yellow')
-                threshold_too_low[distance_type] = False
-                threshold_too_high[distance_type] = False
+                # threshold_too_low[distance_type] = False
+                # threshold_too_high[distance_type] = False
                 distance_vector_avg = distance_vectors_avgs[d_type_index]
                 threshold = thresholds[distance_type]
                 _, no_alarm_ranges, all_ranges = get_alarm_frames(distance_vector_avg, threshold)
@@ -1439,6 +1439,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                             true_positive_windows[d_type_index][seconds_to_anticipate-1] += 1
                             # cprintf(f'crash is predicted: {alarm_range_start} <= {crash_frame} <= {alarm_range_end} or {alarm_range_end} <= {crash_frame} <= {alarm_range_end + window_size}', 'l_green')
                     if not alarm_rng_is_tp:
+                        # number_of_predictable_windows = round((alarm_range_end - alarm_range_start)/(window_size))
                         false_positive_windows[d_type_index][seconds_to_anticipate-1] += 1
 
 
@@ -1453,7 +1454,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                     
                     # check if any crashes happend inside the NO alarm range
                     # or inside the window starting from the end of NO alarm range
-                    # + window size (yes? FN per crash instance no? FP per no alarm range)
+                    # + window size (yes? FN per crash instance no? FP per no alarm range: changed that to windows inside no alarm range. Reason: very low accuracy for correct predictions(FNs) if threshold is mostly above the distance curve). 
                     no_alarm_rng_is_fn = False
                     # cprintf(f'Assessing NO alarm range: {no_alarm_range}', 'l_yellow')
                     for crash_frame in all_crash_frames:
@@ -1462,7 +1463,8 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                             false_negative_windows[d_type_index][seconds_to_anticipate-1] += 1
                             # cprintf(f'crash in no_alarm_area: {no_alarm_range_start} <= {crash_frame} <= {no_alarm_range_end} or {no_alarm_range_end} <= {crash_frame} <= {no_alarm_range_end + window_size}', 'l_red')
                     if not no_alarm_rng_is_fn:
-                        true_negative_windows[d_type_index][seconds_to_anticipate-1] += 1
+                        number_of_predictable_windows = round((no_alarm_range_end - no_alarm_range_start)/(window_size))
+                        true_negative_windows[d_type_index][seconds_to_anticipate-1] += number_of_predictable_windows
 
         # prepare CSV file to write the results in
         results_folder_path = os.path.join(ANOMALOUS_SIM_PATH, str(run_id))
@@ -1578,7 +1580,8 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                                     f3_percent,
                                     distance_vectors_avgs[d_type_index].max(),
                                     distance_vectors_avgs[d_type_index].min()])
-    return fig_img_address, results_csv_path, seconds_to_anticipate_list
+    if not threshold_sim:
+        return fig_img_address, results_csv_path, seconds_to_anticipate_list
 
 
 

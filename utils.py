@@ -782,8 +782,8 @@ def string_to_np_array(vector_string, frame_num):
     return vector
 
 def correct_windows_path(address):
-    if "\\\\" in address:
-        address = address.replace("\\\\", "/")
+    if "\\" in address:
+        address = address.replace("\\", "/")
     elif "\\\\" in address:
         address = address.replace("\\\\", "/")
     return address

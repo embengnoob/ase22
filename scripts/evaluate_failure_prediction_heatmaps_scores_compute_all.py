@@ -290,89 +290,107 @@ if __name__ == '__main__':
     if cfg.EVALUATE_ALL:
 
                            
-        ANO_SIMULATIONS = ['track1-day-fog-100',
+        ANO_SIMULATIONS = [
+                            'track1-day-fog-100',
                            'track1-day-fog-100',
                            'track1-day-fog-100',
                            'track1-day-rain-100',
                            'track1-day-rain-100',
                            'track1-day-rain-100',
-                        #    'track1-day-snow-100',
-                        #    'track1-day-snow-100',
-                        #    'track1-day-snow-100',
+                           'track1-day-snow-100',
+                           'track1-day-snow-100',
+                           'track1-day-snow-100',
+                           'track1-night-rain-100-anomalous',
+                           'track1-night-rain-100-anomalous',
+                           'track1-night-rain-100-anomalous',
+                            'track1-night-rain-100-anomalous-2',
+                            'track1-night-rain-100-anomalous-2',
+                            'track1-night-rain-100-anomalous-2',
+                           'track1-night-fog-100-anomalous',
+                           'track1-night-fog-100-anomalous',
+                           'track1-night-fog-100-anomalous',
+                           'track1-night-fog-100-anomalous-2',
+                           'track1-night-fog-100-anomalous-2',
+                           'track1-night-fog-100-anomalous-2',
+                           'track1-night-snow-100-anomalous',
+                           'track1-night-snow-100-anomalous',
+                           'track1-night-snow-100-anomalous',
                            'track1-night-moon-anomalous',
                            'track1-night-moon-anomalous',
-                           'track1-night-moon-anomalous']
-                        #    'track1-night-rain-100-anomalous',
-                        #    'track1-night-rain-100-anomalous',
-                        #    'track1-night-rain-100-anomalous',
-                        #    'track1-night-fog-100-anomalous',
-                        #    'track1-night-fog-100-anomalous',
-                        #    'track1-night-fog-100-anomalous',
-                        #    'track1-night-snow-100-anomalous',
-                        #    'track1-night-snow-100-anomalous',
-                        #    'track1-night-snow-100-anomalous']
+                           'track1-night-moon-anomalous',
+                             'test1',
+                             'test1',
+                             'test1'
+                        ]
 
         
-                        #     cfg.BASE_NOMINAL_SUNNY_SIM,
-                        #    'track1-night-rain-100-nominal',
-                        #    cfg.BASE_NOMINAL_SUNNY_SIM,
-                        #    'track1-night-fog-100-nominal',
-                        #    cfg.BASE_NOMINAL_SUNNY_SIM,
-                        #    'track1-night-snow-100-nominal',
-        
-        NOM_SIMULATIONS = [cfg.BASE_NOMINAL_SUNNY_SIM,
+        NOM_SIMULATIONS = [
+                           cfg.BASE_NOMINAL_SUNNY_SIM,
                            'track1-day-fog-100-nominal',
                            'track1-day-fog-100-nominal',
                            cfg.BASE_NOMINAL_SUNNY_SIM,
                            'track1-day-rain-100-nominal',
                            'track1-day-rain-100-nominal',
-                        #    cfg.BASE_NOMINAL_SUNNY_SIM,
-                        #    'track1-day-snow-100-nominal',
-                        #    'track1-day-snow-100-nominal',
+                           cfg.BASE_NOMINAL_SUNNY_SIM,
+                           'track1-day-snow-100-nominal',
+                           'track1-day-snow-100-nominal',
+                           cfg.BASE_NOMINAL_SUNNY_SIM,
+                           'track1-night-rain-100-nominal',
+                           'track1-night-rain-100-nominal',
+                           cfg.BASE_NOMINAL_SUNNY_SIM,
+                           'track1-night-rain-100-nominal',
+                           'track1-night-rain-100-nominal',
+                           cfg.BASE_NOMINAL_SUNNY_SIM,
+                           'track1-night-fog-100-nominal',
+                           'track1-night-fog-100-nominal',
+                           cfg.BASE_NOMINAL_SUNNY_SIM,
+                           'track1-night-fog-100-nominal',
+                           'track1-night-fog-100-nominal',
+                           cfg.BASE_NOMINAL_SUNNY_SIM,
+                           'track1-night-snow-100-nominal',
+                           'track1-night-snow-100-nominal',
                            cfg.BASE_NOMINAL_SUNNY_SIM,
                            'track1-night-moon-nominal',
-                           'track1-night-moon-nominal']
-                        #    cfg.BASE_NOMINAL_SUNNY_SIM,
-                        #    'track1-night-rain-100-nominal',
-                        #    'track1-night-rain-100-nominal',
-                        #    cfg.BASE_NOMINAL_SUNNY_SIM,
-                        #    'track1-night-fog-100-nominal',
-                        #    'track1-night-fog-100-nominal',
-                        #    cfg.BASE_NOMINAL_SUNNY_SIM,
-                        #    'track1-night-snow-100-nominal',
-                        #    'track1-night-snow-100-nominal']
-                           
+                           'track1-night-moon-nominal',
+                             cfg.BASE_NOMINAL_SUNNY_SIM,
+                             cfg.BASE_NOMINAL_SUNNY_SIM,
+                             cfg.BASE_NOMINAL_SUNNY_SIM
+                        ]
 
-                                #  cfg.BASE_THRESHOLD_SUNNY_SIM,
-                                #  'track1-night-rain-100-threshold',
-                                #  cfg.BASE_THRESHOLD_SUNNY_SIM,
-                                #  'track1-night-fog-100-threshold',
-                                #  cfg.BASE_THRESHOLD_SUNNY_SIM,
-                                #  'track1-night-snow-100-threshold',
 
-        THRESHOLD_SIMULATIONS = [cfg.BASE_THRESHOLD_SUNNY_SIM,
+        THRESHOLD_SIMULATIONS = [
+                                 cfg.BASE_THRESHOLD_SUNNY_SIM,
                                  'track1-day-fog-100-threshold',
                                  'track1-day-fog-100-threshold',
                                  cfg.BASE_THRESHOLD_SUNNY_SIM,
                                  'track1-day-rain-100-threshold',
                                  'track1-day-rain-100-threshold',
-                                #  cfg.BASE_THRESHOLD_SUNNY_SIM,
-                                #  'track1-day-snow-100-threshold',
-                                #  'track1-day-snow-100-threshold',
+                                 cfg.BASE_THRESHOLD_SUNNY_SIM,
+                                 'track1-day-snow-100-threshold',
+                                 'track1-day-snow-100-threshold',
+                                 cfg.BASE_THRESHOLD_SUNNY_SIM,
+                                 'track1-night-rain-100-threshold',
+                                 'track1-night-rain-100-threshold',
+                                 cfg.BASE_THRESHOLD_SUNNY_SIM,
+                                 'track1-night-rain-100-threshold',
+                                 'track1-night-rain-100-threshold',
+                                 cfg.BASE_THRESHOLD_SUNNY_SIM,
+                                 'track1-night-fog-100-threshold',
+                                 'track1-night-fog-100-threshold',
+                                 cfg.BASE_THRESHOLD_SUNNY_SIM,
+                                 'track1-night-fog-100-threshold',
+                                 'track1-night-fog-100-threshold',
+                                 cfg.BASE_THRESHOLD_SUNNY_SIM,
+                                 'track1-night-snow-100-threshold',
+                                 'track1-night-snow-100-threshold',
                                  cfg.BASE_THRESHOLD_SUNNY_SIM,
                                  'track1-night-moon-threshold',
-                                 'track1-night-moon-threshold']
-                                #  cfg.BASE_THRESHOLD_SUNNY_SIM,
-                                #  'track1-night-rain-100-threshold',
-                                #  'track1-night-rain-100-threshold',
-                                #  cfg.BASE_THRESHOLD_SUNNY_SIM,
-                                #  'track1-night-fog-100-threshold',
-                                #  'track1-night-fog-100-threshold',
-                                #  cfg.BASE_THRESHOLD_SUNNY_SIM,
-                                #  'track1-night-snow-100-threshold',
-                                #  'track1-night-snow-100-threshold']
-        # THRESHOLD_SIMULATIONS = [cfg.BASE_THRESHOLD_SUNNY_SIM, cfg.BASE_THRESHOLD_SUNNY_SIM]
-        RUN_ID_NUMBERS = [[1],
+                                 'track1-night-moon-threshold',
+                                cfg.BASE_THRESHOLD_SUNNY_SIM,
+                                cfg.BASE_THRESHOLD_SUNNY_SIM,
+                                cfg.BASE_THRESHOLD_SUNNY_SIM
+                                ]
+        RUN_ID_NUMBERS = [
                           [1],
                           [1],
                           [1],
@@ -380,7 +398,30 @@ if __name__ == '__main__':
                           [1],
                           [1],
                           [1],
-                          [1]]
+                          [1],
+                          [1],
+                          [1],
+                          [1],
+                          [1],
+                          [1],
+                          [1],
+                          [1],
+                          [1],
+                          [1],
+                          [1],
+                          [1],
+                          [1],
+                          [1],
+                          [1],
+                          [1],
+                          [1],
+                          [1],
+                          [1],
+                          [1],
+                          [1],
+                          [1],
+                          [1]
+                          ]
         SUMMARY_COLLAGES = [[False],
                             [False],
                             [False],
@@ -389,8 +430,30 @@ if __name__ == '__main__':
                             [False],
                             [False],
                             [False],
-                            [False]]
-        HEATMAP_TYPES = ['SmoothGrad', 'GradCam++', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP']
+                            [False],
+                            [False],
+                            [False],
+                            [False],
+                            [False],
+                            [False],
+                            [False],
+                            [False],
+                            [False],
+                            [False],
+                            [False],
+                            [False],
+                            [False],
+                            [False],
+                            [False],
+                            [False],
+                            [False],
+                            [False],
+                            [False],
+                            [False],
+                            [False],
+                            [False]
+                            ]
+        HEATMAP_TYPES = ['SmoothGrad', 'GradCam++', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP']
 
     else:   
         ANO_SIMULATIONS = ['test1'] # , 'test2', 'test3', 'test4', 'test5', 'track1-day-night-fog-80-pos'
@@ -398,7 +461,7 @@ if __name__ == '__main__':
         RUN_ID_NUMBERS = [[1]]
         SUMMARY_COLLAGES = [[False]]
         THRESHOLD_SIMULATIONS = [cfg.BASE_THRESHOLD_SUNNY_SIM] # 'track1-day-night-sunny-nominal-threshold'
-        HEATMAP_TYPES = ['SmoothGrad', 'GradCam++', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP'] #'GradCam++', 'SmoothGrad', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP'
+        HEATMAP_TYPES = ['SmoothGrad', 'GradCam++', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP'] #'GradCam++', 'SmoothGrad', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP'
 
 
 
@@ -413,7 +476,7 @@ if __name__ == '__main__':
         raise ValueError(Fore.RED + f"Mismatch in number of runs and specified summary collage patterns: {len(SUMMARY_COLLAGES)} != {len(RUN_ID_NUMBERS)} " + Fore.RESET)
     
   # DISTANCE_TYPES = ['euclidean', 'manhattan', 'cosine', 'EMD', 'pearson', 'spearman', 'kendall', 'moran', 'kl-divergence', 'mutual-info', 'sobolev-norm']
-    DISTANCE_TYPES = ['euclidean', 'EMD', 'moran', 'mutual-info', 'sobolev-norm']
+    DISTANCE_TYPES = ['euclidean', 'EMD', 'sobolev-norm']
     # ANALYSE_DISTANCE = {
     #     'euclidean' : (True, 0.99),
     #     'manhattan' : (False, 0.95),
@@ -461,10 +524,8 @@ if __name__ == '__main__':
 
         if (sim_idx+1) % 3 == 0:
             averaged_theshold = True
-            cfg.PLOT_POINT_TO_POINT = True
         else:
             averaged_theshold = False
-            cfg.PLOT_POINT_TO_POINT = False
         num_of_frames = get_num_frames(cfg, sim_name)
         # Number between 0 and min(n_samples, n_features)
         PCA_DIMENSIONS = [100] # [100, 500, num_of_frames]
@@ -586,6 +647,9 @@ if __name__ == '__main__':
                                 if NOM_SIMULATIONS[i] != cfg.BASE_NOMINAL_SUNNY_SIM:
                                     th_assess_nom_sim = NOM_SIMULATIONS[i]
                             average_thresholds_path = os.path.join(ANOMALOUS_PATHS[0], str(run_id), 'averaged_theshold', f'average_thresholds_{SIMULATION_NAME_ANOMALOUS}_nom_{th_assess_nom_sim}.csv')
+                            average_thresholds_folder = os.path.join(ANOMALOUS_PATHS[0], str(run_id), 'averaged_theshold')
+                            if not os.path.exists(average_thresholds_folder):
+                                os.makedirs(average_thresholds_folder)
                             with open(average_thresholds_path, 'r') as csvfile:
                                 reader = csv.DictReader(csvfile)
                                 for row in reader:
@@ -635,13 +699,15 @@ if __name__ == '__main__':
                 # calcuate scores + get number of invalid thresholds
                 results_df = pd.read_csv(results_csv_path)
                 if averaged_theshold:
-                    total_scores = os.path.join(ANOMALOUS_PATHS[0], str(run_id), 'averaged_theshold', f'results_ano_{SIMULATION_NAME_ANOMALOUS}_nom_{SIMULATION_NAME_NOMINAL}_total_scores.csv')
+                    total_scores_hm = os.path.join(ANOMALOUS_PATHS[0], str(run_id), 'averaged_theshold', f'results_ano_{SIMULATION_NAME_ANOMALOUS}_nom_{SIMULATION_NAME_NOMINAL}_total_scores_heatmaps.csv')
+                    total_scores_dt = os.path.join(ANOMALOUS_PATHS[0], str(run_id), 'averaged_theshold', f'results_ano_{SIMULATION_NAME_ANOMALOUS}_nom_{SIMULATION_NAME_NOMINAL}_total_scores_distance_types.csv')
                 else:
-                    total_scores = os.path.join(ANOMALOUS_PATHS[0], str(run_id), f'results_ano_{SIMULATION_NAME_ANOMALOUS}_nom_{SIMULATION_NAME_NOMINAL}_total_scores.csv')
-                if not os.path.exists(total_scores):
-                    with open(total_scores, mode='w',
-                                newline='') as invalid_thresholds_file:
-                        writer = csv.writer(invalid_thresholds_file,
+                    total_scores_hm = os.path.join(ANOMALOUS_PATHS[0], str(run_id), f'results_ano_{SIMULATION_NAME_ANOMALOUS}_nom_{SIMULATION_NAME_NOMINAL}_total_scores_heatmaps.csv')
+                    total_scores_dt = os.path.join(ANOMALOUS_PATHS[0], str(run_id), f'results_ano_{SIMULATION_NAME_ANOMALOUS}_nom_{SIMULATION_NAME_NOMINAL}_total_scores_distance_types.csv')
+                if not os.path.exists(total_scores_hm):
+                    with open(total_scores_hm, mode='w',
+                                newline='') as total_scores_hm_file:
+                        writer = csv.writer(total_scores_hm_file,
                                             delimiter=',',
                                             quotechar='"',
                                             quoting=csv.QUOTE_MINIMAL,
@@ -657,11 +723,20 @@ if __name__ == '__main__':
                                 # too_high_count = len(results_df[(results_df['heatmap_type'] == f'{heatmap_type}') & (results_df['is_threshold_too_high'] == True) & (results_df['sta'] == sta)])
                                 # cases where thresholds are not too high or too low
                                 # heatmap_filter_valid_threshold = results_df[(results_df['heatmap_type'] == f'{heatmap_type}') & (results_df['is_threshold_too_low'] == False) & (results_df['is_threshold_too_high'] == False & (results_df['sta'] == sta))]
-                                heatmap_filter_valid_threshold = results_df[(results_df['heatmap_type'] == f'{heatmap_type}')]
+                                heatmap_filter_valid_threshold = results_df[(results_df['heatmap_type'] == f'{heatmap_type}') & (results_df['sta'] == sta)]
+                                # print(heatmap_filter_valid_threshold['TP'].values)
+                                # print(heatmap_filter_valid_threshold['FP'].values)
+                                # print(heatmap_filter_valid_threshold['TN'].values)
+                                # print(heatmap_filter_valid_threshold['FN'].values)
+                                # print('----------------------------------------------')
+
                                 TP = np.sum(heatmap_filter_valid_threshold['TP'].values)
                                 FP = np.sum(heatmap_filter_valid_threshold['FP'].values)
                                 TN = np.sum(heatmap_filter_valid_threshold['TN'].values)
                                 FN = np.sum(heatmap_filter_valid_threshold['FN'].values)
+                                # print(TP, FP, TN, FN)
+                                # print('----------------------------------------------')
+                                # print('----------------------------------------------')
                                 precision = TP/(TP+FP)
                                 recall = TP/(TP+FN)
                                 accuracy = (TP+TN)/(TP+TN+FP+FN)
@@ -685,8 +760,15 @@ if __name__ == '__main__':
                                 writer.writerow([datetime.now().strftime("%Y_%m_%d_%H_%M_%S"), heatmap_type,
                                                 #   str(too_low_count), str(too_high_count),
                                                 str(sta), str(TP), str(FP), str(TN), str(FN), str(precision), str(recall), str(accuracy), str(fpr), str(TP_all), str(FP_all), str(TN_all), str(FN_all), str(precision_all), str(recall_all), str(accuracy_all), str(fpr_all)])
-                                    
-                        writer.writerow(["time_stamp","distance_type", "is_threshold_too_low_count", "is_threshold_too_high_count", "sta", "TP", "FP", "TN", "FN", "precision", "recall", "accuracy", "fpr","TP_all", "FP_all", "TN_all", "FN_all", "precision_all", "recall_all", "accuracy_all", "fpr_all"])
+                if not os.path.exists(total_scores_dt):
+                    with open(total_scores_dt, mode='w',
+                                newline='') as total_scores_dt_file:
+                        writer = csv.writer(total_scores_dt_file,
+                                            delimiter=',',
+                                            quotechar='"',
+                                            quoting=csv.QUOTE_MINIMAL,
+                                            lineterminator='\n')
+                        writer.writerow(["time_stamp","distance_type", "sta", "TP", "FP", "TN", "FN", "precision", "recall", "accuracy", "fpr","TP_all", "FP_all", "TN_all", "FN_all", "precision_all", "recall_all", "accuracy_all", "fpr_all"])
                             
                         for distance_type in DISTANCE_TYPES:
                             for sta in seconds_to_anticipate_list:
@@ -697,10 +779,12 @@ if __name__ == '__main__':
                                 # cases where thresholds are not too high or too low
                                 # distance_filter_valid_threshold = results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['is_threshold_too_low'] == False) & (results_df['is_threshold_too_high'] == False & (results_df['sta'] == sta))]
                                 distance_filter_valid_threshold = results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['sta'] == sta)]
+
                                 TP = np.sum(distance_filter_valid_threshold['TP'].values)
                                 FP = np.sum(distance_filter_valid_threshold['FP'].values)
                                 TN = np.sum(distance_filter_valid_threshold['TN'].values)
                                 FN = np.sum(distance_filter_valid_threshold['FN'].values)
+
                                 precision = TP/(TP+FP)
                                 recall = TP/(TP+FN)
                                 accuracy = (TP+TN)/(TP+TN+FP+FN)
@@ -711,7 +795,7 @@ if __name__ == '__main__':
                                 # too_high_count_all = len(results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['is_threshold_too_high'] == True)])
                                 # cases where thresholds are not too high or too low
                                 # distance_filter_valid_threshold_all = results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['is_threshold_too_low'] == False) & (results_df['is_threshold_too_high'] == False)]
-                                distance_filter_valid_threshold_all = results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['sta'] == sta)]
+                                distance_filter_valid_threshold_all = results_df[(results_df['distance_type'] == f'{distance_type}')]
                                 TP_all = np.sum(distance_filter_valid_threshold_all['TP'].values)
                                 FP_all = np.sum(distance_filter_valid_threshold_all['FP'].values)
                                 TN_all = np.sum(distance_filter_valid_threshold_all['TN'].values)
@@ -734,6 +818,9 @@ if __name__ == '__main__':
                         if NOM_SIMULATIONS[i] != cfg.BASE_NOMINAL_SUNNY_SIM:
                             th_assess_nom_sim = NOM_SIMULATIONS[i]
                     if averaged_theshold:
+                        average_thresholds_folder = os.path.join(ANOMALOUS_PATHS[0], str(run_id), 'averaged_theshold')
+                        if not os.path.exists(average_thresholds_folder):
+                            os.makedirs(average_thresholds_folder)
                         threshold_assessment_csv_path_sunny = os.path.join(ANOMALOUS_PATHS[0], str(run_id), 'averaged_theshold', f'results_ano_{SIMULATION_NAME_ANOMALOUS}_nom_{cfg.BASE_NOMINAL_SUNNY_SIM}.csv')
                         threshold_assessment_csv_path_similar = os.path.join(ANOMALOUS_PATHS[0], str(run_id), 'averaged_theshold', f'results_ano_{SIMULATION_NAME_ANOMALOUS}_nom_{th_assess_nom_sim}.csv')
                     else:
