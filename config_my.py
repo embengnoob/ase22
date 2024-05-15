@@ -1,3 +1,13 @@
+##############################################################################################
+########## IMPORTANT: CHECK THESE BEFORE CHANGING TRACKS FOR EVAL OR RECORDING ###############
+##############################################################################################
+SDC_MODEL_NAME = "-------track3-dave2-mc-maxspeed30-withES.h5"  # self-driving car model "dave2"|"chauffeur"|"epoch"|"commaai"
+BASE_NOMINAL_SUNNY_SIM = 'track3-nominal-auto'
+BASE_THRESHOLD_SUNNY_SIM = 'track3-nominal-man'
+##############################################################################################
+##############################################################################################
+##############################################################################################
+
 # project settings
 TRAINING_DATA_DIR = "datasets"  # root folder for all driving training sets
 TRAINING_SET_DIR = "dataset5"  # the driving training set to use
@@ -15,7 +25,6 @@ TRACK3_IMG_PER_LAP = 1375
 
 # self-driving car model settings
 SDC_MODELS_DIR = "models/"  # self-driving car models
-SDC_MODEL_NAME = "-------track1-dave2-mc-maxspeed30-withES.h5"  # self-driving car model "dave2"|"chauffeur"|"epoch"|"commaai"
 NUM_EPOCHS_SDC_MODEL = 62  # training epochs for the self-driving car model
 # SAMPLES_PER_EPOCH = 100  # number of samples to process before going to the next epoch
 BATCH_SIZE = 128  # number of samples per gradient update
@@ -55,8 +64,6 @@ EVALUATE_ALL = True
 CALCULATE_RESULTS = True
 # in case thresholds are to be compared between nominal sims between similar weather/lighting conditions as ano vs sunny conditions
 THRESHOLD_ASSESSMENT = True
-BASE_NOMINAL_SUNNY_SIM = 'track1-sunny-positioned-nominal'
-BASE_THRESHOLD_SUNNY_SIM = 'track1-day-sunny-nominal-threshold'
 THRESHOLD_CORRECTION = True
 # plotting settings
 PLOT_NOMINAL = True
