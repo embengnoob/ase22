@@ -13,12 +13,40 @@ from deep_explain import DeepExplain
 def score_when_decrease(output):
     return -1.0 * output[:, 0]
 
-def heatmap_generator(cfg, img_addr, attention_type, saliency, attribution_methods, self_driving_car_model):
-    # convert Windows path, if needed
+def splitall(path):
+    allparts = []
+    while 1:
+        parts = os.path.split(path)
+        if parts[0] == path:  # sentinel for absolute paths
+            allparts.insert(0, parts[0])
+            break
+        elif parts[1] == path: # sentinel for relative paths
+            allparts.insert(0, parts[1])
+            break
+        else:
+            path = parts[0]
+            allparts.insert(0, parts[1])
+    return allparts
+
+def fix_escape_sequences(img_addr):
     if "\\\\" in img_addr:
         img_addr = img_addr.replace("\\\\", "/")
     elif "\\" in img_addr:
         img_addr = img_addr.replace("\\", "/")
+    elif "\\a" in img_addr:
+        img_addr = img_addr.replace("\\a", "/a")
+    elif "\\t" in img_addr:
+        img_addr = img_addr.replace("\\t", "/t")
+    elif "\\n" in img_addr:
+        img_addr = img_addr.replace("\\n", "")
+    elif "\\b" in img_addr:
+        img_addr = img_addr.replace("\\b", "")
+    return img_addr
+
+def heatmap_generator(cfg, img_addr, attention_type, saliency, attribution_methods, self_driving_car_model):
+
+    # convert Windows path, if needed
+    img_addr = fix_escape_sequences(img_addr)
 
     # load image
     x = mpimg.imread(img_addr)
@@ -86,11 +114,11 @@ def compute_heatmap(cfg, nominal, simulation_name, NUM_OF_FRAMES, run_id, attent
 
     # load the image file paths from main csv
     main_data = pd.read_csv(MAIN_CSV_PATH)
-    data = main_data["center"]
-    print("Read %d images from file\n" % len(data))
+    center_addresses = main_data["center"]
+    print("Read %d images from file\n" % len(center_addresses))
 
-    if len(data) != NUM_OF_FRAMES:
-        raise ValueError(Fore.RED + f'Length of loaded data:{len(data)} is not the same as number of frames: {NUM_OF_FRAMES}' + Fore.RESET)
+    if len(center_addresses) != NUM_OF_FRAMES:
+        raise ValueError(Fore.RED + f'Length of loaded center camera img addresses:{len(center_addresses)} is not the same as number of frames: {NUM_OF_FRAMES}' + Fore.RESET)
 
     # load self-driving car model
     cprintf(f'Loading self-driving car model: {cfg.SDC_MODEL_NAME}', 'l_yellow')
@@ -113,215 +141,183 @@ def compute_heatmap(cfg, nominal, simulation_name, NUM_OF_FRAMES, run_id, attent
         ('Epsilon_LRP', 'elrp')
     ]
     attribution_methods = collections.OrderedDict(attribution_method_list)
+    avg_heatmaps = []
+    avg_gradient_heatmaps = []
+    list_of_image_paths = []
+    prev_hm = gradient = np.zeros((80, 160))
 
-    if cfg.SAME_IMG_TEST:
-        # TODO: Noise average doesn't work well. Also implement for the case there is nothing generated yet (if case)
-        FRAME_ID = 0
-        BASE_SAMPLE = 0
-        NUMBER_OF_SAMPLES = 1000
-        SAME_IMG_TEST_FOLDER_PATH = os.path.join(HEATMAP_FOLDER_PATH, f'same_img_test_frameID_{FRAME_ID}')
-        heatmap_avg = np.zeros((INPUT_SHAPE), np.dtype(float))
-        noise_avg = np.zeros((INPUT_SHAPE), np.dtype(float))
-        if not os.path.exists(SAME_IMG_TEST_FOLDER_PATH):
-            cprintf(f'Same image test folder does not exist. Creating folder ...' ,'l_blue')
-            os.makedirs(SAME_IMG_TEST_FOLDER_PATH)
+    missing_heatmaps = 0
+    missing_gradients = 0
 
-        if not (len(os.listdir(SAME_IMG_TEST_FOLDER_PATH)) == NUMBER_OF_SAMPLES):
-            cprintf(f'Generating heatmaps and plotting them ...', 'l_cyan')
-            for sample_number in tqdm(range(NUMBER_OF_SAMPLES)):
-                img_addr = data[FRAME_ID]
-                saliency_map = heatmap_generator(cfg, img_addr, attention_type, saliency, attribution_methods, self_driving_car_model)
-                file_name = Path(img_addr).stem
-                file_name = "htm-" + attention_type.lower() + '-' + file_name + '-' + str(sample_number) + '.JPG'
-                path_name = os.path.join(HEATMAP_FOLDER_PATH, f'same_img_test_frameID_{FRAME_ID}' , file_name)
-                mpimg.imsave(path_name, np.squeeze(saliency_map))
-                
-        else:
-            cprintf(f'Same image test heatmaps already exist.' ,'l_green')
-            cprintf(f'Plotting heatmaps ...', 'l_cyan')
-            noise_base_sample_hm_addr = os.path.join(SAME_IMG_TEST_FOLDER_PATH, os.listdir(SAME_IMG_TEST_FOLDER_PATH)[BASE_SAMPLE])
-            noise_base_sample_hm = np.array(Image.open(noise_base_sample_hm_addr), dtype=np.dtype(float))
-            for f_name in tqdm(os.listdir(SAME_IMG_TEST_FOLDER_PATH)):
-                hm_addr = os.path.join(SAME_IMG_TEST_FOLDER_PATH, f_name)
-                imarr = np.array(Image.open(hm_addr), dtype=np.dtype(float))
-                noise_avg = noise_avg + (imarr - noise_base_sample_hm)/NUMBER_OF_SAMPLES
-                heatmap_avg = heatmap_avg + imarr/NUMBER_OF_SAMPLES
-            hm_avg_path = os.path.join(HEATMAP_FOLDER_PATH, f'same_img_test_frameID_{FRAME_ID}_hm_avg.JPG')
-            hm_noise_path = os.path.join(HEATMAP_FOLDER_PATH, f'same_img_test_frameID_{FRAME_ID}_hm_noise.JPG')
-            # Round values in array and cast as 8-bit integer
-            heatmap_avg = np.array(np.round(heatmap_avg), dtype=np.ubyte)
-            noise_avg = np.array(np.round(noise_avg), dtype=np.ubyte)
-
-            mpimg.imsave(hm_avg_path, heatmap_avg)
-            mpimg.imsave(hm_noise_path, noise_avg)
-
-    else:
-        avg_heatmaps = []
-        avg_gradient_heatmaps = []
-        list_of_image_paths = []
-        prev_hm = gradient = np.zeros((80, 160))
-
-        missing_heatmaps = 0
-        missing_gradients = 0
-
-        cprintf(f'Generating heatmaps and loss scores/plots...', 'l_cyan')
-        for idx, img_addr in enumerate(tqdm(data)):
-            # replace drive letter if database is copied
-            # cprintf(f'{img_addr}', 'l_red')
-            if os.path.splitdrive(img_addr)[0] != os.path.splitdrive(os.getcwd())[0]:
-                if '\\ThirdEye\\ase22\\' in img_addr:
-                    img_addr = img_addr.replace(os.path.splitdrive(img_addr)[0], os.path.splitdrive(os.getcwd())[0])
-            # if 'C:\\ThirdEye\\ase22\\' in img_addr:
-            #     img_addr = img_addr.replace('C:\\ThirdEye\\ase22\\', 'D:\\ThirdEye\\ase22\\')
-            # Double-check if every heatmap/gradient actually exists
-            file_name = Path(img_addr).stem
-            hm_name = "htm-" + attention_type.lower() + '-' + file_name + '.JPG'
-            # img_address = img_addr.split('/')[-1]
-            # img_name = os.path.basename(os.path.normpath(img_address))
-            # hm_name = "htm-" + attention_type.lower() + '-' + img_name
-            
-            if MODE == 'gradient_calc' or MODE == 'csv_missing':
-                if hm_name in os.listdir(HEATMAP_IMG_PATH):
-                    if MODE == 'csv_missing':
-                        heatmap_path = os.path.join(HEATMAP_IMG_PATH, hm_name)
-                        list_of_image_paths.append(heatmap_path)
-                        continue
-                else:
-                    missing_heatmaps += 1
-            elif MODE == 'heatmap_calc':
-                if not (hm_name in os.listdir(HEATMAP_IMG_GRADIENT_PATH)):
-                    missing_gradients += 1
-            
-            # generate or load heatmap
-            if  MODE == 'new_calc' or MODE == 'heatmap_calc':
-                saliency_map = heatmap_generator(cfg, img_addr, attention_type, saliency, attribution_methods, self_driving_car_model)
-                if cfg.METHOD == 'thirdeye':
-                    # compute average of the heatmap
-                    average = np.average(saliency_map)
-            elif MODE == 'gradient_calc':
-                # load already generated heatmap
-                saliency_map = mpimg.imread(os.path.join(HEATMAP_IMG_PATH, hm_name))
-
-            # compute gradient of the heatmap
-            if MODE == 'new_calc' or MODE == 'gradient_calc':
+    cprintf(f'Generating heatmaps and loss scores/plots...', 'l_cyan')
+    for idx, img_addr in enumerate(tqdm(center_addresses)):
+        img_addr = fix_escape_sequences(img_addr)
+        # replace drive letter if database is copied
+        if os.path.splitdrive(img_addr)[0] != os.path.splitdrive(os.getcwd())[0]:
+            if '\\ThirdEye\\ase22\\' in img_addr:
+                img_addr = img_addr.replace(os.path.splitdrive(img_addr)[0], os.path.splitdrive(os.getcwd())[0])
+        
+        # change the img addresses accordingly if file placement is in the newer cleaner format (./src/{run_id})
+        if not os.path.exists(img_addr):
+            for idx, addr_part in enumerate(splitall(img_addr)):
+                if addr_part == 'IMG':
+                    addr_part = os.path.join('src', str(run_id), 'IMG')
                 if idx == 0:
-                    gradient = 0
+                    corrected_address = addr_part
                 else:
-                    gradient = abs(prev_hm - saliency_map)
-                prev_hm = saliency_map
+                    corrected_address = os.path.join(prev_addr_chunk, addr_part)
 
-                if cfg.METHOD == 'thirdeye':
-                    average_gradient = np.average(gradient)
+                prev_addr_chunk = corrected_address
 
-            # store the heatmaps
-            if  MODE == 'new_calc' or MODE == 'heatmap_calc':
-                if not os.path.exists(HEATMAP_IMG_PATH):
-                    cprintf(f'Heatmap image folder does not exist. Creating folder ...' ,'l_blue')
-                    os.makedirs(HEATMAP_IMG_PATH)
+        # Double-check if every heatmap/gradient actually exists
+        file_name = Path(img_addr).stem
+        hm_name = "htm-" + attention_type.lower() + '-' + file_name + '.JPG'
+        # img_address = img_addr.split('/')[-1]
+        # img_name = os.path.basename(os.path.normpath(img_address))
+        # hm_name = "htm-" + attention_type.lower() + '-' + img_name
+        
+        if MODE == 'gradient_calc' or MODE == 'csv_missing':
+            if hm_name in os.listdir(HEATMAP_IMG_PATH):
+                if MODE == 'csv_missing':
+                    heatmap_path = os.path.join(HEATMAP_IMG_PATH, hm_name)
+                    list_of_image_paths.append(heatmap_path)
+                    continue
+            else:
+                missing_heatmaps += 1
+        elif MODE == 'heatmap_calc':
+            if not (hm_name in os.listdir(HEATMAP_IMG_GRADIENT_PATH)):
+                missing_gradients += 1
+        
+        # generate or load heatmap
+        if  MODE == 'new_calc' or MODE == 'heatmap_calc':
+            saliency_map = heatmap_generator(cfg, img_addr, attention_type, saliency, attribution_methods, self_driving_car_model)
+            if cfg.METHOD == 'thirdeye':
+                # compute average of the heatmap
+                average = np.average(saliency_map)
+        elif MODE == 'gradient_calc':
+            # load already generated heatmap
+            saliency_map = mpimg.imread(os.path.join(HEATMAP_IMG_PATH, hm_name))
 
-                path_name = os.path.join(HEATMAP_IMG_PATH, hm_name)
-                mpimg.imsave(path_name, np.squeeze(saliency_map))
-            
-            # store the heatmap gradients
-            elif MODE == 'new_calc' or MODE == 'gradient_calc':
-                if idx != 0:
-                    if not os.path.exists(HEATMAP_IMG_GRADIENT_PATH):
-                        cprintf(f'Heatmap gradient folder does not exist. Creating folder ...' ,'l_blue')
-                        os.makedirs(HEATMAP_IMG_GRADIENT_PATH)
-                    
-                    path_name = os.path.join(HEATMAP_IMG_GRADIENT_PATH, hm_name)
-                    mpimg.imsave(path_name, np.squeeze(gradient))
+        # compute gradient of the heatmap
+        if MODE == 'new_calc' or MODE == 'gradient_calc':
+            if idx == 0:
+                gradient = 0
+            else:
+                gradient = abs(prev_hm - saliency_map)
+            prev_hm = saliency_map
+
+            if cfg.METHOD == 'thirdeye':
+                average_gradient = np.average(gradient)
+
+        # store the heatmaps
+        if  MODE == 'new_calc' or MODE == 'heatmap_calc':
+            if not os.path.exists(HEATMAP_IMG_PATH):
+                cprintf(f'Heatmap image folder does not exist. Creating folder ...' ,'l_blue')
+                os.makedirs(HEATMAP_IMG_PATH)
 
             path_name = os.path.join(HEATMAP_IMG_PATH, hm_name)
-            list_of_image_paths.append(path_name)
+            mpimg.imsave(path_name, np.squeeze(saliency_map))
+        
+        # store the heatmap gradients
+        elif MODE == 'new_calc' or MODE == 'gradient_calc':
+            if idx != 0:
+                if not os.path.exists(HEATMAP_IMG_GRADIENT_PATH):
+                    cprintf(f'Heatmap gradient folder does not exist. Creating folder ...' ,'l_blue')
+                    os.makedirs(HEATMAP_IMG_GRADIENT_PATH)
+                
+                path_name = os.path.join(HEATMAP_IMG_GRADIENT_PATH, hm_name)
+                mpimg.imsave(path_name, np.squeeze(gradient))
 
-            if cfg.METHOD == 'thirdeye':
-                avg_heatmaps.append(average)
-                avg_gradient_heatmaps.append(average_gradient)
+        path_name = os.path.join(HEATMAP_IMG_PATH, hm_name)
+        list_of_image_paths.append(path_name)
 
         if cfg.METHOD == 'thirdeye':
-            # score and their plot paths
-            if not nominal:
-                SCORES_FOLDER_PATH = os.path.join(SIM_PATH, run_id)
-                if not os.path.exists(SCORES_FOLDER_PATH):
-                    cprintf(f'Loss avg/avg-grad scores folder does not exist. Creating folder ...' ,'l_blue')
-                    os.makedirs(SCORES_FOLDER_PATH)
-            else:
-                SCORES_FOLDER_PATH = SIM_PATH
+            avg_heatmaps.append(average)
+            avg_gradient_heatmaps.append(average_gradient)
 
-            cprintf(f'Saving loss avg/avg-grad scores and their plots to {SCORES_FOLDER_PATH}' ,'magenta')
-            file_name = "htm-" + attention_type.lower() + '-scores'
-            AVG_SCORE_PATH = os.path.join(SCORES_FOLDER_PATH, file_name + '-avg')
-            AVG_PLOT_PATH = os.path.join(SCORES_FOLDER_PATH, 'plot-' + file_name + '-avg.png')
-            AVG_GRAD_SCORE_PATH = os.path.join(SCORES_FOLDER_PATH, file_name + '-avg-grad')
-            AVG_GRAD_PLOT_PATH = os.path.join(SCORES_FOLDER_PATH, 'plot-' + file_name + '-avg-grad.png')
-
-        if MODE == 'new_calc':
-            if cfg.METHOD == 'thirdeye':
-                # save scores as numpy arrays
-                np.save(AVG_SCORE_PATH, avg_heatmaps)
-                # plot scores as histograms
-                plt.hist(avg_heatmaps)
-                plt.title("average attention heatmaps")
-                plt.savefig(AVG_PLOT_PATH)
-                np.save(AVG_GRAD_SCORE_PATH, avg_gradient_heatmaps)
-                plt.clf()
-                plt.hist(avg_gradient_heatmaps)
-                plt.title("average gradient attention heatmaps")
-                plt.savefig(AVG_GRAD_PLOT_PATH)
-                #plt.show()
+    if cfg.METHOD == 'thirdeye':
+        # score and their plot paths
+        if not nominal:
+            SCORES_FOLDER_PATH = os.path.join(SIM_PATH, run_id)
+            if not os.path.exists(SCORES_FOLDER_PATH):
+                cprintf(f'Loss avg/avg-grad scores folder does not exist. Creating folder ...' ,'l_blue')
+                os.makedirs(SCORES_FOLDER_PATH)
         else:
-            if (missing_heatmaps > 0) and (missing_heatmaps != NUM_OF_FRAMES):
-                cprintf(f'{missing_heatmaps}', 'l_red')
-                # remove hm folder
-                shutil.rmtree(HEATMAP_FOLDER_PATH)
-                if cfg.METHOD == 'thirdeye':
-                    # remove scores and plots
-                    os.remove(AVG_SCORE_PATH)
-                    os.remove(AVG_PLOT_PATH)
-                    os.remove(AVG_GRAD_SCORE_PATH)
-                    os.remove(AVG_GRAD_PLOT_PATH)
-                raise ValueError("Error in number of frames of saved heatmaps. Removing all the heatmaps! Please rerun the code.")
-            elif (missing_gradients > 0) and (missing_gradients != NUM_OF_FRAMES-1):
-                # remove GRADIENT folder
-                shutil.rmtree(HEATMAP_IMG_GRADIENT_PATH)
-                if cfg.METHOD == 'thirdeye':
-                    # remove scores and plots
-                    os.remove(AVG_SCORE_PATH)
-                    os.remove(AVG_PLOT_PATH)
-                    os.remove(AVG_GRAD_SCORE_PATH)
-                    os.remove(AVG_GRAD_PLOT_PATH)
-                raise ValueError("Error in number of frames of saved gradients. Removing all the gradients! Please rerun the code.")
-                
+            SCORES_FOLDER_PATH = SIM_PATH
 
-        # save as csv in heatmap folder
-        try:
-            # autonomous mode simulation data
-            data = main_data[["frameId", "time", "crashed", "cte", "speed", "car_position", "steering_angle", "throttle"]]
-        except:
-            # manual mode simulation data
-            data = main_data[["frameId", "cte", "speed", "car_position", "steeringAngle", "throttle"]]
+        cprintf(f'Saving loss avg/avg-grad scores and their plots to {SCORES_FOLDER_PATH}' ,'magenta')
+        file_name = "htm-" + attention_type.lower() + '-scores'
+        AVG_SCORE_PATH = os.path.join(SCORES_FOLDER_PATH, file_name + '-avg')
+        AVG_PLOT_PATH = os.path.join(SCORES_FOLDER_PATH, 'plot-' + file_name + '-avg.png')
+        AVG_GRAD_SCORE_PATH = os.path.join(SCORES_FOLDER_PATH, file_name + '-avg-grad')
+        AVG_GRAD_PLOT_PATH = os.path.join(SCORES_FOLDER_PATH, 'plot-' + file_name + '-avg-grad.png')
 
-        # copy frame id, simulation time and crashed information from simulation's csv
-        # if 'frameId' in data.columns:
-        df = pd.DataFrame(data['frameId'].copy(), columns=['frameId'])
-        # else:
-        #     df = pd.DataFrame(data.index.copy(), columns=['frameId'])
-        df_img = pd.DataFrame(list_of_image_paths, columns=['center'])
-        df['center'] = df_img['center'].copy()
-        if 'time' in data.columns:
-            df['time'] = data['time'].copy()
-        if 'crashed' in data.columns:
-            df['crashed'] = data['crashed'].copy()
-        df['cte'] = data['cte'].copy()
-        df['speed'] = data['speed'].copy()
-        df['position'] = data['car_position'].copy()
-        df['throttle'] = data['throttle'].copy()
-        try:
-            df['steering_angle'] = data['steering_angle'].copy()
-        except:
-            df['steering_angle'] = data['steeringAngle'].copy()
-        
-        # save it as a separate csv
-        cprintf(f'Saving CSV file to: {HEATMAP_CSV_PATH}', 'magenta')
-        df.to_csv(HEATMAP_CSV_PATH, index=False)
+    if MODE == 'new_calc':
+        if cfg.METHOD == 'thirdeye':
+            # save scores as numpy arrays
+            np.save(AVG_SCORE_PATH, avg_heatmaps)
+            # plot scores as histograms
+            plt.hist(avg_heatmaps)
+            plt.title("average attention heatmaps")
+            plt.savefig(AVG_PLOT_PATH)
+            np.save(AVG_GRAD_SCORE_PATH, avg_gradient_heatmaps)
+            plt.clf()
+            plt.hist(avg_gradient_heatmaps)
+            plt.title("average gradient attention heatmaps")
+            plt.savefig(AVG_GRAD_PLOT_PATH)
+            #plt.show()
+    else:
+        if (missing_heatmaps > 0) and (missing_heatmaps != NUM_OF_FRAMES):
+            cprintf(f'{missing_heatmaps}', 'l_red')
+            # remove hm folder
+            shutil.rmtree(HEATMAP_FOLDER_PATH)
+            if cfg.METHOD == 'thirdeye':
+                # remove scores and plots
+                os.remove(AVG_SCORE_PATH)
+                os.remove(AVG_PLOT_PATH)
+                os.remove(AVG_GRAD_SCORE_PATH)
+                os.remove(AVG_GRAD_PLOT_PATH)
+            raise ValueError("Error in number of frames of saved heatmaps. Removing all the heatmaps! Please rerun the code.")
+        elif (missing_gradients > 0) and (missing_gradients != NUM_OF_FRAMES-1):
+            # remove GRADIENT folder
+            shutil.rmtree(HEATMAP_IMG_GRADIENT_PATH)
+            if cfg.METHOD == 'thirdeye':
+                # remove scores and plots
+                os.remove(AVG_SCORE_PATH)
+                os.remove(AVG_PLOT_PATH)
+                os.remove(AVG_GRAD_SCORE_PATH)
+                os.remove(AVG_GRAD_PLOT_PATH)
+            raise ValueError("Error in number of frames of saved gradients. Removing all the gradients! Please rerun the code.")
+            
+
+    # save as csv in heatmap folder
+    try:
+        # autonomous mode simulation data
+        data = main_data[["frameId", "time", "crashed", "cte", "speed", "car_position", "steering_angle", "throttle"]]
+    except:
+        # manual mode simulation data
+        data = main_data[["frameId", "cte", "speed", "car_position", "steeringAngle", "throttle"]]
+
+    # copy frame id, simulation time and crashed information from simulation's csv
+    # if 'frameId' in data.columns:
+    df = pd.DataFrame(data['frameId'].copy(), columns=['frameId'])
+    # else:
+    #     df = pd.DataFrame(data.index.copy(), columns=['frameId'])
+    df_img = pd.DataFrame(list_of_image_paths, columns=['center'])
+    df['center'] = df_img['center'].copy()
+    if 'time' in data.columns:
+        df['time'] = data['time'].copy()
+    if 'crashed' in data.columns:
+        df['crashed'] = data['crashed'].copy()
+    df['cte'] = data['cte'].copy()
+    df['speed'] = data['speed'].copy()
+    df['position'] = data['car_position'].copy()
+    df['throttle'] = data['throttle'].copy()
+    try:
+        df['steering_angle'] = data['steering_angle'].copy()
+    except:
+        df['steering_angle'] = data['steeringAngle'].copy()
+    
+    # save it as a separate csv
+    cprintf(f'Saving CSV file to: {HEATMAP_CSV_PATH}', 'magenta')
+    df.to_csv(HEATMAP_CSV_PATH, index=False)

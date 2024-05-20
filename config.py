@@ -37,7 +37,6 @@ class Config:
         self.PLOT_POSITION_CLOUD = None
         self.METHOD = None
         self.IGNORE_WARNINGS = None
-        self.EVALUATE_ALL = None
         self.CALCULATE_RESULTS = None
         self.THRESHOLD_ASSESSMENT = None
         self.BASE_NOMINAL_SUNNY_SIM = None
@@ -52,9 +51,7 @@ class Config:
         self.SAVE_PCA = None
         self.EMD = None
         self.NOM_VS_NOM_TEST = None
-        self.COMPARE_RUNS = None
         self.SPARSE_ATTRIBUTION = None
-        self.SAME_IMG_TEST = None
 
     def from_pyfile(self, filename, silent=False):
         # filename = os.path.join(self.root_path, filename)

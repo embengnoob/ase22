@@ -1300,7 +1300,7 @@ def h_minus_1_sobolev_norm(A, B):
 
 def lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg,
              eval_vars=None, eval_method=None, spine_color='black', alpha=0.4, avg_filter_length=5,
-             pca_dimension=None, pca_plot=False, replace_initial_and_ending_values=True, avg_threshold=False):
+             pca_dimension=None, pca_plot=False, replace_initial_and_ending_values=True):
     # Plot distance scores
     # ax.set_xlabel('Frame ID', color=color)
     ax.set_ylabel(f'{distance_type} scores', color=color)
@@ -1350,10 +1350,7 @@ def lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_ty
             # elif len(persistent_slope) > 3:
             #     color = 'red'
             else:
-                if avg_threshold:
-                    color = 'cyan'
-                else:
-                    color = 'lime'
+                color = 'lime'
             ax.hlines(y=threshold, xmin=frame, xmax=frame+1, color=color, linewidth=3)
         if MULTI_VAR:
             for frame, distance_score in enumerate(distance_vector_avg):

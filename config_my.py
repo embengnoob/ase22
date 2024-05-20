@@ -70,10 +70,9 @@ IMPROVEMENT_RATIO = 1
 # evaluation settings
 METHOD = 'p2p' # 'thirdeye', 'p2p', 'p2c'
 IGNORE_WARNINGS = True
-EVALUATE_ALL = True
 CALCULATE_RESULTS = True
 # in case thresholds are to be compared between nominal sims between similar weather/lighting conditions as ano vs sunny conditions
-THRESHOLD_ASSESSMENT = True
+THRESHOLD_ASSESSMENT = False
 THRESHOLD_CORRECTION = True
 # plotting settings
 PLOT_NOMINAL = True
@@ -88,18 +87,16 @@ MINIMAL_LOGGING = True
 # p2p settings
 # summary collage settings
 GENERATE_SUMMARY_COLLAGES = False
-SUMMARY_COLLAGE_PCA_DIMS = [100] #except max dims
+# SUMMARY_COLLAGE_PCA_DIMS = [100] #except max dims
 SUMMARY_COLLAGE_DIST_TYPES = ['sobolev-norm']
 CREATE_VIDEO = True
 
-PCA = False # principal component analysis method
-SAVE_PCA = False
+# PCA = False # principal component analysis method
+# SAVE_PCA = False
 
 EMD = True # Earth mover (Wasserstein) distance
 
-COMPARE_RUNS = False
 NOM_VS_NOM_TEST = False
 
 # heatmap settings
 SPARSE_ATTRIBUTION = False
-SAME_IMG_TEST = False
