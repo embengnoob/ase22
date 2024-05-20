@@ -1,9 +1,19 @@
 ##############################################################################################
 ########## IMPORTANT: CHECK THESE BEFORE CHANGING TRACKS FOR EVAL OR RECORDING ###############
 ##############################################################################################
-SDC_MODEL_NAME = "-------track3-dave2-mc-maxspeed30-withES.h5"  # self-driving car model "dave2"|"chauffeur"|"epoch"|"commaai"
-BASE_NOMINAL_SUNNY_SIM = 'track3-nominal-auto'
-BASE_THRESHOLD_SUNNY_SIM = 'track3-nominal-man'
+TRACK = "track1"  # ["track1"|"track2"|"track3"|"track1","track2","track3"] the race track to use
+if TRACK == "track1":
+    SDC_MODEL_NAME = "-------track1-dave2-mc-maxspeed30-withES.h5"  # self-driving car model "dave2"|"chauffeur"|"epoch"|"commaai"
+    BASE_NOMINAL_SUNNY_SIM = 'track1-sunny-positioned-nominal'
+    BASE_THRESHOLD_SUNNY_SIM = 'track1-day-sunny-nominal-threshold'
+elif TRACK == "track2":
+    SDC_MODEL_NAME = "-------track2-dave2-mc-maxspeed30-withES.h5"  # self-driving car model "dave2"|"chauffeur"|"epoch"|"commaai"
+    BASE_NOMINAL_SUNNY_SIM = ''
+    BASE_THRESHOLD_SUNNY_SIM = ''
+elif TRACK == "track3":
+    SDC_MODEL_NAME = "-------track3-dave2-mc-maxspeed30-withES.h5"  # self-driving car model "dave2"|"chauffeur"|"epoch"|"commaai"
+    BASE_NOMINAL_SUNNY_SIM = 'track3-nominal-auto'
+    BASE_THRESHOLD_SUNNY_SIM = 'track3-nominal-man'
 ##############################################################################################
 ##############################################################################################
 ##############################################################################################
