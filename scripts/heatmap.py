@@ -10,39 +10,6 @@ from utils import *
 from utils_models import *
 from deep_explain import DeepExplain
 
-def score_when_decrease(output):
-    return -1.0 * output[:, 0]
-
-def splitall(path):
-    allparts = []
-    while 1:
-        parts = os.path.split(path)
-        if parts[0] == path:  # sentinel for absolute paths
-            allparts.insert(0, parts[0])
-            break
-        elif parts[1] == path: # sentinel for relative paths
-            allparts.insert(0, parts[1])
-            break
-        else:
-            path = parts[0]
-            allparts.insert(0, parts[1])
-    return allparts
-
-def fix_escape_sequences(img_addr):
-    if "\\\\" in img_addr:
-        img_addr = img_addr.replace("\\\\", "/")
-    elif "\\" in img_addr:
-        img_addr = img_addr.replace("\\", "/")
-    elif "\\a" in img_addr:
-        img_addr = img_addr.replace("\\a", "/a")
-    elif "\\t" in img_addr:
-        img_addr = img_addr.replace("\\t", "/t")
-    elif "\\n" in img_addr:
-        img_addr = img_addr.replace("\\n", "")
-    elif "\\b" in img_addr:
-        img_addr = img_addr.replace("\\b", "")
-    return img_addr
-
 def heatmap_generator(cfg, img_addr, attention_type, saliency, attribution_methods, self_driving_car_model):
 
     # convert Windows path, if needed

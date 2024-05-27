@@ -325,38 +325,77 @@ def fix_escape_sequences(img_addr):
         img_addr = img_addr.replace("\\b", "")
     return img_addr
 
+def correct_img_address(img_addr, csv_dir):
+    img_name = Path(img_addr).stem
+    corrected_path = os.path.join(csv_dir, 'IMG', img_name + '.jpg')
+    return corrected_path
+
+
+def check_addresses(center_img_addresses, csv_dir):
+    first_center_img_address = fix_escape_sequences(center_img_addresses[0])
+    if not os.path.exists(first_center_img_address):
+        corrected_path = correct_img_address(first_center_img_address, csv_dir)
+        if not os.path.exists(corrected_path):
+            print(corrected_path)
+            raise ValueError(Fore.RED + f"The provided img path in the csv file is not in the same dir or does not exist." + Fore.RESET)
+        return False
+    else:
+        return True
+
 
 run_id = 1
-MAIN_CSV_PATH = r"D:\ThirdEye\ase22\simulations\track1-night-fog-100-anomalous-2\src\1\driving_log.csv"
-main_data = pd.read_csv(MAIN_CSV_PATH)
-center_addresses = main_data["center"]
+CSV_PATH = r"D:\ThirdEye\ase22\simulations\track1\anomalous\track1-night-moon\heatmaps\heatmaps-smoothgrad\1\driving_log_Copy.csv"
+csv_type = 'heatmap'
 
-for idx, img_addr in enumerate(tqdm(center_addresses)):
-    cprintf(f'{img_addr}', 'l_red')
-    img_addr = fix_escape_sequences(img_addr)
+csv_dir = os.path.dirname(CSV_PATH)
+csv_file = pd.read_csv(CSV_PATH)
+center_img_addresses = csv_file["center"]
+if csv_type == 'main':
+    left_img_addresses = csv_file["left"]
+    right_img_addresses = csv_file["right"]
 
+# if the img exists in the correct path but the path in the csv file is wrong:
+if not check_addresses(center_img_addresses, csv_dir):
+    # center images
+    for idx, img_addr in enumerate(tqdm(center_img_addresses)):
+        fixed_img_addr = fix_escape_sequences(img_addr)
+        corrected_path = correct_img_address(fixed_img_addr, csv_dir)
+        csv_file.replace(to_replace=img_addr, value=corrected_path, inplace=True)
+    if csv_type == 'main':
+        # left images
+        for idx, img_addr in enumerate(tqdm(left_img_addresses)):
+            fixed_img_addr = fix_escape_sequences(img_addr)
+            corrected_path = correct_img_address(fixed_img_addr, csv_dir)
+            csv_file.replace(to_replace=img_addr, value=corrected_path, inplace=True)
+        # right images
+        for idx, img_addr in enumerate(tqdm(right_img_addresses)):
+            fixed_img_addr = fix_escape_sequences(img_addr)
+            corrected_path = correct_img_address(fixed_img_addr, csv_dir)
+            csv_file.replace(to_replace=img_addr, value=corrected_path, inplace=True)
+    
+    csv_file.to_csv(CSV_PATH, index=False)
 
-    cprintf(f'{img_addr}', 'l_yellow')
-    # replace drive letter if database is copied
-    if os.path.splitdrive(img_addr)[0] != os.path.splitdrive(os.getcwd())[0]:
-        if '\\ThirdEye\\ase22\\' in img_addr:
-            img_addr = img_addr.replace(os.path.splitdrive(img_addr)[0], os.path.splitdrive(os.getcwd())[0])
-    # change the img addresses accordingly if file placement is in the newer cleaner format ({simulation_name}/src/{run_id}) 
-    print(splitall(img_addr))
-    for idx, addr_part in enumerate(splitall(img_addr)):
-        if addr_part == 'IMG':
-            addr_part = os.path.join('src', str(run_id), 'IMG')
-        if idx == 0:
-            corrected_address = addr_part
-        else:
-            corrected_address = os.path.join(prev_addr_chunk, addr_part)
+#     # cprintf(f'{img_addr}', 'l_yellow')
+#     # replace drive letter if database is copied
+#     if os.path.splitdrive(img_addr)[0] != os.path.splitdrive(os.getcwd())[0]:
+#         if '\\ThirdEye\\ase22\\' in img_addr:
+#             img_addr = img_addr.replace(os.path.splitdrive(img_addr)[0], os.path.splitdrive(os.getcwd())[0])
+#     # change the img addresses accordingly if file placement is in the newer cleaner format ({simulation_name}/src/{run_id}) 
+#     # print(splitall(img_addr))
+#     for idx, addr_part in enumerate(splitall(img_addr)):
+#         if addr_part == 'IMG':
+#             addr_part = os.path.join('src', str(run_id), 'IMG')
+#         if idx == 0:
+#             corrected_address = addr_part
+#         else:
+#             corrected_address = os.path.join(prev_addr_chunk, addr_part)
 
-        prev_addr_chunk = corrected_address
+#         prev_addr_chunk = corrected_address
 
-    if idx == 1:
-        break
+#     if idx == 1:
+#         break
 
-print(corrected_address)
-if os.path.exists(corrected_address):
-    print('true')
+# print(corrected_address)
+# if os.path.exists(corrected_address):
+#     print('true')
     

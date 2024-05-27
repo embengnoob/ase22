@@ -1374,3 +1374,37 @@ def lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_ty
     ax.tick_params(axis='x', colors=spine_color)    #setting up X-axis tick color to red
     ax.tick_params(axis='y', colors=spine_color)  #setting up Y-axis tick color to black
     ax.set_xticks(np.arange(0, len(distance_vector), 50.0), minor=False)
+
+
+def score_when_decrease(output):
+    return -1.0 * output[:, 0]
+
+def splitall(path):
+    allparts = []
+    while 1:
+        parts = os.path.split(path)
+        if parts[0] == path:  # sentinel for absolute paths
+            allparts.insert(0, parts[0])
+            break
+        elif parts[1] == path: # sentinel for relative paths
+            allparts.insert(0, parts[1])
+            break
+        else:
+            path = parts[0]
+            allparts.insert(0, parts[1])
+    return allparts
+
+def fix_escape_sequences(img_addr):
+    if "\\\\" in img_addr:
+        img_addr = img_addr.replace("\\\\", "/")
+    elif "\\" in img_addr:
+        img_addr = img_addr.replace("\\", "/")
+    elif "\\a" in img_addr:
+        img_addr = img_addr.replace("\\a", "/a")
+    elif "\\t" in img_addr:
+        img_addr = img_addr.replace("\\t", "/t")
+    elif "\\n" in img_addr:
+        img_addr = img_addr.replace("\\n", "")
+    elif "\\b" in img_addr:
+        img_addr = img_addr.replace("\\b", "")
+    return img_addr

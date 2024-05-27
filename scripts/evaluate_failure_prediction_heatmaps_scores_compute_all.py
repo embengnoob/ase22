@@ -11,10 +11,26 @@ except:
 
 from evaluate_failure_prediction_heatmaps_scores import evaluate_failure_prediction, evaluate_p2p_failure_prediction, get_OOT_frames
 
-def simExists(cfg, run_id, sim_name, attention_type, nominal, threshold, threshold_extras=[]):
-    SIM_PATH = os.path.join(cfg.TESTING_DATA_DIR, sim_name)
-    MAIN_CSV_PATH = os.path.join(SIM_PATH, "src", run_id, "driving_log.csv")
-    HEATMAP_PARENT_FOLDER_PATH = os.path.join(SIM_PATH, "heatmaps-" + attention_type.lower())
+def simExists(cfg, run_id, sim_name, attention_type, sim_type, threshold_extras=[]):
+
+    if sim_type == 'nominal':
+        nominal = True
+        threshold = False
+    elif sim_type == 'anomalous':
+        nominal = False
+        threshold = False
+    elif sim_type == 'threshold':
+        nominal = False
+        threshold = True
+
+    SIM_PATH = os.path.join(cfg.TESTING_DATA_DIR, cfg.TRACK, sim_type, sim_name)
+
+    if not (nominal or threshold):
+        MAIN_CSV_PATH = os.path.join(SIM_PATH, "src", run_id, "driving_log.csv")
+    else:
+        MAIN_CSV_PATH = os.path.join(SIM_PATH, "src", "driving_log.csv")
+
+    HEATMAP_PARENT_FOLDER_PATH = os.path.join(SIM_PATH, "heatmaps", "heatmaps-" + attention_type.lower())
 
     if not nominal:
         if cfg.SPARSE_ATTRIBUTION:
@@ -38,7 +54,9 @@ def simExists(cfg, run_id, sim_name, attention_type, nominal, threshold, thresho
             HEATMAP_IMG_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, "IMG")
             HEATMAP_IMG_GRADIENT_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, "IMG_GRADIENT")
 
-    NUM_OF_FRAMES = get_num_frames(cfg, sim_name)
+    correct_img_paths_in_csv_files(MAIN_CSV_PATH)
+
+    NUM_OF_FRAMES = get_num_frames(run_id, SIM_PATH, MAIN_CSV_PATH)
     if not os.path.exists(SIM_PATH):
         raise ValueError(Fore.RED + f"The provided simulation path does not exist: {SIM_PATH}" + Fore.RESET)
     else:
@@ -116,6 +134,7 @@ def simExists(cfg, run_id, sim_name, attention_type, nominal, threshold, thresho
         if MODE is not None:
             compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH, MODE)
 
+    correct_img_paths_in_csv_files(HEATMAP_CSV_PATH)
     PATHS = [SIM_PATH, MAIN_CSV_PATH, HEATMAP_PARENT_FOLDER_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH]
     if threshold:
         calc_distances = False
@@ -159,10 +178,64 @@ def validation_warnings(valid, sim_name, attention_type, run_id, nominal, thresh
             cprintf(f"WARNING: Threshold \u2717 sim \"{sim_name}\" of attention type \"{attention_type}\" and run ID \"{run_id}\" heatmap folder has deficiencies. Looking for a solution... ", "red")
         else:
             cprintf(f"WARNING: Anomalous \u2717 sim \"{sim_name}\" of attention type \"{attention_type}\" and run ID \"{run_id}\" heatmap folder has deficiencies. Looking for a solution... ", "red")
+
+#########################################################################################################
+# In case the data was copied into another directory the image paths inside csv files must be corrected #
+#########################################################################################################
+def correct_img_address(img_addr, csv_dir):
+    img_name = Path(img_addr).stem
+    corrected_path = os.path.join(csv_dir, 'IMG', img_name + '.jpg')
+    return corrected_path
+
+def check_addresses(center_img_addresses, csv_dir):
+    first_center_img_address = fix_escape_sequences(center_img_addresses[0])
+    if not os.path.exists(first_center_img_address):
+        corrected_path = correct_img_address(first_center_img_address, csv_dir)
+        if not os.path.exists(corrected_path):
+            print(corrected_path)
+            raise ValueError(Fore.RED + f"The provided img path in the csv file is not in the same dir or does not exist." + Fore.RESET)
+        return False
+    else:
+        return True
     
-def correct_field_names(SIM_PATH):
-    MAIN_CSV_PATH = os.path.join(SIM_PATH, "driving_log.csv")
-    UPDATED_CSV_PATH = os.path.join(SIM_PATH, "driving_log_updated.csv")
+def correct_img_paths_in_csv_files(CSV_PATH):
+    csv_dir = os.path.dirname(CSV_PATH)
+    csv_file = pd.read_csv(CSV_PATH)
+    center_img_addresses = csv_file["center"]
+
+    if 'left' in csv_file.columns:
+        left_img_addresses = csv_file["left"]
+    
+    if 'right' in csv_file.columns:
+        right_img_addresses = csv_file["right"]
+
+    # if the img exists in the correct path but the path in the csv file is wrong:
+    if not check_addresses(center_img_addresses, csv_dir):
+        # center images
+        for img_addr in center_img_addresses:
+            fixed_img_addr = fix_escape_sequences(img_addr)
+            corrected_path = correct_img_address(fixed_img_addr, csv_dir)
+            csv_file.replace(to_replace=img_addr, value=corrected_path, inplace=True)
+        if 'left' in csv_file.columns:
+            # left images
+            for img_addr in left_img_addresses:
+                fixed_img_addr = fix_escape_sequences(img_addr)
+                corrected_path = correct_img_address(fixed_img_addr, csv_dir)
+                csv_file.replace(to_replace=img_addr, value=corrected_path, inplace=True)
+        if 'right' in csv_file.columns:
+            # right images
+            for img_addr in right_img_addresses:
+                fixed_img_addr = fix_escape_sequences(img_addr)
+                corrected_path = correct_img_address(fixed_img_addr, csv_dir)
+                csv_file.replace(to_replace=img_addr, value=corrected_path, inplace=True)
+        
+        csv_file.to_csv(CSV_PATH, index=False)
+
+
+
+
+def correct_csv_field_names(SIM_PATH, MAIN_CSV_PATH, run_id):
+    UPDATED_CSV_PATH = os.path.join(SIM_PATH, "src", run_id, "driving_log_updated.csv")
     try:
         # autonomous mode simulation data (is going to fail if manual, since manual has address string in first column)
         data_df = pd.read_csv(MAIN_CSV_PATH)
@@ -188,10 +261,10 @@ def correct_field_names(SIM_PATH):
         NUM_OF_FRAMES = pd.Series.max(data_df["frameId"]) + 1
     return data_df
 
-def get_num_frames(cfg, sim_name):
-    SIM_PATH = os.path.join(cfg.TESTING_DATA_DIR, sim_name)
+
+def get_num_frames(run_id, SIM_PATH, MAIN_CSV_PATH):
     # add field names to main csv file if it's not there (manual training recording)
-    csv_df = correct_field_names(SIM_PATH)
+    csv_df = correct_csv_field_names(SIM_PATH, MAIN_CSV_PATH, run_id)
     # get number of frames
     NUM_OF_FRAMES = pd.Series.max(csv_df['frameId']) + 1
     return NUM_OF_FRAMES
@@ -209,11 +282,11 @@ def comparison_plot_setup(comp_fig):
         axes = [pca_ax_nom, pca_ax_ano, position_ax, distance_ax]
         return axes, comp_fig
 
-def copy_run_figs(cfg, sim_name, run_id, run_figs):
+def copy_run_figs(cfg, SIM_PATH, run_id, run_figs):
     if cfg.SPARSE_ATTRIBUTION:
-        RUN_FIGS_FOLDER_PATH = os.path.join(cfg.TESTING_DATA_DIR, sim_name, str(run_id), 'FIGS_SPARSE')
+        RUN_FIGS_FOLDER_PATH = os.path.join(SIM_PATH, 'results', str(run_id), 'FIGS_SPARSE')
     else:
-        RUN_FIGS_FOLDER_PATH = os.path.join(cfg.TESTING_DATA_DIR, sim_name, str(run_id), 'FIGS')
+        RUN_FIGS_FOLDER_PATH = os.path.join(SIM_PATH, 'results', str(run_id), 'FIGS')
 
     if not os.path.exists(RUN_FIGS_FOLDER_PATH):
         cprintf(f'Run figure folder does not exist. Creating folder ...' ,'l_blue')
@@ -261,36 +334,16 @@ if __name__ == '__main__':
 
     if cfg.IGNORE_WARNINGS:
         warnings.filterwarnings("ignore")
-
-    # ANO_SIMULATIONS = ['test1', 'test2', 'test3', 'test4', 'test5', 'track1-sunny-positioned-nominal-as-anomalous'] # , 'test2', 'test3', 'test4', 'test5'
-    # NOM_SIMULATIONS = [cfg.BASE_NOMINAL_SUNNY_SIM,
-    #                    cfg.BASE_NOMINAL_SUNNY_SIM,
-    #                    cfg.BASE_NOMINAL_SUNNY_SIM,
-    #                    cfg.BASE_NOMINAL_SUNNY_SIM,
-    #                    cfg.BASE_NOMINAL_SUNNY_SIM,
-    #                    cfg.BASE_NOMINAL_SUNNY_SIM]
-    # RUN_ID_NUMBERS = [[1, 2, 3],
-    #                   [1, 2, 3],
-    #                   [1, 2, 3],
-    #                   [1, 2, 3],
-    #                   [1, 2, 3],
-    #                   [1, 2, 3]]
-    # SUMMARY_COLLAGES = [[False, False, False],
-    #                     [False, False, False],
-    #                     [False, False, False],
-    #                     [False, False, False],
-    #                     [False, False, False],
-    #                     [False, False, False]]
                     
     ANO_SIMULATIONS = [
+                        'track1-night-moon',
                         'track1-day-fog-100',
                         'track1-day-rain-100',
                         'track1-day-snow-100',
-                        ['track1-night-rain-100-anomalous', 'track1-night-rain-100-anomalous-2'],
-                        ['track1-night-fog-100-anomalous', 'track1-night-fog-100-anomalous-2'],
-                        'track1-night-snow-100-anomalous-2',
-                        'track1-night-moon-anomalous',
-                        'test1'
+                        'track-day-sunny',
+                        'track1-night-rain-100',
+                        'track1-night-fog-100',
+                        'track1-night-snow-100',
                     ]
 
     
@@ -298,8 +351,8 @@ if __name__ == '__main__':
                         cfg.BASE_NOMINAL_SUNNY_SIM,
                         cfg.BASE_NOMINAL_SUNNY_SIM,
                         cfg.BASE_NOMINAL_SUNNY_SIM,
-                        [cfg.BASE_NOMINAL_SUNNY_SIM, cfg.BASE_NOMINAL_SUNNY_SIM],
-                        [cfg.BASE_NOMINAL_SUNNY_SIM, cfg.BASE_NOMINAL_SUNNY_SIM],
+                        cfg.BASE_NOMINAL_SUNNY_SIM,
+                        cfg.BASE_NOMINAL_SUNNY_SIM,
                         cfg.BASE_NOMINAL_SUNNY_SIM,
                         cfg.BASE_NOMINAL_SUNNY_SIM,
                         cfg.BASE_NOMINAL_SUNNY_SIM
@@ -310,33 +363,33 @@ if __name__ == '__main__':
                                 cfg.BASE_THRESHOLD_SUNNY_SIM,
                                 cfg.BASE_THRESHOLD_SUNNY_SIM,
                                 cfg.BASE_THRESHOLD_SUNNY_SIM,
-                                [cfg.BASE_THRESHOLD_SUNNY_SIM, cfg.BASE_THRESHOLD_SUNNY_SIM],
-                                [cfg.BASE_THRESHOLD_SUNNY_SIM, cfg.BASE_THRESHOLD_SUNNY_SIM],
+                                cfg.BASE_THRESHOLD_SUNNY_SIM,
+                                cfg.BASE_THRESHOLD_SUNNY_SIM,
                                 cfg.BASE_THRESHOLD_SUNNY_SIM,
                                 cfg.BASE_THRESHOLD_SUNNY_SIM,
                                 cfg.BASE_THRESHOLD_SUNNY_SIM
                             ]
     
     RUN_ID_NUMBERS = [
+                        [1, 2],
                         [1],
                         [1],
                         [1],
-                        [1, 1],
-                        [1, 1],
                         [1],
-                        [1],
-                        [0]
+                        [1, 2],
+                        [1, 2],
+                        [1, 2]
                         ]
     
     SUMMARY_COLLAGES = [
+                        [False, False],
+                        [False],
                         [False],
                         [False],
                         [False],
                         [False, False],
                         [False, False],
-                        [False],
-                        [False],
-                        [False]
+                        [False, False]
                         ]
     HEATMAP_TYPES = ['SmoothGrad'] #, 'GradCam++', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP']
 
@@ -387,9 +440,6 @@ if __name__ == '__main__':
         #     averaged_theshold = True
         # else:
         #     averaged_theshold = False
-        num_of_frames = get_num_frames(cfg, sim_name)
-        # Number between 0 and min(n_samples, n_features)
-        # PCA_DIMENSIONS = [100] # [100, 500, num_of_frames]
 
         run_results = []
         run_keys = []
@@ -419,9 +469,9 @@ if __name__ == '__main__':
                     cfg.PLOT_POINT_TO_POINT = True
             # check whether nominal and anomalous simulation and the corresponding heatmaps are already generated, generate them otherwise
             for heatmap_type in HEATMAP_TYPES:
-                NUM_FRAMES_NOM, NOMINAL_PATHS = simExists(cfg, str(run_id), sim_name=SIMULATION_NAME_NOMINAL, attention_type=heatmap_type, nominal=True, threshold=False)
-                NUM_FRAMES_ANO, ANOMALOUS_PATHS = simExists(cfg, str(run_id), sim_name=SIMULATION_NAME_ANOMALOUS, attention_type=heatmap_type, nominal=False, threshold=False)
-                THRESHOLD_VECTORS_FOLDER_PATH = simExists(cfg, '1', sim_name=SIMULATION_NAME_THRESHOLD, attention_type=heatmap_type, nominal=False, threshold=True,
+                NUM_FRAMES_NOM, NOMINAL_PATHS = simExists(cfg, str(run_id), sim_name=SIMULATION_NAME_NOMINAL, attention_type=heatmap_type, sim_type='nominal')
+                NUM_FRAMES_ANO, ANOMALOUS_PATHS = simExists(cfg, str(run_id), sim_name=SIMULATION_NAME_ANOMALOUS, attention_type=heatmap_type, sim_type='anomalous')
+                THRESHOLD_VECTORS_FOLDER_PATH = simExists(cfg, '1', sim_name=SIMULATION_NAME_THRESHOLD, attention_type=heatmap_type, sim_type='threshold',
                                                             threshold_extras=[NOMINAL_PATHS,
                                                                             NUM_FRAMES_NOM,
                                                                             SIMULATION_NAME_ANOMALOUS,
@@ -515,24 +565,24 @@ if __name__ == '__main__':
                     cprintb(f'########### Threshold Sim: {SIMULATION_NAME_THRESHOLD}  ###########', 'l_red')
                     cprintb(f'\n############## run number {run_id} of {len(RUN_ID_NUMBERS[sim_idx])} ##############', 'l_blue')
                     cprintb(f'########### Using Heatmap Type: {heatmap_type} ({HEATMAP_TYPES.index(heatmap_type) + 1} of {len(HEATMAP_TYPES)}) ###########', 'l_blue')
-                    fig_img_address, results_csv_path, seconds_to_anticipate_list = evaluate_p2p_failure_prediction(cfg,
-                                                                                                                    NOMINAL_PATHS,
-                                                                                                                    ANOMALOUS_PATHS,
-                                                                                                                    NUM_FRAMES_NOM,
-                                                                                                                    NUM_FRAMES_ANO,
-                                                                                                                    heatmap_type=heatmap_type,
-                                                                                                                    anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
-                                                                                                                    nominal_simulation_name=SIMULATION_NAME_NOMINAL,
-                                                                                                                    distance_types=DISTANCE_TYPES,
-                                                                                                                    analyse_distance=ANALYSE_DISTANCE,
-                                                                                                                    run_id=run_id,
-                                                                                                                    threshold_sim = False)
-                                                                                                                    #averaged_thresholds=average_thresholds)
+                    fig_img_address, results_csv_path, results_folder_path, seconds_to_anticipate_list = evaluate_p2p_failure_prediction(cfg,
+                                                                                                                                        NOMINAL_PATHS,
+                                                                                                                                        ANOMALOUS_PATHS,
+                                                                                                                                        NUM_FRAMES_NOM,
+                                                                                                                                        NUM_FRAMES_ANO,
+                                                                                                                                        heatmap_type=heatmap_type,
+                                                                                                                                        anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
+                                                                                                                                        nominal_simulation_name=SIMULATION_NAME_NOMINAL,
+                                                                                                                                        distance_types=DISTANCE_TYPES,
+                                                                                                                                        analyse_distance=ANALYSE_DISTANCE,
+                                                                                                                                        run_id=run_id,
+                                                                                                                                        threshold_sim = False)
+                                                                                                                                        #averaged_thresholds=average_thresholds)
                     run_figs.append(fig_img_address)
 
             # copy all figs of a run to a single folder
             if cfg.PLOT_POINT_TO_POINT:
-                copy_run_figs(cfg, sim_name, run_id, run_figs)
+                copy_run_figs(cfg, ANOMALOUS_PATHS[0], run_id, run_figs)
 
 
 
@@ -544,8 +594,8 @@ if __name__ == '__main__':
                 #     total_scores_hm = os.path.join(ANOMALOUS_PATHS[0], str(run_id), 'averaged_theshold', f'results_ano_{SIMULATION_NAME_ANOMALOUS}_nom_{SIMULATION_NAME_NOMINAL}_total_scores_heatmaps.csv')
                 #     total_scores_dt = os.path.join(ANOMALOUS_PATHS[0], str(run_id), 'averaged_theshold', f'results_ano_{SIMULATION_NAME_ANOMALOUS}_nom_{SIMULATION_NAME_NOMINAL}_total_scores_distance_types.csv')
                 # else:
-                total_scores_hm = os.path.join(ANOMALOUS_PATHS[0], str(run_id), f'results_ano_{SIMULATION_NAME_ANOMALOUS}_nom_{SIMULATION_NAME_NOMINAL}_total_scores_heatmaps.csv')
-                total_scores_dt = os.path.join(ANOMALOUS_PATHS[0], str(run_id), f'results_ano_{SIMULATION_NAME_ANOMALOUS}_nom_{SIMULATION_NAME_NOMINAL}_total_scores_distance_types.csv')
+                total_scores_hm = os.path.join(results_folder_path, f'results_ano_{SIMULATION_NAME_ANOMALOUS}_nom_{SIMULATION_NAME_NOMINAL}_total_scores_heatmaps.csv')
+                total_scores_dt = os.path.join(results_folder_path, f'results_ano_{SIMULATION_NAME_ANOMALOUS}_nom_{SIMULATION_NAME_NOMINAL}_total_scores_distance_types.csv')
                 if not os.path.exists(total_scores_hm):
                     with open(total_scores_hm, mode='w',
                                 newline='') as total_scores_hm_file:

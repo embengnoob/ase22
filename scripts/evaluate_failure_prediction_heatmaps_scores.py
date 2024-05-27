@@ -1018,7 +1018,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
     if cfg.GENERATE_SUMMARY_COLLAGES:
         missing_collages = 0
         # path to collages folder
-        COLLAGES_FOLDER_PATH = os.path.join(COLLAGES_PARENT_FOLDER_PATH, f"{distance_type}_{pca_dimension}d")
+        COLLAGES_FOLDER_PATH = os.path.join(COLLAGES_PARENT_FOLDER_PATH, f"{distance_type}")
 
         if not os.path.exists(COLLAGES_FOLDER_PATH):
             cprintf(f"Completed collages folder does not exist. Creating folder ...", 'l_blue')
@@ -1242,7 +1242,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                         true_negative_windows[d_type_index][seconds_to_anticipate-1] += number_of_predictable_windows
 
         # prepare CSV file to write the results in
-        results_folder_path = os.path.join(ANOMALOUS_SIM_PATH, str(run_id))
+        results_folder_path = os.path.join(ANOMALOUS_SIM_PATH, 'results', str(run_id))
         results_csv_path = os.path.join(results_folder_path, f'results_ano_{anomalous_simulation_name}_nom_{nominal_simulation_name}.csv')
         if not os.path.exists(results_folder_path):
             os.makedirs(results_folder_path)
@@ -1353,7 +1353,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                                     distance_vectors_avgs[d_type_index].max(),
                                     distance_vectors_avgs[d_type_index].min()])
     if not threshold_sim:
-        return fig_img_address, results_csv_path, seconds_to_anticipate_list
+        return fig_img_address, results_csv_path, results_folder_path, seconds_to_anticipate_list
 
 
 
