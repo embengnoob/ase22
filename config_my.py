@@ -12,8 +12,8 @@ elif TRACK == "track2":
     BASE_THRESHOLD_SUNNY_SIM = ''
 elif TRACK == "track3":
     SDC_MODEL_NAME = "-------track3-dave2-mc-maxspeed30-withES.h5"  # self-driving car model "dave2"|"chauffeur"|"epoch"|"commaai"
-    BASE_NOMINAL_SUNNY_SIM = 'track3-nominal-auto'
-    BASE_THRESHOLD_SUNNY_SIM = 'track3-nominal-man'
+    BASE_NOMINAL_SUNNY_SIM = 'track3-sunny-nominal'
+    BASE_THRESHOLD_SUNNY_SIM = 'track3-sunny-threshold'
 ##############################################################################################
 ##############################################################################################
 ##############################################################################################
