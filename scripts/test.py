@@ -4,63 +4,64 @@ import utils
 from utils import *
 
 
-# # scores of different weather and lighting conditions for different nominal sim types
+# scores of different weather and lighting conditions for different nominal sim types
 
-# DISTANCE_TYPES = ['sobolev-norm'] #'euclidean', 'EMD', 'moran', 'mutual-info', 'sobolev-norm'
-# HEATMAP_TYPES = ['SmoothGrad'] #'SmoothGrad', 'GradCam++', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP'
+DISTANCE_TYPES = ['sobolev-norm'] #'euclidean', 'EMD', 'moran', 'mutual-info', 'sobolev-norm'
+HEATMAP_TYPES = ['SmoothGrad'] #'SmoothGrad', 'GradCam++', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'SmoothGrad_2', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP'
 
-# def f_beta_score(precision, recall, beta=3):
-#     numerator = (1 + beta ** 2) * (precision * recall)
-#     denominator = (beta ** 2 * precision) + recall
-#     f_beta_score = numerator / denominator
-#     return f_beta_score
+def f_beta_score(precision, recall, beta=3):
+    numerator = (1 + beta ** 2) * (precision * recall)
+    denominator = (beta ** 2 * precision) + recall
+    f_beta_score = numerator / denominator
+    return f_beta_score
 
-# results_csv_path = r"D:\ThirdEye\ase22\simulations\track1-night-moon-anomalous\1\averaged_theshold\results_ano_track1-night-moon-anomalous_nom_track1-night-moon-nominal_total_scores_heatmaps.csv"
-# # results_csv_path = results_csv_path.replace("\\", "\\\\")
-# print(results_csv_path)
-# results_df = pd.read_csv(results_csv_path)
-# seconds_to_anticipate_list = [1, 2, 3]
+results_csv_path = r"D:\ThirdEye\ase22\simulations\track1\anomalous\track1-day-fog-100\results\1\results_ano_track1-day-fog-100_nom_track1-sunny-nominal_total_scores_heatmaps.csv"
+# results_csv_path = results_csv_path.replace("\\", "\\\\")
+print(results_csv_path)
+results_df = pd.read_csv(results_csv_path)
+seconds_to_anticipate_list = [1, 2, 3]
 
-# # for heatmap_type in HEATMAP_TYPES:
-# for sta in seconds_to_anticipate_list:
-#     filter_by_sta = results_df[(results_df['sta'] == sta)]
+df=pd.DataFrame({"Name":['Tom','Nick','John','Peter'],
+                "Age":[15,26,17,28]})
 
-#     precision = filter_by_sta['precision'].values
-#     avg_precision = np.average(precision)
-#     # print(f'sta: precision: {sta}: {precision}')
-#     cprintf(f'sta: avg_precision: {sta}: {round(avg_precision*100)}', 'l_green')
+for heatmap_type in HEATMAP_TYPES:
+    for sta in seconds_to_anticipate_list:
+        filter_by_sta = results_df[(results_df['sta'] == sta)]
+        # precision
+        precision = filter_by_sta['precision'].values
+        avg_precision = np.average(precision)
+        # recall
+        recall = filter_by_sta['recall'].values
+        avg_recall = np.average(recall)
+        # f3
+        f3_score = f_beta_score(avg_precision, avg_recall, beta=3)
+        # accuracy
+        accuracy = filter_by_sta['accuracy'].values
+        avg_accuracy = np.average(accuracy)
 
-#     recall = filter_by_sta['recall'].values
-#     avg_recall = np.average(recall)
-#     # print(f'sta: recall: {sta}: {recall}')
-#     cprintf(f'sta: avg_recall: {sta}: {round(avg_recall*100)}', 'l_yellow')
+        cprintf(f'sta: avg_precision: {sta}: {round(avg_precision*100)}', 'l_green')
+        cprintf(f'sta: avg_recall: {sta}: {round(avg_recall*100)}', 'l_yellow')
+        cprintf(f'sta: f3_score: {sta}: {round(f3_score*100)}', 'l_red')    
+        cprintf(f'sta: avg_accuracy: {sta}: {round(avg_accuracy*100)}', 'l_blue')
+        print('------------------------------------')
 
-#     f3_score = f_beta_score(avg_precision, avg_recall, beta=3)
-#     cprintf(f'sta: f3_score: {sta}: {round(f3_score*100)}', 'l_red')
+    filter_by_sta = results_df[(results_df['sta'] == 1)] # the ..._all value for sta of 1, 2, or 3 is the same.
+    # precision
+    precision_all = filter_by_sta['precision_all'].values
+    avg_precision_all = np.average(precision_all)
+    # recall
+    recall_all = filter_by_sta['recall_all'].values
+    avg_recall_all = np.average(recall_all)
+    # f3
+    f3_score_all = f_beta_score(avg_precision_all, avg_recall_all, beta=3)
+    # accuracy
+    accuracy_all = filter_by_sta['accuracy_all'].values
+    avg_accuracy_all = np.average(accuracy_all)
 
-#     accuracy = filter_by_sta['accuracy'].values
-#     avg_accuracy = np.average(accuracy)
-#     cprintf(f'sta: avg_accuracy: {sta}: {round(avg_accuracy*100)}', 'l_blue')
-
-# filter_by_sta = results_df[(results_df['sta'] == 1)]
-
-# precision_all = filter_by_sta['precision_all'].values
-# avg_precision_all = np.average(precision_all)
-# # print(f'sta: precision: all: {precision_all}')
-# cprintf(f'sta: avg_precision_all: all: {round(avg_precision_all*100)}', 'l_green')
-
-# recall_all = filter_by_sta['recall_all'].values
-# avg_recall_all = np.average(recall_all)
-# # print(f'sta: precision: all: {recall_all}')
-# cprintf(f'sta: avg_recall_all: all: {round(avg_recall_all*100)}', 'l_yellow')
-
-
-# f3_score_all = f_beta_score(avg_precision_all, avg_recall_all, beta=3)
-# cprintf(f'sta: f3_score_all: {sta}: {round(f3_score_all*100)}', 'l_red')
-
-# accuracy_all = filter_by_sta['accuracy_all'].values
-# avg_accuracy_all = np.average(accuracy_all)
-# cprintf(f'sta: avg_accuracy_all: all: {round(avg_accuracy_all*100)}', 'l_blue')
+    cprintf(f'sta: avg_precision_all: all: {round(avg_precision_all*100)}', 'l_green')
+    cprintf(f'sta: avg_recall_all: all: {round(avg_recall_all*100)}', 'l_yellow')
+    cprintf(f'sta: f3_score_all: {sta}: {round(f3_score_all*100)}', 'l_red')
+    cprintf(f'sta: avg_accuracy_all: all: {round(avg_accuracy_all*100)}', 'l_blue')
 
 
 #*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************
@@ -295,107 +296,131 @@ from utils import *
 # plt.savefig('heatmap_comparison.tex', backend='pgf')
 
 
-def splitall(path):
-    allparts = []
-    while 1:
-        parts = os.path.split(path)
-        if parts[0] == path:  # sentinel for absolute paths
-            allparts.insert(0, parts[0])
-            break
-        elif parts[1] == path: # sentinel for relative paths
-            allparts.insert(0, parts[1])
-            break
-        else:
-            path = parts[0]
-            allparts.insert(0, parts[1])
-    return allparts
-
-def fix_escape_sequences(img_addr):
-    if "\\\\" in img_addr:
-        img_addr = img_addr.replace("\\\\", "/")
-    elif "\\" in img_addr:
-        img_addr = img_addr.replace("\\", "/")
-    elif "\\a" in img_addr:
-        img_addr = img_addr.replace("\\a", "/a")
-    elif "\\t" in img_addr:
-        img_addr = img_addr.replace("\\t", "/t")
-    elif "\\n" in img_addr:
-        img_addr = img_addr.replace("\\n", "")
-    elif "\\b" in img_addr:
-        img_addr = img_addr.replace("\\b", "")
-    return img_addr
-
-def correct_img_address(img_addr, csv_dir):
-    img_name = Path(img_addr).stem
-    corrected_path = os.path.join(csv_dir, 'IMG', img_name + '.jpg')
-    return corrected_path
 
 
-def check_addresses(center_img_addresses, csv_dir):
-    first_center_img_address = fix_escape_sequences(center_img_addresses[0])
-    if not os.path.exists(first_center_img_address):
-        corrected_path = correct_img_address(first_center_img_address, csv_dir)
-        if not os.path.exists(corrected_path):
-            print(corrected_path)
-            raise ValueError(Fore.RED + f"The provided img path in the csv file is not in the same dir or does not exist." + Fore.RESET)
-        return False
-    else:
-        return True
 
 
-run_id = 1
-CSV_PATH = r"D:\ThirdEye\ase22\simulations\track1\anomalous\track1-night-moon\heatmaps\heatmaps-smoothgrad\1\driving_log_Copy.csv"
-csv_type = 'heatmap'
 
-csv_dir = os.path.dirname(CSV_PATH)
-csv_file = pd.read_csv(CSV_PATH)
-center_img_addresses = csv_file["center"]
-if csv_type == 'main':
-    left_img_addresses = csv_file["left"]
-    right_img_addresses = csv_file["right"]
 
-# if the img exists in the correct path but the path in the csv file is wrong:
-if not check_addresses(center_img_addresses, csv_dir):
-    # center images
-    for idx, img_addr in enumerate(tqdm(center_img_addresses)):
-        fixed_img_addr = fix_escape_sequences(img_addr)
-        corrected_path = correct_img_address(fixed_img_addr, csv_dir)
-        csv_file.replace(to_replace=img_addr, value=corrected_path, inplace=True)
-    if csv_type == 'main':
-        # left images
-        for idx, img_addr in enumerate(tqdm(left_img_addresses)):
-            fixed_img_addr = fix_escape_sequences(img_addr)
-            corrected_path = correct_img_address(fixed_img_addr, csv_dir)
-            csv_file.replace(to_replace=img_addr, value=corrected_path, inplace=True)
-        # right images
-        for idx, img_addr in enumerate(tqdm(right_img_addresses)):
-            fixed_img_addr = fix_escape_sequences(img_addr)
-            corrected_path = correct_img_address(fixed_img_addr, csv_dir)
-            csv_file.replace(to_replace=img_addr, value=corrected_path, inplace=True)
-    
-    csv_file.to_csv(CSV_PATH, index=False)
 
-#     # cprintf(f'{img_addr}', 'l_yellow')
-#     # replace drive letter if database is copied
-#     if os.path.splitdrive(img_addr)[0] != os.path.splitdrive(os.getcwd())[0]:
-#         if '\\ThirdEye\\ase22\\' in img_addr:
-#             img_addr = img_addr.replace(os.path.splitdrive(img_addr)[0], os.path.splitdrive(os.getcwd())[0])
-#     # change the img addresses accordingly if file placement is in the newer cleaner format ({simulation_name}/src/{run_id}) 
-#     # print(splitall(img_addr))
-#     for idx, addr_part in enumerate(splitall(img_addr)):
-#         if addr_part == 'IMG':
-#             addr_part = os.path.join('src', str(run_id), 'IMG')
-#         if idx == 0:
-#             corrected_address = addr_part
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# def splitall(path):
+#     allparts = []
+#     while 1:
+#         parts = os.path.split(path)
+#         if parts[0] == path:  # sentinel for absolute paths
+#             allparts.insert(0, parts[0])
+#             break
+#         elif parts[1] == path: # sentinel for relative paths
+#             allparts.insert(0, parts[1])
+#             break
 #         else:
-#             corrected_address = os.path.join(prev_addr_chunk, addr_part)
+#             path = parts[0]
+#             allparts.insert(0, parts[1])
+#     return allparts
 
-#         prev_addr_chunk = corrected_address
+# def fix_escape_sequences(img_addr):
+#     if "\\\\" in img_addr:
+#         img_addr = img_addr.replace("\\\\", "/")
+#     elif "\\" in img_addr:
+#         img_addr = img_addr.replace("\\", "/")
+#     elif "\\a" in img_addr:
+#         img_addr = img_addr.replace("\\a", "/a")
+#     elif "\\t" in img_addr:
+#         img_addr = img_addr.replace("\\t", "/t")
+#     elif "\\n" in img_addr:
+#         img_addr = img_addr.replace("\\n", "")
+#     elif "\\b" in img_addr:
+#         img_addr = img_addr.replace("\\b", "")
+#     return img_addr
 
-#     if idx == 1:
-#         break
+# def correct_img_address(img_addr, csv_dir):
+#     img_name = Path(img_addr).stem
+#     corrected_path = os.path.join(csv_dir, 'IMG', img_name + '.jpg')
+#     return corrected_path
 
-# print(corrected_address)
-# if os.path.exists(corrected_address):
-#     print('true')
+
+# def check_addresses(center_img_addresses, csv_dir):
+#     first_center_img_address = fix_escape_sequences(center_img_addresses[0])
+#     if not os.path.exists(first_center_img_address):
+#         corrected_path = correct_img_address(first_center_img_address, csv_dir)
+#         if not os.path.exists(corrected_path):
+#             print(corrected_path)
+#             raise ValueError(Fore.RED + f"The provided img path in the csv file is not in the same dir or does not exist." + Fore.RESET)
+#         return False
+#     else:
+#         return True
+
+
+# run_id = 1
+# CSV_PATH = r"D:\ThirdEye\ase22\simulations\track1\anomalous\track1-night-moon\heatmaps\heatmaps-smoothgrad\1\driving_log_Copy.csv"
+# csv_type = 'heatmap'
+
+# csv_dir = os.path.dirname(CSV_PATH)
+# csv_file = pd.read_csv(CSV_PATH)
+# center_img_addresses = csv_file["center"]
+# if csv_type == 'main':
+#     left_img_addresses = csv_file["left"]
+#     right_img_addresses = csv_file["right"]
+
+# # if the img exists in the correct path but the path in the csv file is wrong:
+# if not check_addresses(center_img_addresses, csv_dir):
+#     # center images
+#     for idx, img_addr in enumerate(tqdm(center_img_addresses)):
+#         fixed_img_addr = fix_escape_sequences(img_addr)
+#         corrected_path = correct_img_address(fixed_img_addr, csv_dir)
+#         csv_file.replace(to_replace=img_addr, value=corrected_path, inplace=True)
+#     if csv_type == 'main':
+#         # left images
+#         for idx, img_addr in enumerate(tqdm(left_img_addresses)):
+#             fixed_img_addr = fix_escape_sequences(img_addr)
+#             corrected_path = correct_img_address(fixed_img_addr, csv_dir)
+#             csv_file.replace(to_replace=img_addr, value=corrected_path, inplace=True)
+#         # right images
+#         for idx, img_addr in enumerate(tqdm(right_img_addresses)):
+#             fixed_img_addr = fix_escape_sequences(img_addr)
+#             corrected_path = correct_img_address(fixed_img_addr, csv_dir)
+#             csv_file.replace(to_replace=img_addr, value=corrected_path, inplace=True)
+    
+#     csv_file.to_csv(CSV_PATH, index=False)
+
+# #     # cprintf(f'{img_addr}', 'l_yellow')
+# #     # replace drive letter if database is copied
+# #     if os.path.splitdrive(img_addr)[0] != os.path.splitdrive(os.getcwd())[0]:
+# #         if '\\ThirdEye\\ase22\\' in img_addr:
+# #             img_addr = img_addr.replace(os.path.splitdrive(img_addr)[0], os.path.splitdrive(os.getcwd())[0])
+# #     # change the img addresses accordingly if file placement is in the newer cleaner format ({simulation_name}/src/{run_id}) 
+# #     # print(splitall(img_addr))
+# #     for idx, addr_part in enumerate(splitall(img_addr)):
+# #         if addr_part == 'IMG':
+# #             addr_part = os.path.join('src', str(run_id), 'IMG')
+# #         if idx == 0:
+# #             corrected_address = addr_part
+# #         else:
+# #             corrected_address = os.path.join(prev_addr_chunk, addr_part)
+
+# #         prev_addr_chunk = corrected_address
+
+# #     if idx == 1:
+# #         break
+
+# # print(corrected_address)
+# # if os.path.exists(corrected_address):
+# #     print('true')
     

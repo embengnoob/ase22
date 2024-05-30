@@ -1408,3 +1408,141 @@ def fix_escape_sequences(img_addr):
     elif "\\b" in img_addr:
         img_addr = img_addr.replace("\\b", "")
     return img_addr
+
+
+######################
+# EVALUATE ALL UTILS #
+######################
+
+def validation_warnings(valid, sim_name, attention_type, run_id, nominal, threshold):
+    if valid:
+        if nominal:
+            cprintf(f"Heatmaps for nominal \u2713 \"{sim_name}\" of attention type \"{attention_type}\" exist.", 'l_green')
+        elif threshold:
+            cprintf(f"Heatmaps for threshold sim \u2713 \"{sim_name}\" of attention type \"{attention_type}\" and run ID \"{run_id}\" exist.", 'l_green')
+        else:
+            cprintf(f"Heatmaps for anomalous sim \u2713 \"{sim_name}\" of attention type \"{attention_type}\" and run ID \"{run_id}\" exist.", 'l_green')
+    else:
+        if nominal:
+            cprintf(f"WARNING: Nominal \u2717 sim \"{sim_name}\" of attention type \"{attention_type}\" heatmap folder has deficiencies. Looking for a solution... ", "red")
+        elif threshold:
+            cprintf(f"WARNING: Threshold \u2717 sim \"{sim_name}\" of attention type \"{attention_type}\" and run ID \"{run_id}\" heatmap folder has deficiencies. Looking for a solution... ", "red")
+        else:
+            cprintf(f"WARNING: Anomalous \u2717 sim \"{sim_name}\" of attention type \"{attention_type}\" and run ID \"{run_id}\" heatmap folder has deficiencies. Looking for a solution... ", "red")
+
+
+######## In case the data was copied into another directory the image paths inside csv files must be corrected ########
+
+def correct_img_address(img_addr, csv_dir):
+    img_name = Path(img_addr).stem
+    corrected_path = os.path.join(csv_dir, 'IMG', img_name + '.jpg')
+    return corrected_path
+
+def check_addresses(center_img_addresses, csv_dir):
+    first_center_img_address = fix_escape_sequences(center_img_addresses[0])
+    if not os.path.exists(first_center_img_address):
+        corrected_path = correct_img_address(first_center_img_address, csv_dir)
+        if not os.path.exists(corrected_path):
+            raise ValueError(Fore.RED + f"The provided img path in the csv file is not in the same dir or does not exist: {corrected_path}" + Fore.RESET)
+        return False
+    else:
+        return True
+    
+def correct_img_paths_in_csv_files(CSV_PATH):
+
+    csv_dir = os.path.dirname(CSV_PATH)
+    csv_file = pd.read_csv(CSV_PATH)
+    center_img_addresses = csv_file["center"]
+
+    if 'left' in csv_file.columns:
+        left_img_addresses = csv_file["left"]
+    
+    if 'right' in csv_file.columns:
+        right_img_addresses = csv_file["right"]
+
+    # if the img exists in the correct path but the path in the csv file is wrong:
+    if not check_addresses(center_img_addresses, csv_dir):
+        # center images
+        for img_addr in center_img_addresses:
+            fixed_img_addr = fix_escape_sequences(img_addr)
+            corrected_path = correct_img_address(fixed_img_addr, csv_dir)
+            csv_file.replace(to_replace=img_addr, value=corrected_path, inplace=True)
+        if 'left' in csv_file.columns:
+            # left images
+            for img_addr in left_img_addresses:
+                fixed_img_addr = fix_escape_sequences(img_addr)
+                corrected_path = correct_img_address(fixed_img_addr, csv_dir)
+                csv_file.replace(to_replace=img_addr, value=corrected_path, inplace=True)
+        if 'right' in csv_file.columns:
+            # right images
+            for img_addr in right_img_addresses:
+                fixed_img_addr = fix_escape_sequences(img_addr)
+                corrected_path = correct_img_address(fixed_img_addr, csv_dir)
+                csv_file.replace(to_replace=img_addr, value=corrected_path, inplace=True)
+        
+        csv_file.to_csv(CSV_PATH, index=False)
+
+
+######## In case of manual training data the simulator doesn't save the field names (column names) ########
+
+def correct_csv_field_names(SIM_PATH, MAIN_CSV_PATH, run_id):
+    UPDATED_CSV_PATH = os.path.join(SIM_PATH, "src", run_id, "driving_log_updated.csv")
+    try:
+        # autonomous mode simulation data (is going to fail if manual, since manual has address string in first column)
+        data_df = pd.read_csv(MAIN_CSV_PATH)
+        NUM_OF_FRAMES = pd.Series.max(data_df["frameId"]) + 1
+    except:
+        # manual mode simulation data
+        with open(MAIN_CSV_PATH,'r') as f:
+            lines = f.readlines()[1:]
+            with open(UPDATED_CSV_PATH,'w') as f1:
+                 for line in lines:
+                    f1.write(line)
+        df = pd.read_csv(UPDATED_CSV_PATH, header=None)
+        df.rename(columns={ 0: utils.csv_fieldnames_in_manual_mode[0], 1: utils.csv_fieldnames_in_manual_mode[1],
+                            2: utils.csv_fieldnames_in_manual_mode[2], 3: utils.csv_fieldnames_in_manual_mode[3],
+                            4: utils.csv_fieldnames_in_manual_mode[4], 5: utils.csv_fieldnames_in_manual_mode[5],
+                            6: utils.csv_fieldnames_in_manual_mode[6], 7: utils.csv_fieldnames_in_manual_mode[7],
+                            8: utils.csv_fieldnames_in_manual_mode[8], 9: utils.csv_fieldnames_in_manual_mode[9],
+                            10: utils.csv_fieldnames_in_manual_mode[10]}, inplace=True)
+        df['frameId'] = df.index
+        df.to_csv(MAIN_CSV_PATH, index=False) # save to new csv file
+        os.remove(UPDATED_CSV_PATH)
+        data_df = pd.read_csv(MAIN_CSV_PATH)
+        NUM_OF_FRAMES = pd.Series.max(data_df["frameId"]) + 1
+    return data_df
+
+
+def get_num_frames(run_id, SIM_PATH, MAIN_CSV_PATH):
+    # add field names to main csv file if it's not there (manual training recording)
+    csv_df = correct_csv_field_names(SIM_PATH, MAIN_CSV_PATH, run_id)
+    # get number of frames
+    NUM_OF_FRAMES = pd.Series.max(csv_df['frameId']) + 1
+    return NUM_OF_FRAMES
+
+
+def copy_run_figs(cfg, SIM_PATH, run_id, run_figs):
+    if cfg.SPARSE_ATTRIBUTION:
+        RUN_FIGS_FOLDER_PATH = os.path.join(SIM_PATH, 'results', str(run_id), 'FIGS_SPARSE')
+    else:
+        RUN_FIGS_FOLDER_PATH = os.path.join(SIM_PATH, 'results', str(run_id), 'FIGS')
+
+    if not os.path.exists(RUN_FIGS_FOLDER_PATH):
+        cprintf(f'Run figure folder does not exist. Creating folder ...' ,'l_blue')
+        os.makedirs(RUN_FIGS_FOLDER_PATH)
+    
+    cprintf(f"Copying run figures of all assigned heatmap types to: {RUN_FIGS_FOLDER_PATH}", 'l_cyan')
+    for run_fig_address in tqdm(run_figs):
+        shutil.copy(run_fig_address, RUN_FIGS_FOLDER_PATH)
+
+
+def delete_contents_except(directory, directory_to_keep):
+    for item in os.listdir(directory):
+        item_path = os.path.join(directory, item)
+        if os.path.isdir(item_path):
+            # Skip the directory you want to keep
+            if item_path != directory_to_keep:
+                shutil.rmtree(item_path)
+        else:
+            # Delete files
+            os.remove(item_path)

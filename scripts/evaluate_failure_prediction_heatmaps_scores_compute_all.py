@@ -133,7 +133,6 @@ def simExists(cfg, run_id, sim_name, attention_type, sim_type, threshold_extras=
 
         if (MODE != 'csv_missing') and (MODE != 'heatmap_calc') and (MODE != 'new_calc'):
             # check if img paths in the csv file need correcting (possible directory change of simulation data)
-            print(MODE)
             correct_img_paths_in_csv_files(HEATMAP_CSV_PATH)
         if MODE is not None:
             compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH, MODE)
@@ -167,161 +166,12 @@ def simExists(cfg, run_id, sim_name, attention_type, sim_type, threshold_extras=
         return NUM_OF_FRAMES, PATHS
 
 
-def validation_warnings(valid, sim_name, attention_type, run_id, nominal, threshold):
-    if valid:
-        if nominal:
-            cprintf(f"Heatmaps for nominal \u2713 \"{sim_name}\" of attention type \"{attention_type}\" exist.", 'l_green')
-        elif threshold:
-            cprintf(f"Heatmaps for threshold sim \u2713 \"{sim_name}\" of attention type \"{attention_type}\" and run ID \"{run_id}\" exist.", 'l_green')
-        else:
-            cprintf(f"Heatmaps for anomalous sim \u2713 \"{sim_name}\" of attention type \"{attention_type}\" and run ID \"{run_id}\" exist.", 'l_green')
-    else:
-        if nominal:
-            cprintf(f"WARNING: Nominal \u2717 sim \"{sim_name}\" of attention type \"{attention_type}\" heatmap folder has deficiencies. Looking for a solution... ", "red")
-        elif threshold:
-            cprintf(f"WARNING: Threshold \u2717 sim \"{sim_name}\" of attention type \"{attention_type}\" and run ID \"{run_id}\" heatmap folder has deficiencies. Looking for a solution... ", "red")
-        else:
-            cprintf(f"WARNING: Anomalous \u2717 sim \"{sim_name}\" of attention type \"{attention_type}\" and run ID \"{run_id}\" heatmap folder has deficiencies. Looking for a solution... ", "red")
-
-#########################################################################################################
-# In case the data was copied into another directory the image paths inside csv files must be corrected #
-#########################################################################################################
-def correct_img_address(img_addr, csv_dir):
-    img_name = Path(img_addr).stem
-    corrected_path = os.path.join(csv_dir, 'IMG', img_name + '.jpg')
-    return corrected_path
-
-def check_addresses(center_img_addresses, csv_dir):
-    first_center_img_address = fix_escape_sequences(center_img_addresses[0])
-    if not os.path.exists(first_center_img_address):
-        corrected_path = correct_img_address(first_center_img_address, csv_dir)
-        if not os.path.exists(corrected_path):
-            raise ValueError(Fore.RED + f"The provided img path in the csv file is not in the same dir or does not exist: {corrected_path}" + Fore.RESET)
-        return False
-    else:
-        return True
-    
-def correct_img_paths_in_csv_files(CSV_PATH):
-
-    csv_dir = os.path.dirname(CSV_PATH)
-    csv_file = pd.read_csv(CSV_PATH)
-    center_img_addresses = csv_file["center"]
-
-    if 'left' in csv_file.columns:
-        left_img_addresses = csv_file["left"]
-    
-    if 'right' in csv_file.columns:
-        right_img_addresses = csv_file["right"]
-
-    # if the img exists in the correct path but the path in the csv file is wrong:
-    if not check_addresses(center_img_addresses, csv_dir):
-        # center images
-        for img_addr in center_img_addresses:
-            fixed_img_addr = fix_escape_sequences(img_addr)
-            corrected_path = correct_img_address(fixed_img_addr, csv_dir)
-            csv_file.replace(to_replace=img_addr, value=corrected_path, inplace=True)
-        if 'left' in csv_file.columns:
-            # left images
-            for img_addr in left_img_addresses:
-                fixed_img_addr = fix_escape_sequences(img_addr)
-                corrected_path = correct_img_address(fixed_img_addr, csv_dir)
-                csv_file.replace(to_replace=img_addr, value=corrected_path, inplace=True)
-        if 'right' in csv_file.columns:
-            # right images
-            for img_addr in right_img_addresses:
-                fixed_img_addr = fix_escape_sequences(img_addr)
-                corrected_path = correct_img_address(fixed_img_addr, csv_dir)
-                csv_file.replace(to_replace=img_addr, value=corrected_path, inplace=True)
-        
-        csv_file.to_csv(CSV_PATH, index=False)
-
-#############################################################################################
-# In case of manual training data the simulator doesn't save the field names (column names) #
-#############################################################################################
-def correct_csv_field_names(SIM_PATH, MAIN_CSV_PATH, run_id):
-    UPDATED_CSV_PATH = os.path.join(SIM_PATH, "src", run_id, "driving_log_updated.csv")
-    try:
-        # autonomous mode simulation data (is going to fail if manual, since manual has address string in first column)
-        data_df = pd.read_csv(MAIN_CSV_PATH)
-        NUM_OF_FRAMES = pd.Series.max(data_df["frameId"]) + 1
-    except:
-        # manual mode simulation data
-        with open(MAIN_CSV_PATH,'r') as f:
-            lines = f.readlines()[1:]
-            with open(UPDATED_CSV_PATH,'w') as f1:
-                 for line in lines:
-                    f1.write(line)
-        df = pd.read_csv(UPDATED_CSV_PATH, header=None)
-        df.rename(columns={ 0: utils.csv_fieldnames_in_manual_mode[0], 1: utils.csv_fieldnames_in_manual_mode[1],
-                            2: utils.csv_fieldnames_in_manual_mode[2], 3: utils.csv_fieldnames_in_manual_mode[3],
-                            4: utils.csv_fieldnames_in_manual_mode[4], 5: utils.csv_fieldnames_in_manual_mode[5],
-                            6: utils.csv_fieldnames_in_manual_mode[6], 7: utils.csv_fieldnames_in_manual_mode[7],
-                            8: utils.csv_fieldnames_in_manual_mode[8], 9: utils.csv_fieldnames_in_manual_mode[9],
-                            10: utils.csv_fieldnames_in_manual_mode[10]}, inplace=True)
-        df['frameId'] = df.index
-        df.to_csv(MAIN_CSV_PATH, index=False) # save to new csv file
-        os.remove(UPDATED_CSV_PATH)
-        data_df = pd.read_csv(MAIN_CSV_PATH)
-        NUM_OF_FRAMES = pd.Series.max(data_df["frameId"]) + 1
-    return data_df
-
-
-def get_num_frames(run_id, SIM_PATH, MAIN_CSV_PATH):
-    # add field names to main csv file if it's not there (manual training recording)
-    csv_df = correct_csv_field_names(SIM_PATH, MAIN_CSV_PATH, run_id)
-    # get number of frames
-    NUM_OF_FRAMES = pd.Series.max(csv_df['frameId']) + 1
-    return NUM_OF_FRAMES
-
-def comparison_plot_setup(comp_fig):
-        comp_spec = comp_fig.add_gridspec(nrows=4, ncols=1, width_ratios= [1], height_ratios=[3, 3, 1, 1])
-        pca_ax_nom = comp_fig.add_subplot(comp_spec[0, :], projection='3d')
-        pca_ax_nom.set_title('Nominal PCAs')
-        pca_ax_ano = comp_fig.add_subplot(comp_spec[1, :], projection='3d')
-        pca_ax_ano.set_title('Anomalous PCAs')
-        position_ax = comp_fig.add_subplot(comp_spec[2, :])
-        position_ax.set_title('Positional Mappings')
-        distance_ax = comp_fig.add_subplot(comp_spec[3, :])
-        distance_ax.set_title('Distance Vectors')
-        axes = [pca_ax_nom, pca_ax_ano, position_ax, distance_ax]
-        return axes, comp_fig
-
-def copy_run_figs(cfg, SIM_PATH, run_id, run_figs):
-    if cfg.SPARSE_ATTRIBUTION:
-        RUN_FIGS_FOLDER_PATH = os.path.join(SIM_PATH, 'results', str(run_id), 'FIGS_SPARSE')
-    else:
-        RUN_FIGS_FOLDER_PATH = os.path.join(SIM_PATH, 'results', str(run_id), 'FIGS')
-
-    if not os.path.exists(RUN_FIGS_FOLDER_PATH):
-        cprintf(f'Run figure folder does not exist. Creating folder ...' ,'l_blue')
-        os.makedirs(RUN_FIGS_FOLDER_PATH)
-    
-    cprintf(f"Copying run figures of all assigned heatmap types to: {RUN_FIGS_FOLDER_PATH}", 'l_cyan')
-    for run_fig_address in tqdm(run_figs):
-        shutil.copy(run_fig_address, RUN_FIGS_FOLDER_PATH)
-
-
-def delete_contents_except(directory, directory_to_keep):
-    for item in os.listdir(directory):
-        item_path = os.path.join(directory, item)
-        if os.path.isdir(item_path):
-            # Skip the directory you want to keep
-            if item_path != directory_to_keep:
-                shutil.rmtree(item_path)
-        else:
-            # Delete files
-            os.remove(item_path)
-
-
 
 def f_beta_score(precision, recall, beta=3):
     numerator = (1 + beta ** 2) * (precision * recall)
     denominator = (beta ** 2 * precision) + recall
     f_beta_score = numerator / denominator
     return f_beta_score
-
-
-
 
 
 
@@ -335,12 +185,14 @@ if __name__ == '__main__':
             cfg = Config("config_my.py")
         except:
             cfg = load_config("config_my.py")
-
+        
         # cfg.from_pyfile("config_my.py")
-
         if cfg.IGNORE_WARNINGS:
             warnings.filterwarnings("ignore")
-                        
+
+
+    ##################### Simulation Selection #####################       
+                 
         ANO_SIMULATIONS = [
                             # 'track1-night-moon',
                             # 'track1-day-fog-100',
@@ -348,7 +200,7 @@ if __name__ == '__main__':
                             # 'track1-day-snow-100',
                             # 'track1-day-sunny',
                             # 'track1-night-rain-100',
-                            'track1-night-fog-100',
+                            # 'track1-night-fog-100',
                             'track1-night-snow-100',
                         ]
 
@@ -360,7 +212,7 @@ if __name__ == '__main__':
                             # cfg.BASE_NOMINAL_SUNNY_SIM,
                             # cfg.BASE_NOMINAL_SUNNY_SIM,
                             # cfg.BASE_NOMINAL_SUNNY_SIM,
-                            cfg.BASE_NOMINAL_SUNNY_SIM,
+                            # cfg.BASE_NOMINAL_SUNNY_SIM,
                             cfg.BASE_NOMINAL_SUNNY_SIM
                         ]
 
@@ -372,7 +224,7 @@ if __name__ == '__main__':
                                     # cfg.BASE_THRESHOLD_SUNNY_SIM,
                                     # cfg.BASE_THRESHOLD_SUNNY_SIM,
                                     # cfg.BASE_THRESHOLD_SUNNY_SIM,
-                                    cfg.BASE_THRESHOLD_SUNNY_SIM,
+                                    # cfg.BASE_THRESHOLD_SUNNY_SIM,
                                     cfg.BASE_THRESHOLD_SUNNY_SIM
                                 ]
         
@@ -383,7 +235,7 @@ if __name__ == '__main__':
                             # [1],
                             # [1],
                             # [1, 2],
-                            [1, 2],
+                            # [1, 2],
                             [1, 2]
                             ]
         
@@ -394,11 +246,9 @@ if __name__ == '__main__':
                             # [False],
                             # [False],
                             # [False, False],
-                            [False, False],
+                            # [False, False],
                             [False, False]
                             ]
-        HEATMAP_TYPES = ['SmoothGrad'] #, 'GradCam++', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP']
-
 
         if len(ANO_SIMULATIONS) != len(NOM_SIMULATIONS):
             raise ValueError(Fore.RED + f"Mismatch in number of specified ANO and NOM simulations: {len(ANO_SIMULATIONS)} != {len(NOM_SIMULATIONS)} " + Fore.RESET)
@@ -406,11 +256,20 @@ if __name__ == '__main__':
             raise ValueError(Fore.RED + f"Mismatch in number of runs and specified simulations: {len(ANO_SIMULATIONS)} != {len(RUN_ID_NUMBERS)} " + Fore.RESET)
         elif len(SUMMARY_COLLAGES) != len(RUN_ID_NUMBERS):
             raise ValueError(Fore.RED + f"Mismatch in number of runs and specified summary collage patterns: {len(SUMMARY_COLLAGES)} != {len(RUN_ID_NUMBERS)} " + Fore.RESET)
-        
-    # DISTANCE_TYPES = ['euclidean', 'manhattan', 'cosine', 'EMD', 'pearson', 'spearman', 'kendall', 'moran', 'kl-divergence', 'mutual-info', 'sobolev-norm']
-        DISTANCE_TYPES = ['sobolev-norm']
+    
+        total_runs = 0
+        for idx, run_pattern in enumerate(RUN_ID_NUMBERS):
+            total_runs += len(run_pattern)
+            if len(run_pattern) != len(SUMMARY_COLLAGES[idx]):
+                raise ValueError(Fore.RED + f"Mismatch in number of runs per simlation and specified summary collage binary pattern of simulation {idx}: {len(run_pattern)} != {len(SUMMARY_COLLAGES[idx])} " + Fore.RESET)
+
+    ##################### Heatmap and Distance Types #####################
+
+        # P2P Settings
+        HEATMAP_TYPES = ['SmoothGrad', 'RectGrad'] #, 'GradCam++', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP']
+        DISTANCE_TYPES = ['sobolev-norm', 'euclidean'] #['euclidean', 'manhattan', 'cosine', 'EMD', 'pearson', 'spearman', 'kendall', 'moran', 'kl-divergence', 'mutual-info', 'sobolev-norm']
         ANALYSE_DISTANCE = {
-            'euclidean' : (False, 0.99),
+            'euclidean' : (True, 0.99),
             'manhattan' : (False, 0.99),
             'cosine' : (False, 0.99),
             'EMD' : (False, 0.99),
@@ -421,25 +280,17 @@ if __name__ == '__main__':
             'kl-divergence' : (False, 0.99),
             'mutual-info' : (False, 0.50),
             'sobolev-norm' : (True, 0.99)}
+        
+        # ThirdEye Settings
         summary_types = ['-avg', '-avg-grad']
         aggregation_methods = ['mean', 'max']
         abstraction_methods = ['avg', 'variance']
-        # distance_methods = ['pairwise_distance',
-        #                     'cosine_similarity',
-        #                     'polynomial_kernel',
-        #                     'sigmoid_kernel',
-        #                     'rbf_kernel',
-        #                     'laplacian_kernel'] #'chi2_kernel'<
 
-        total_runs = 0
-        for idx, run_pattern in enumerate(RUN_ID_NUMBERS):
-            total_runs += len(run_pattern)
-            if len(run_pattern) != len(SUMMARY_COLLAGES[idx]):
-                raise ValueError(Fore.RED + f"Mismatch in number of runs per simlation and specified summary collage binary pattern of simulation {idx}: {len(run_pattern)} != {len(SUMMARY_COLLAGES[idx])} " + Fore.RESET)
-            
+
+    ##################### Starting Evaluation #####################
+
         average_thresholds_path = ''
         prev_sim = ''
-        # Starting evaluation
         for sim_idx, sim_name in enumerate(ANO_SIMULATIONS):
 
             # if (sim_idx+1) % 3 == 0:
@@ -793,52 +644,7 @@ if __name__ == '__main__':
 
 
         ##################### Evaluation of Results #####################
-        # results_csv_path = r"D:\ThirdEye\ase22\simulations\track1-night-moon-anomalous\1\averaged_theshold\results_ano_track1-night-moon-anomalous_nom_track1-night-moon-nominal_total_scores_heatmaps.csv"
-        # # results_csv_path = results_csv_path.replace("\\", "\\\\")
-        # print(results_csv_path)
-        # results_df = pd.read_csv(results_csv_path)
-        # seconds_to_anticipate_list = [1, 2, 3]
 
-        # # for heatmap_type in HEATMAP_TYPES:
-        # for sta in seconds_to_anticipate_list:
-        #     filter_by_sta = results_df[(results_df['sta'] == sta)]
-
-        #     precision = filter_by_sta['precision'].values
-        #     avg_precision = np.average(precision)
-        #     # print(f'sta: precision: {sta}: {precision}')
-        #     cprintf(f'sta: avg_precision: {sta}: {round(avg_precision*100)}', 'l_green')
-
-        #     recall = filter_by_sta['recall'].values
-        #     avg_recall = np.average(recall)
-        #     # print(f'sta: recall: {sta}: {recall}')
-        #     cprintf(f'sta: avg_recall: {sta}: {round(avg_recall*100)}', 'l_yellow')
-
-        #     f3_score = f_beta_score(avg_precision, avg_recall, beta=3)
-        #     cprintf(f'sta: f3_score: {sta}: {round(f3_score*100)}', 'l_red')
-
-        #     accuracy = filter_by_sta['accuracy'].values
-        #     avg_accuracy = np.average(accuracy)
-        #     cprintf(f'sta: avg_accuracy: {sta}: {round(avg_accuracy*100)}', 'l_blue')
-
-        # filter_by_sta = results_df[(results_df['sta'] == 1)]
-
-        # precision_all = filter_by_sta['precision_all'].values
-        # avg_precision_all = np.average(precision_all)
-        # # print(f'sta: precision: all: {precision_all}')
-        # cprintf(f'sta: avg_precision_all: all: {round(avg_precision_all*100)}', 'l_green')
-
-        # recall_all = filter_by_sta['recall_all'].values
-        # avg_recall_all = np.average(recall_all)
-        # # print(f'sta: precision: all: {recall_all}')
-        # cprintf(f'sta: avg_recall_all: all: {round(avg_recall_all*100)}', 'l_yellow')
-
-
-        # f3_score_all = f_beta_score(avg_precision_all, avg_recall_all, beta=3)
-        # cprintf(f'sta: f3_score_all: {sta}: {round(f3_score_all*100)}', 'l_red')
-
-        # accuracy_all = filter_by_sta['accuracy_all'].values
-        # avg_accuracy_all = np.average(accuracy_all)
-        # cprintf(f'sta: avg_accuracy_all: all: {round(avg_accuracy_all*100)}', 'l_blue')
 
 
 
