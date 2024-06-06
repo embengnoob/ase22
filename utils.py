@@ -1499,12 +1499,12 @@ def correct_csv_field_names(SIM_PATH, MAIN_CSV_PATH, run_id):
                  for line in lines:
                     f1.write(line)
         df = pd.read_csv(UPDATED_CSV_PATH, header=None)
-        df.rename(columns={ 0: utils.csv_fieldnames_in_manual_mode[0], 1: utils.csv_fieldnames_in_manual_mode[1],
-                            2: utils.csv_fieldnames_in_manual_mode[2], 3: utils.csv_fieldnames_in_manual_mode[3],
-                            4: utils.csv_fieldnames_in_manual_mode[4], 5: utils.csv_fieldnames_in_manual_mode[5],
-                            6: utils.csv_fieldnames_in_manual_mode[6], 7: utils.csv_fieldnames_in_manual_mode[7],
-                            8: utils.csv_fieldnames_in_manual_mode[8], 9: utils.csv_fieldnames_in_manual_mode[9],
-                            10: utils.csv_fieldnames_in_manual_mode[10]}, inplace=True)
+        df.rename(columns={ 0: csv_fieldnames_in_manual_mode[0], 1: csv_fieldnames_in_manual_mode[1],
+                            2: csv_fieldnames_in_manual_mode[2], 3: csv_fieldnames_in_manual_mode[3],
+                            4: csv_fieldnames_in_manual_mode[4], 5: csv_fieldnames_in_manual_mode[5],
+                            6: csv_fieldnames_in_manual_mode[6], 7: csv_fieldnames_in_manual_mode[7],
+                            8: csv_fieldnames_in_manual_mode[8], 9: csv_fieldnames_in_manual_mode[9],
+                            10: csv_fieldnames_in_manual_mode[10]}, inplace=True)
         df['frameId'] = df.index
         df.to_csv(MAIN_CSV_PATH, index=False) # save to new csv file
         os.remove(UPDATED_CSV_PATH)
@@ -1546,3 +1546,168 @@ def delete_contents_except(directory, directory_to_keep):
         else:
             # Delete files
             os.remove(item_path)
+
+#################################
+# PROCESSING EVAL RESULTS UTILS #
+#################################
+
+def f_beta_score(precision, recall, beta=3):
+    numerator = (1 + beta ** 2) * (precision * recall)
+    denominator = (beta ** 2 * precision) + recall
+    f_beta_score = numerator / denominator
+    return f_beta_score
+
+def heatmap_type_scores(hm_total_scores_paths, HEATMAP_TYPES, sim_idx, sim_name, number_of_runs,
+                        seconds_to_anticipate, ht_scores_df, last_index, print_results=False):
+    if ht_scores_df is None:
+        raise ValueError("Received None as dataframe")
+    
+    # add simulation name row
+    sim_name_row = ['Simulation']
+    for col_idx in range((len(seconds_to_anticipate)+1)*4):
+        if col_idx == 0:
+            sim_name_row.append(sim_name)
+        else:
+            sim_name_row.append('-')
+    ht_scores_df.iloc[last_index] = sim_name_row
+
+    for heatmap_type in HEATMAP_TYPES:
+        last_index += 1
+        if print_results:
+            print(heatmap_type)
+        # replace 0th column with heatmap names
+        ht_scores_df.at[last_index, 'Window Size'] = heatmap_type
+        # reset column number to 1 for after each heatmap type
+        col_ctr = 1
+        # reset sum arrays including sum vars for each sta for after each heatmap type
+        avg_prec_sum = np.zeros((len(seconds_to_anticipate)), dtype=float)
+        avg_re_sum = np.zeros((len(seconds_to_anticipate)), dtype=float)
+        f3_scores_sum = np.zeros((len(seconds_to_anticipate)), dtype=float)
+        avg_acc_sum = np.zeros((len(seconds_to_anticipate)), dtype=float)
+        
+        avg_prec_all_sum = 0.0
+        avg_rec_all_sta_sum = 0.0
+        f3_score_all_sta_sum = 0.0
+        avg_acc_all_sta_sum = 0.0
+
+        for run_idx in range(number_of_runs):
+            for sta_idx, sta in enumerate(seconds_to_anticipate):
+                if print_results:
+                    print('sta:' + str(sta))
+
+                # read heatmap results csv file for this run_id and filter by heatmap type
+                ht_results_df = pd.read_csv(hm_total_scores_paths[sim_idx][run_idx])
+                filter_by_sta = ht_results_df[(ht_results_df['sta'] == sta) & (ht_results_df['heatmap_type'] == heatmap_type)]
+                # precision
+                precision = filter_by_sta['precision'].values
+                avg_precision = np.average(precision)
+                avg_prec_sum[sta_idx] += avg_precision
+                if print_results:
+                    print(f'avg_prec_sum[sta_idx:{sta_idx}]: {avg_prec_sum}')
+                # recall
+                recall = filter_by_sta['recall'].values
+                avg_recall = np.average(recall)
+                avg_re_sum[sta_idx] += avg_recall
+                if print_results:
+                    print(f'avg_re_sum[sta_idx:{sta_idx}]: {avg_re_sum}')
+                # f3
+                f3_score = f_beta_score(avg_precision, avg_recall, beta=3)
+                f3_scores_sum[sta_idx] += f3_score
+                if print_results:
+                    print(f'f3_scores_sum[sta_idx:{sta_idx}]: {f3_scores_sum}')
+                # accuracy
+                accuracy = filter_by_sta['accuracy'].values
+                avg_accuracy = np.average(accuracy)
+                avg_acc_sum[sta_idx] += avg_accuracy
+                if print_results:
+                    print(f'avg_acc_sum[sta_idx:{sta_idx}]: {avg_acc_sum}')
+
+                if print_results:
+                    print('run_number:' + str(run_idx))
+                    cprintf(f'sta: avg_precision: {sta}: {avg_precision*100}', 'l_green')
+                    cprintf(f'sta: avg_recall: {sta}: {avg_recall*100}', 'l_yellow')
+                    cprintf(f'sta: f3_score: {sta}: {f3_score*100}', 'l_red')    
+                    cprintf(f'sta: avg_accuracy: {sta}: {avg_accuracy*100}', 'l_blue')
+            
+                # save average scores between multiple runs to dataframe
+                if run_idx == number_of_runs-1:
+                    if print_results:
+                        print(avg_prec_sum[sta_idx]/(number_of_runs))
+                        print(avg_re_sum[sta_idx]/(number_of_runs))
+                        print(f3_scores_sum[sta_idx]/(number_of_runs))
+                        print(avg_acc_sum[sta_idx]/(number_of_runs))
+                        print(last_index, col_ctr)
+                    ht_scores_df.iat[last_index, col_ctr] = avg_prec_sum[sta_idx]/(number_of_runs)
+                    ht_scores_df.iat[last_index, col_ctr+1] = avg_re_sum[sta_idx]/(number_of_runs)
+                    ht_scores_df.iat[last_index, col_ctr+2] = f3_scores_sum[sta_idx]/(number_of_runs)
+                    ht_scores_df.iat[last_index, col_ctr+3] = avg_acc_sum[sta_idx]/(number_of_runs)
+                    col_ctr += 4
+                    if print_results:
+                        print(last_index, col_ctr)
+                        print('------------------------------------')
+                    
+            # avg of all stas
+            filter_by_sta = ht_results_df[(ht_results_df['sta'] == 1)] # the ..._all value for sta of 1, 2, or 3 is the same.
+            # precision
+            precision_all_sta = filter_by_sta['precision_all'].values
+            avg_precision_all_sta = np.average(precision_all_sta)
+            avg_prec_all_sum += avg_precision_all_sta
+
+            # recall
+            recall_all_sta = filter_by_sta['recall_all'].values
+            avg_recall_all_sta = np.average(recall_all_sta)
+            avg_rec_all_sta_sum += avg_recall_all_sta
+            # f3
+            f3_score_all_sta = f_beta_score(avg_precision_all_sta, avg_recall_all_sta, beta=3)
+            f3_score_all_sta_sum += f3_score_all_sta
+            # accuracy
+            accuracy_all_sta = filter_by_sta['accuracy_all'].values
+            avg_accuracy_all_sta = np.average(accuracy_all_sta)
+            avg_acc_all_sta_sum += avg_accuracy_all_sta
+
+            if run_idx == number_of_runs-1:
+                if print_results:
+                    print(avg_prec_all_sum/(number_of_runs))
+                    print(avg_rec_all_sta_sum/(number_of_runs))
+                    print(f3_score_all_sta_sum/(number_of_runs))
+                    print(avg_acc_all_sta_sum/(number_of_runs))
+                    print(last_index, col_ctr)
+                ht_scores_df.iat[last_index, col_ctr] = avg_prec_all_sum/(number_of_runs)
+                ht_scores_df.iat[last_index, col_ctr+1] = avg_rec_all_sta_sum/(number_of_runs)
+                ht_scores_df.iat[last_index, col_ctr+2] = f3_score_all_sta_sum/(number_of_runs)
+                ht_scores_df.iat[last_index, col_ctr+3] = avg_acc_all_sta_sum/(number_of_runs)
+                col_ctr += 4
+                if print_results:
+                    print(last_index, col_ctr)
+
+            if print_results:
+                print('run_number:' + str(run_idx))
+                cprintf(f'sta: avg_precision_all_sta: all: {avg_precision_all_sta*100}', 'l_green')
+                cprintf(f'sta: avg_recall_all_sta: all: {avg_recall_all_sta*100}', 'l_yellow')
+                cprintf(f'sta: f3_score_all_sta: all: {f3_score_all_sta*100}', 'l_red')
+                cprintf(f'sta: avg_accuracy_all_sta: all: {avg_accuracy_all_sta*100}', 'l_blue')
+                print('------------------------------')
+    last_index += 1
+    return ht_scores_df, last_index
+
+def create_result_df(hm_total_scores_paths, HEATMAP_TYPES, ANO_SIMULATIONS, sim_idx, number_of_runs, seconds_to_anticipate):
+    # test if the number of paths and runs are the same:
+    if not (len(hm_total_scores_paths[sim_idx]) == number_of_runs):
+            raise ValueError(Fore.RED + f"Mismatch in number of runs per simlation and number of heatmap result score csv paths: {len(hm_total_scores_paths[sim_idx])} != {number_of_runs}" + Fore.RESET)
+    # build the top rows of column names
+    seconds_to_anticipate_str = []
+    for sta in seconds_to_anticipate:
+        seconds_to_anticipate_str.append(str(sta)+'s')
+    seconds_to_anticipate_str.append('All')
+    scores_df = pd.DataFrame(np.zeros(((len(HEATMAP_TYPES)+1)*len(ANO_SIMULATIONS), 17)))
+    col_names_row_1 = ['Window Size']
+    col_names_row_2 = ['Criteria']
+    for sta_str in seconds_to_anticipate_str:
+        for col_idx in range(4):
+            col_names_row_1.append(sta_str)
+        col_names_row_2.append('Precision')
+        col_names_row_2.append('Recall')
+        col_names_row_2.append('F3')
+        col_names_row_2.append('Accuracy')
+    scores_df.columns = pd.MultiIndex.from_arrays([col_names_row_1, col_names_row_2])
+    return scores_df

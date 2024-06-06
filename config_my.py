@@ -23,7 +23,7 @@ TRAINING_DATA_DIR = "datasets"  # root folder for all driving training sets
 TRAINING_SET_DIR = "dataset5"  # the driving training set to use
 SAO_MODELS_DIR = "sao"  # autoencoder-based self-assessment oracle models
 TEST_SIZE = 0.2  # split of training data used for the validation set (keep it low)
-
+FINAL_RESULTS_DIR = "results"
 # simulations settings
 TRACK = "track1"  # ["track1"|"track2"|"track3"|"track1","track2","track3"] the race track to use
 TRACK1_DRIVING_STYLES = ["normal", "recovery", "reverse"]  # ["normal", "recovery", "reverse"] "heatmaps-smoothgrad"
@@ -90,9 +90,6 @@ GENERATE_SUMMARY_COLLAGES = False
 # SUMMARY_COLLAGE_PCA_DIMS = [100] #except max dims
 SUMMARY_COLLAGE_DIST_TYPES = ['sobolev-norm']
 CREATE_VIDEO = True
-
-# PCA = False # principal component analysis method
-# SAVE_PCA = False
 
 EMD = True # Earth mover (Wasserstein) distance
 

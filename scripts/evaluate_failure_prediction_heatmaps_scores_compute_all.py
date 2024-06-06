@@ -11,7 +11,7 @@ except:
 
 from evaluate_failure_prediction_heatmaps_scores import evaluate_failure_prediction, evaluate_p2p_failure_prediction, get_OOT_frames
 
-def simExists(cfg, run_id, sim_name, attention_type, sim_type, threshold_extras=[]):
+def simExists(cfg, run_id, sim_name, attention_type, sim_type, seconds_to_anticipate, threshold_extras=[]):
 
     if sim_type == 'nominal':
         nominal = True
@@ -159,19 +159,12 @@ def simExists(cfg, run_id, sim_name, attention_type, sim_type, threshold_extras=
                                             distance_types=DISTANCE_TYPES,
                                             analyse_distance=ANALYSE_DISTANCE,
                                             run_id=run_id,
-                                            threshold_sim = True)
+                                            threshold_sim = True,
+                                            seconds_to_anticipate=seconds_to_anticipate)
 
         return THRESHOLD_VECTORS_FOLDER_PATH
     else:
         return NUM_OF_FRAMES, PATHS
-
-
-
-def f_beta_score(precision, recall, beta=3):
-    numerator = (1 + beta ** 2) * (precision * recall)
-    denominator = (beta ** 2 * precision) + recall
-    f_beta_score = numerator / denominator
-    return f_beta_score
 
 
 
@@ -200,7 +193,7 @@ if __name__ == '__main__':
                             # 'track1-day-snow-100',
                             # 'track1-day-sunny',
                             # 'track1-night-rain-100',
-                            # 'track1-night-fog-100',
+                            'track1-night-fog-100',
                             'track1-night-snow-100',
                         ]
 
@@ -212,7 +205,7 @@ if __name__ == '__main__':
                             # cfg.BASE_NOMINAL_SUNNY_SIM,
                             # cfg.BASE_NOMINAL_SUNNY_SIM,
                             # cfg.BASE_NOMINAL_SUNNY_SIM,
-                            # cfg.BASE_NOMINAL_SUNNY_SIM,
+                            cfg.BASE_NOMINAL_SUNNY_SIM,
                             cfg.BASE_NOMINAL_SUNNY_SIM
                         ]
 
@@ -224,7 +217,7 @@ if __name__ == '__main__':
                                     # cfg.BASE_THRESHOLD_SUNNY_SIM,
                                     # cfg.BASE_THRESHOLD_SUNNY_SIM,
                                     # cfg.BASE_THRESHOLD_SUNNY_SIM,
-                                    # cfg.BASE_THRESHOLD_SUNNY_SIM,
+                                    cfg.BASE_THRESHOLD_SUNNY_SIM,
                                     cfg.BASE_THRESHOLD_SUNNY_SIM
                                 ]
         
@@ -235,7 +228,7 @@ if __name__ == '__main__':
                             # [1],
                             # [1],
                             # [1, 2],
-                            # [1, 2],
+                            [1, 2],
                             [1, 2]
                             ]
         
@@ -246,7 +239,7 @@ if __name__ == '__main__':
                             # [False],
                             # [False],
                             # [False, False],
-                            # [False, False],
+                            [False, False],
                             [False, False]
                             ]
 
@@ -263,7 +256,7 @@ if __name__ == '__main__':
             if len(run_pattern) != len(SUMMARY_COLLAGES[idx]):
                 raise ValueError(Fore.RED + f"Mismatch in number of runs per simlation and specified summary collage binary pattern of simulation {idx}: {len(run_pattern)} != {len(SUMMARY_COLLAGES[idx])} " + Fore.RESET)
 
-    ##################### Heatmap and Distance Types #####################
+    ##################### Heatmap and Distance Types / Seconds to Anticipate #####################
 
         # P2P Settings
         HEATMAP_TYPES = ['SmoothGrad', 'RectGrad'] #, 'GradCam++', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP']
@@ -280,12 +273,16 @@ if __name__ == '__main__':
             'kl-divergence' : (False, 0.99),
             'mutual-info' : (False, 0.50),
             'sobolev-norm' : (True, 0.99)}
-        
+        SECONDS_TO_ANTICIPATE = [1, 2, 3]
         # ThirdEye Settings
         summary_types = ['-avg', '-avg-grad']
         aggregation_methods = ['mean', 'max']
         abstraction_methods = ['avg', 'variance']
 
+    ##################### Result CSV Path Lists #####################
+
+        dt_total_scores_paths = [[] for i in range(len(ANO_SIMULATIONS))]
+        hm_total_scores_paths = [[] for i in range(len(ANO_SIMULATIONS))]
 
     ##################### Starting Evaluation #####################
 
@@ -335,10 +332,15 @@ if __name__ == '__main__':
                     cprintb(f'\n############## run number {run_id} of {len(RUN_ID_NUMBERS[sim_idx])} ##############', 'l_blue')
                     cprintb(f'########### Using Heatmap Type: {heatmap_type} ({HEATMAP_TYPES.index(heatmap_type) + 1} of {len(HEATMAP_TYPES)}) ###########', 'l_blue')
 
-                    NUM_FRAMES_NOM, NOMINAL_PATHS = simExists(cfg, str(run_id), sim_name=SIMULATION_NAME_NOMINAL, attention_type=heatmap_type, sim_type='nominal')
-                    NUM_FRAMES_ANO, ANOMALOUS_PATHS = simExists(cfg, str(run_id), sim_name=SIMULATION_NAME_ANOMALOUS, attention_type=heatmap_type, sim_type='anomalous')
-                    THRESHOLD_VECTORS_FOLDER_PATH = simExists(cfg, '1', sim_name=SIMULATION_NAME_THRESHOLD, attention_type=heatmap_type, sim_type='threshold',
-                                                                threshold_extras=[NOMINAL_PATHS,
+                    NUM_FRAMES_NOM, NOMINAL_PATHS = simExists(cfg, str(run_id), sim_name=SIMULATION_NAME_NOMINAL, attention_type=heatmap_type, sim_type='nominal', 
+                                                              seconds_to_anticipate=SECONDS_TO_ANTICIPATE)
+                    
+                    NUM_FRAMES_ANO, ANOMALOUS_PATHS = simExists(cfg, str(run_id), sim_name=SIMULATION_NAME_ANOMALOUS, attention_type=heatmap_type, sim_type='anomalous', 
+                                                                seconds_to_anticipate=SECONDS_TO_ANTICIPATE)
+                    
+                    THRESHOLD_VECTORS_FOLDER_PATH = simExists(cfg, '1', sim_name=SIMULATION_NAME_THRESHOLD, attention_type=heatmap_type, sim_type='threshold',      
+                                                              seconds_to_anticipate=SECONDS_TO_ANTICIPATE,
+                                                              threshold_extras=[NOMINAL_PATHS,
                                                                                 NUM_FRAMES_NOM,
                                                                                 SIMULATION_NAME_ANOMALOUS,
                                                                                 SIMULATION_NAME_NOMINAL,
@@ -425,19 +427,20 @@ if __name__ == '__main__':
                         # else:
                         #     average_thresholds = {}
 
-                        fig_img_address, results_csv_path, results_folder_path, seconds_to_anticipate_list = evaluate_p2p_failure_prediction(cfg,
-                                                                                                                                            NOMINAL_PATHS,
-                                                                                                                                            ANOMALOUS_PATHS,
-                                                                                                                                            NUM_FRAMES_NOM,
-                                                                                                                                            NUM_FRAMES_ANO,
-                                                                                                                                            heatmap_type=heatmap_type,
-                                                                                                                                            anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
-                                                                                                                                            nominal_simulation_name=SIMULATION_NAME_NOMINAL,
-                                                                                                                                            distance_types=DISTANCE_TYPES,
-                                                                                                                                            analyse_distance=ANALYSE_DISTANCE,
-                                                                                                                                            run_id=run_id,
-                                                                                                                                            threshold_sim = False)
-                                                                                                                                            #averaged_thresholds=average_thresholds)
+                        fig_img_address, results_csv_path, results_folder_path = evaluate_p2p_failure_prediction(cfg,
+                                                                                                                NOMINAL_PATHS,
+                                                                                                                ANOMALOUS_PATHS,
+                                                                                                                NUM_FRAMES_NOM,
+                                                                                                                NUM_FRAMES_ANO,
+                                                                                                                heatmap_type=heatmap_type,
+                                                                                                                anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
+                                                                                                                nominal_simulation_name=SIMULATION_NAME_NOMINAL,
+                                                                                                                distance_types=DISTANCE_TYPES,
+                                                                                                                analyse_distance=ANALYSE_DISTANCE,
+                                                                                                                run_id=run_id,
+                                                                                                                threshold_sim = False,
+                                                                                                                seconds_to_anticipate = SECONDS_TO_ANTICIPATE)
+                                                                                                                #averaged_thresholds=average_thresholds)
                         run_figs.append(fig_img_address)
 
                 # copy all figs of a run to a single folder
@@ -448,6 +451,7 @@ if __name__ == '__main__':
 
                 ##################### Simulation Evaluation #####################
                 if cfg.CALCULATE_RESULTS:
+
                     # calcuate scores + get number of invalid thresholds
                     results_df = pd.read_csv(results_csv_path)
                     # if averaged_theshold:
@@ -468,7 +472,7 @@ if __name__ == '__main__':
                             writer.writerow(["time_stamp","heatmap_type", "sta", "TP", "FP", "TN", "FN", "precision", "recall", "accuracy", "fpr","TP_all", "FP_all", "TN_all", "FN_all", "precision_all", "recall_all", "accuracy_all", "fpr_all"])
                                     
                             for heatmap_type in HEATMAP_TYPES:
-                                for sta in seconds_to_anticipate_list:
+                                for sta in SECONDS_TO_ANTICIPATE:
                                     num_crashes = results_df['crashes'].values[0]
                                     # # Filter the DataFrame for heatmap type and 'is_threshold_too_low' being True
                                     # too_low_count = len(results_df[(results_df['heatmap_type'] == f'{heatmap_type}') & (results_df['is_threshold_too_low'] == True) & (results_df['sta'] == sta)])
@@ -523,7 +527,7 @@ if __name__ == '__main__':
                             writer.writerow(["time_stamp","distance_type", "sta", "TP", "FP", "TN", "FN", "precision", "recall", "accuracy", "fpr","TP_all", "FP_all", "TN_all", "FN_all", "precision_all", "recall_all", "accuracy_all", "fpr_all"])
                                 
                             for distance_type in DISTANCE_TYPES:
-                                for sta in seconds_to_anticipate_list:
+                                for sta in SECONDS_TO_ANTICIPATE:
                                     num_crashes = results_df['crashes'].values[0]
                                     # # Filter the DataFrame for distance type and 'is_threshold_too_low' being True
                                     # too_low_count = len(results_df[(results_df['distance_type'] == f'{distance_type}') & (results_df['is_threshold_too_low'] == True) & (results_df['sta'] == sta)])
@@ -639,12 +643,35 @@ if __name__ == '__main__':
                 print(total_scores_hm)
                 print(total_scores_dt)
                 print(results_csv_path)
+                hm_total_scores_paths[sim_idx].append(total_scores_hm)
+                dt_total_scores_paths[sim_idx].append(total_scores_dt)
             prev_sim = sim_name
 
 
 
-        ##################### Evaluation of Results #####################
+    ##################### Evaluation Results Post-processing #####################
 
+        # create results folder
+        RESULTS_DIR = os.path.join(cfg.FINAL_RESULTS_DIR, datetime.now().strftime("%d_%m_%Y_%H_%M_%S"))
+        if not os.path.exists(RESULTS_DIR):
+            os.makedirs(RESULTS_DIR)
+        
+        # save list of simulation names as a txt file
+        with open(os.path.join(RESULTS_DIR, 'sims.txt'), 'w') as f:
+            f.write(f"Anomalous Sims:\n")
+            for sim in ANO_SIMULATIONS:
+                f.write(f"{sim}\n")
+        
+        NUMBER_OF_RUNS = len(RUN_ID_NUMBERS[0])
+
+        # save scores based on heatmap types
+        last_index = 0
+        for sim_idx, sim_name in enumerate(ANO_SIMULATIONS):
+            if sim_idx == 0:
+                ht_scores_df = create_result_df(hm_total_scores_paths, HEATMAP_TYPES, ANO_SIMULATIONS, sim_idx, NUMBER_OF_RUNS, SECONDS_TO_ANTICIPATE)
+            ht_scores_df, last_index = heatmap_type_scores(hm_total_scores_paths, HEATMAP_TYPES, sim_idx, sim_name, NUMBER_OF_RUNS, SECONDS_TO_ANTICIPATE, ht_scores_df, last_index, print_results=False)
+        ht_scores_df.to_csv(os.path.join(RESULTS_DIR, 'heatmaps.csv'), index=False)
+        ht_scores_df.to_excel(os.path.join(RESULTS_DIR, 'heatmaps.xlsx')) 
 
 
 

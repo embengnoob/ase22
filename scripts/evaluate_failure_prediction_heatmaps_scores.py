@@ -485,8 +485,8 @@ def compute_fp_and_tn(data_df_nominal, aggregation_method, condition,fig,axs,sub
 
 def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, heatmap_type,
                                     anomalous_simulation_name, nominal_simulation_name, distance_types, analyse_distance,
-                                    run_id, threshold_sim):  #,averaged_thresholds={}):
-
+                                    run_id, threshold_sim, seconds_to_anticipate):  #,averaged_thresholds={}):
+    
     #################################### GETTING THE RIGHT ROOT PATHS #########################################
 
     # PATHS = [SIM_PATH, MAIN_CSV_PATH, HEATMAP_PARENT_FOLDER_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH]
@@ -1156,9 +1156,8 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
         false_negative_windows = np.zeros((len(distance_types), 3))
         false_positive_windows = np.zeros((len(distance_types), 3))
         true_negative_windows = np.zeros((len(distance_types), 3))
-        seconds_to_anticipate_list = [1, 2, 3]
         
-        for seconds_to_anticipate in seconds_to_anticipate_list:
+        for sta in seconds_to_anticipate:
             for d_type_index, distance_type in enumerate(distance_types):
                 if not cfg.MINIMAL_LOGGING:
                     cprintb(f'FP && TN: {distance_type}', 'l_yellow')
@@ -1173,7 +1172,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                 discarded_alarms = []
                 discarded_no_alarms = []
 
-                window_size = int(seconds_to_anticipate * fps_anomalous)
+                window_size = int(sta * fps_anomalous)
                 boolean_ranges = np.zeros((len(all_ranges)), dtype=bool)
                 # create a boolean array following the same pattern as all ranges.
                 # Set true if no_alarm_range is bigger than window size; otherwise set false
@@ -1211,11 +1210,11 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                     for crash_frame in all_crash_frames:
                         if (alarm_range_start <= crash_frame <= alarm_range_end) or (alarm_range_end <= crash_frame <= (alarm_range_end + window_size)):
                             alarm_rng_is_tp = True
-                            true_positive_windows[d_type_index][seconds_to_anticipate-1] += 1
+                            true_positive_windows[d_type_index][sta-1] += 1
                             # cprintf(f'crash is predicted: {alarm_range_start} <= {crash_frame} <= {alarm_range_end} or {alarm_range_end} <= {crash_frame} <= {alarm_range_end + window_size}', 'l_green')
                     if not alarm_rng_is_tp:
                         # number_of_predictable_windows = round((alarm_range_end - alarm_range_start)/(window_size))
-                        false_positive_windows[d_type_index][seconds_to_anticipate-1] += 1
+                        false_positive_windows[d_type_index][sta-1] += 1
 
 
                 ################ Calculate True and False Negatives ################
@@ -1235,11 +1234,11 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                     for crash_frame in all_crash_frames:
                         if (no_alarm_range_start <= crash_frame <= no_alarm_range_end) or (no_alarm_range_end <= crash_frame <= (no_alarm_range_end + window_size)):
                             no_alarm_rng_is_fn = True
-                            false_negative_windows[d_type_index][seconds_to_anticipate-1] += 1
+                            false_negative_windows[d_type_index][sta-1] += 1
                             # cprintf(f'crash in no_alarm_area: {no_alarm_range_start} <= {crash_frame} <= {no_alarm_range_end} or {no_alarm_range_end} <= {crash_frame} <= {no_alarm_range_end + window_size}', 'l_red')
                     if not no_alarm_rng_is_fn:
                         number_of_predictable_windows = round((no_alarm_range_end - no_alarm_range_start)/(window_size))
-                        true_negative_windows[d_type_index][seconds_to_anticipate-1] += number_of_predictable_windows
+                        true_negative_windows[d_type_index][sta-1] += number_of_predictable_windows
 
         # prepare CSV file to write the results in
         results_folder_path = os.path.join(ANOMALOUS_SIM_PATH, 'results', str(run_id))
@@ -1259,25 +1258,25 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                 writer.writerow(
                     ["time_stamp","heatmap_type", "distance_type", "threshold", "crashes", "sta", "TP", "FP", "TN", "FN", "accuracy", "fpr", "precision", "recall", "f3", "max_val", "min_val"])
 
-        for seconds_to_anticipate in seconds_to_anticipate_list:
+        for sta in seconds_to_anticipate:
             for d_type_index, distance_type in enumerate(distance_types):
                 if not cfg.MINIMAL_LOGGING:
-                    cprintb(f'Results for distance type {distance_type} and {seconds_to_anticipate} seconds', 'l_green')
-                    print('TP: ' + f'{true_positive_windows[d_type_index][seconds_to_anticipate-1]}')
-                    print('FP: ' + f'{false_positive_windows[d_type_index][seconds_to_anticipate-1]}')
-                    print('TN: ' + f'{true_negative_windows[d_type_index][seconds_to_anticipate-1]}')
-                    print('FN: ' + f'{false_negative_windows[d_type_index][seconds_to_anticipate-1]}')
+                    cprintb(f'Results for distance type {distance_type} and {sta} seconds', 'l_green')
+                    print('TP: ' + f'{true_positive_windows[d_type_index][sta-1]}')
+                    print('FP: ' + f'{false_positive_windows[d_type_index][sta-1]}')
+                    print('TN: ' + f'{true_negative_windows[d_type_index][sta-1]}')
+                    print('FN: ' + f'{false_negative_windows[d_type_index][sta-1]}')
 
-                if true_positive_windows[d_type_index][seconds_to_anticipate-1] != 0:
-                    precision = true_positive_windows[d_type_index][seconds_to_anticipate-1] / (true_positive_windows[d_type_index][seconds_to_anticipate-1] + false_positive_windows[d_type_index][seconds_to_anticipate-1])
-                    recall = true_positive_windows[d_type_index][seconds_to_anticipate-1] / (true_positive_windows[d_type_index][seconds_to_anticipate-1] + false_negative_windows[d_type_index][seconds_to_anticipate-1])
-                    accuracy = (true_positive_windows[d_type_index][seconds_to_anticipate-1] + true_negative_windows[d_type_index][seconds_to_anticipate-1]) / (
-                            true_positive_windows[d_type_index][seconds_to_anticipate-1] + true_negative_windows[d_type_index][seconds_to_anticipate-1] + false_positive_windows[d_type_index][seconds_to_anticipate-1] + false_negative_windows[d_type_index][seconds_to_anticipate-1])
-                    fpr = false_positive_windows[d_type_index][seconds_to_anticipate-1] / (false_positive_windows[d_type_index][seconds_to_anticipate-1] + true_negative_windows[d_type_index][seconds_to_anticipate-1])
+                if true_positive_windows[d_type_index][sta-1] != 0:
+                    precision = true_positive_windows[d_type_index][sta-1] / (true_positive_windows[d_type_index][sta-1] + false_positive_windows[d_type_index][sta-1])
+                    recall = true_positive_windows[d_type_index][sta-1] / (true_positive_windows[d_type_index][sta-1] + false_negative_windows[d_type_index][sta-1])
+                    accuracy = (true_positive_windows[d_type_index][sta-1] + true_negative_windows[d_type_index][sta-1]) / (
+                            true_positive_windows[d_type_index][sta-1] + true_negative_windows[d_type_index][sta-1] + false_positive_windows[d_type_index][sta-1] + false_negative_windows[d_type_index][sta-1])
+                    fpr = false_positive_windows[d_type_index][sta-1] / (false_positive_windows[d_type_index][sta-1] + true_negative_windows[d_type_index][sta-1])
 
                     if precision != 0 or recall != 0:
-                        f3 = true_positive_windows[d_type_index][seconds_to_anticipate-1] / (
-                                true_positive_windows[d_type_index][seconds_to_anticipate-1] + 0.1 * false_positive_windows[d_type_index][seconds_to_anticipate-1] + 0.9 * false_negative_windows[d_type_index][seconds_to_anticipate-1])
+                        f3 = true_positive_windows[d_type_index][sta-1] / (
+                                true_positive_windows[d_type_index][sta-1] + 0.1 * false_positive_windows[d_type_index][sta-1] + 0.9 * false_negative_windows[d_type_index][sta-1])
                         try:
                             accuracy_percent = str(round(accuracy * 100))
                         except:
@@ -1340,11 +1339,11 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                                     # threshold_too_low[distance_type],
                                     # threshold_too_high[distance_type],
                                     str(len(all_crash_frames)),
-                                    str(seconds_to_anticipate),
-                                    str(true_positive_windows[d_type_index][seconds_to_anticipate-1]),
-                                    str(false_positive_windows[d_type_index][seconds_to_anticipate-1]),
-                                    str(true_negative_windows[d_type_index][seconds_to_anticipate-1]),
-                                    str(false_negative_windows[d_type_index][seconds_to_anticipate-1]),
+                                    str(sta),
+                                    str(true_positive_windows[d_type_index][sta-1]),
+                                    str(false_positive_windows[d_type_index][sta-1]),
+                                    str(true_negative_windows[d_type_index][sta-1]),
+                                    str(false_negative_windows[d_type_index][sta-1]),
                                     accuracy_percent,
                                     fpr_percent,
                                     precision_percent,
@@ -1353,7 +1352,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                                     distance_vectors_avgs[d_type_index].max(),
                                     distance_vectors_avgs[d_type_index].min()])
     if not threshold_sim:
-        return fig_img_address, results_csv_path, results_folder_path, seconds_to_anticipate_list
+        return fig_img_address, results_csv_path, results_folder_path
 
 
 
