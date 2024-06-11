@@ -55,6 +55,7 @@ def heatmap_type_scores(hm_total_scores_paths, HEATMAP_TYPES, sim_idx, sim_name,
         ht_scores_df.at[last_index, 'Window Size'] = heatmap_type
         # reset column number to 1 for after each heatmap type
         col_ctr = 1
+
         # reset sum arrays including sum vars for each sta for after each heatmap type
         avg_prec_sum = np.zeros((len(seconds_to_anticipate)), dtype=float)
         avg_re_sum = np.zeros((len(seconds_to_anticipate)), dtype=float)
@@ -194,7 +195,7 @@ for sim_idx, sim_name in enumerate(ANO_SIMULATIONS):
     if sim_idx == 0:
         ht_scores_df = create_result_df(hm_total_scores_paths, HEATMAP_TYPES, ANO_SIMULATIONS, sim_idx, NUMBER_OF_RUNS, SECONDS_TO_ANTICIPATE)
     ht_scores_df, last_index = heatmap_type_scores(hm_total_scores_paths, HEATMAP_TYPES, sim_idx, sim_name, NUMBER_OF_RUNS, SECONDS_TO_ANTICIPATE, ht_scores_df, last_index, print_results=False)
-# print(ht_scores_df)
+print(ht_scores_df)
 ht_scores_df.to_csv('out.csv', index=False)
 ht_scores_df.to_excel("output.xlsx") 
 
@@ -203,8 +204,8 @@ ht_scores_df.to_excel("output.xlsx")
 #*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************
 
 
-# # Threshold nom sim comparison plot
-# # Data
+# Threshold nom sim comparison plot
+# Data
 # simulations = ['Night Moon', 'Night Snow', 'Night Rain', 'Night Fog', 'Day Rain', 'Day Fog', 'Day Snow', 'Average Night', 'Average Day', 'Average All']
 # similar_nom = [75, 71, 67, 47, 83, 83, 85, 65, 83.7, 63.9]
 # sunny_nom = [82, 89.5, 88, 92, 90, 78, 85, 87.9, 84.4, 75.6]
@@ -212,9 +213,9 @@ ht_scores_df.to_excel("output.xlsx")
 
 # # Plotting
 # plt.figure(figsize=(10, 6))
-# plt.plot(simulations, similar_nom, marker='o', label='Similar Nom')
+# # plt.plot(simulations, similar_nom, marker='o', label='Similar Nom')
 # plt.plot(simulations, sunny_nom, marker='s', label='Sunny Nom')
-# plt.plot(simulations, avg_threshold, marker='^', label='Avg Threshold')
+# # plt.plot(simulations, avg_threshold, marker='^', label='Avg Threshold')
 
 # # Customize plot
 # plt.xticks(rotation=45, ha='right')
