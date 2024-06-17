@@ -1711,3 +1711,15 @@ def create_result_df(hm_total_scores_paths, HEATMAP_TYPES, ANO_SIMULATIONS, sim_
         col_names_row_2.append('Accuracy')
     scores_df.columns = pd.MultiIndex.from_arrays([col_names_row_1, col_names_row_2])
     return scores_df
+
+
+heatmap_type_colors = {
+    'SmoothGrad' : ('deepskyblue', 'navy'),
+    'RectGrad' : ('indianred', 'brown'),
+    'GradCam++' : ('mediumslateblue', 'darkslateblue'),
+    'RectGrad_PRR' : ('mediumseagreen', 'darkgreen'),
+    'Saliency' :('lightslategrey', 'darkslategrey'),
+    'Guided_BP' : ('wheat','orange'),
+    'Gradient-Input' : ('darkseagreen', 'darkolivegreen'),
+    'IntegGrad' : ('goldenrod', 'darkgoldenrod'),
+    'Epsilon_LRP': ('salmon', 'maroon')}

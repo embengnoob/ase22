@@ -167,15 +167,11 @@ def heatmap_type_scores(hm_total_scores_paths, HEATMAP_TYPES, sim_idx, sim_name,
     last_index += 1
     return ht_scores_df, last_index
     
-def create_result_df(hm_total_scores_paths, HEATMAP_TYPES, ANO_SIMULATIONS, sim_idx, number_of_runs, seconds_to_anticipate):
+def create_result_df(hm_total_scores_paths, HEATMAP_TYPES, ANO_SIMULATIONS, sim_idx, number_of_runs, seconds_to_anticipate_str):
     # test if the number of paths and runs are the same:
     if not (len(hm_total_scores_paths[sim_idx]) == number_of_runs):
             raise ValueError(Fore.RED + f"Mismatch in number of runs per simlation and number of heatmap result score csv paths: {len(hm_total_scores_paths[sim_idx])} != {number_of_runs}" + Fore.RESET)
     # build the top rows of column names
-    seconds_to_anticipate_str = []
-    for sta in seconds_to_anticipate:
-        seconds_to_anticipate_str.append(str(sta)+'s')
-    seconds_to_anticipate_str.append('All')
     scores_df = pd.DataFrame(np.zeros(((len(HEATMAP_TYPES)+1)*len(ANO_SIMULATIONS), 17)))
     col_names_row_1 = ['Window Size']
     col_names_row_2 = ['Criteria']
@@ -189,23 +185,101 @@ def create_result_df(hm_total_scores_paths, HEATMAP_TYPES, ANO_SIMULATIONS, sim_
     scores_df.columns = pd.MultiIndex.from_arrays([col_names_row_1, col_names_row_2])
     return scores_df
 
+
 NUMBER_OF_RUNS = len(RUN_ID_NUMBERS[0])
 last_index = 0
+seconds_to_anticipate_str = []
+for sta in SECONDS_TO_ANTICIPATE:
+    seconds_to_anticipate_str.append(str(sta)+'s')
+seconds_to_anticipate_str.append('All')
+
+PLOTTING_CRITERIA = ['Precision','Recall','F3','Accuracy']
+PLOTTING_CRITERION = 'Accuracy'
+criterion_idx = PLOTTING_CRITERIA.index(PLOTTING_CRITERION) + 1
+criterion_vals = np.zeros((len(HEATMAP_TYPES)*len(ANO_SIMULATIONS), 4), dtype=float)
+
 for sim_idx, sim_name in enumerate(ANO_SIMULATIONS):
     if sim_idx == 0:
-        ht_scores_df = create_result_df(hm_total_scores_paths, HEATMAP_TYPES, ANO_SIMULATIONS, sim_idx, NUMBER_OF_RUNS, SECONDS_TO_ANTICIPATE)
+        ht_scores_df = create_result_df(hm_total_scores_paths, HEATMAP_TYPES, ANO_SIMULATIONS, sim_idx, NUMBER_OF_RUNS, seconds_to_anticipate_str)
     ht_scores_df, last_index = heatmap_type_scores(hm_total_scores_paths, HEATMAP_TYPES, sim_idx, sim_name, NUMBER_OF_RUNS, SECONDS_TO_ANTICIPATE, ht_scores_df, last_index, print_results=False)
-print(ht_scores_df)
+    for heatmap_type_idx in range(len(HEATMAP_TYPES)):
+        # for seconds in range(len(SECONDS_TO_ANTICIPATE)+1):
+        for sta_idx, sta in enumerate(seconds_to_anticipate_str):
+            row_idx_in_df = (sim_idx*(len(HEATMAP_TYPES)+1))+(heatmap_type_idx+1)
+            col_idx_in_df = (sta_idx+1)*criterion_idx
+            row_idx_in_crit_vals = sim_idx*len(HEATMAP_TYPES) + heatmap_type_idx
+            criterion_vals[row_idx_in_crit_vals][sta_idx] = ht_scores_df.iloc[row_idx_in_df, col_idx_in_df]
+
 ht_scores_df.to_csv('out.csv', index=False)
-ht_scores_df.to_excel("output.xlsx") 
+ht_scores_df.to_excel("output.xlsx")
 
-
-
+# print(ht_scores_df)
+print(criterion_vals)
 #*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************
+# Plotting
+
+plt.figure(figsize=(10, 7))
+x = ANO_SIMULATIONS
+# for sim_idx, sim_name in enumerate(ANO_SIMULATIONS):
+y = []
+line_color_type = 0 # 0 or 1 for each heatmap type
+for sta_idx, sta in enumerate(seconds_to_anticipate_str):
+    for ht_idx, ht in enumerate(HEATMAP_TYPES):
+        for sim_idx, sim_name in enumerate(ANO_SIMULATIONS):
+            row_idx_for_current_sta_and_hm= sim_idx*len(HEATMAP_TYPES) + ht_idx
+            y.append(criterion_vals[row_idx_for_current_sta_and_hm][sta_idx])
+        # print(len(x),x)
+        # print(len(y),y)
+        print(sta, ht_idx)
+        plt.scatter(x, y, s=200, marker=r"$ {} $".format(sta), color=heatmap_type_colors[ht][line_color_type])
+        plt.plot(x, y, label=ht, color=heatmap_type_colors[ht][line_color_type])
+        for x,y in zip(x,y):
+            if not abs(y-1.00)<=0.0001:
+                label = "{:.4f}".format(y)
+
+                plt.annotate(label, # this is the text
+                            (x,y), # these are the coordinates to position the label
+                            textcoords="offset points", # how to position the text
+                            xytext=(0,10), # distance from text to points (x,y)
+                            ha='center',
+                            color=heatmap_type_colors[ht][line_color_type]) # horizontal alignment can be left, right or center
+        y = []
+        x = ANO_SIMULATIONS
+
+# # text = ['1s', '2s', '3s', 'all']
+# plt.scatter(x, y, s=200, marker=r"$ {} $".format('1s'))
+# plt.plot(x, y, label='1s')
+# # zip joins x and y coordinates in pairs
+# for x,y in zip(x,y):
+#     if not abs(y-1.00)<=0.0001:
+#         label = "{:.4f}".format(y)
+
+#         plt.annotate(label, # this is the text
+#                     (x,y), # these are the coordinates to position the label
+#                     textcoords="offset points", # how to position the text
+#                     xytext=(0,10), # distance from text to points (x,y)
+#                     ha='center') # horizontal alignment can be left, right or center
 
 
-# Threshold nom sim comparison plot
-# Data
+# # # for i, txt in enumerate(n):
+# # #     .annotate(txt, (x[i], y[i]))
+# y = [criterion_vals[0][1], criterion_vals[2][1]]
+# x = ANO_SIMULATIONS
+# # text = ['1s', '2s', '3s', 'all']
+# plt.plot(x, y, marker='x', label='Similar Nom')
+
+# for xe, ye in zip(x, y):
+#     print([xe] * len(ye), ye)
+#     plt.scatter([xe] * len(ye), ye)
+#     plt.annotate('1s', [xe] * len(ye), ye)
+# for txt, xe in zip(x, text):
+#     plt.annotate(txt, [xe] * len(ye), ye)
+
+# plt.xticks([1, 2])
+
+# plt.axes().set_xticklabels(['cat1', 'cat2'])
+
+# plt.savefig('t.png')
 # simulations = ['Night Moon', 'Night Snow', 'Night Rain', 'Night Fog', 'Day Rain', 'Day Fog', 'Day Snow', 'Average Night', 'Average Day', 'Average All']
 # similar_nom = [75, 71, 67, 47, 83, 83, 85, 65, 83.7, 63.9]
 # sunny_nom = [82, 89.5, 88, 92, 90, 78, 85, 87.9, 84.4, 75.6]
@@ -217,17 +291,17 @@ ht_scores_df.to_excel("output.xlsx")
 # plt.plot(simulations, sunny_nom, marker='s', label='Sunny Nom')
 # # plt.plot(simulations, avg_threshold, marker='^', label='Avg Threshold')
 
-# # Customize plot
-# plt.xticks(rotation=45, ha='right')
-# plt.xlabel('Lighting/Weather Conditions')
-# plt.ylabel('Accuracy')
-# plt.title('Performance Comparison of Different Nominal Data')
-# plt.legend()
-# plt.grid(True)
+# Customize plot
+plt.xticks(rotation=45, ha='right')
+plt.xlabel('Lighting/Weather Conditions')
+plt.ylabel(PLOTTING_CRITERION)
+plt.title('Performance Comparison of Different Heatmap Types')
+plt.legend()
+plt.grid(True)
 
-# # Show plot
-# plt.tight_layout()
-# plt.show()
+# Show plot
+plt.tight_layout()
+plt.savefig('out.png')
 
 
 # # Heatmap based evaluation
