@@ -1558,7 +1558,7 @@ def f_beta_score(precision, recall, beta=3):
     return f_beta_score
 
 def heatmap_type_scores(hm_total_scores_paths, HEATMAP_TYPES, sim_idx, sim_name, number_of_runs,
-                        seconds_to_anticipate, ht_scores_df, last_index, print_results=False):
+                        seconds_to_anticipate, ht_scores_df, ht_last_index, print_results=False):
     if ht_scores_df is None:
         raise ValueError("Received None as dataframe")
     
@@ -1569,16 +1569,17 @@ def heatmap_type_scores(hm_total_scores_paths, HEATMAP_TYPES, sim_idx, sim_name,
             sim_name_row.append(sim_name)
         else:
             sim_name_row.append('-')
-    ht_scores_df.iloc[last_index] = sim_name_row
+    ht_scores_df.iloc[ht_last_index] = sim_name_row
 
     for heatmap_type in HEATMAP_TYPES:
-        last_index += 1
+        ht_last_index += 1
         if print_results:
             print(heatmap_type)
         # replace 0th column with heatmap names
-        ht_scores_df.at[last_index, 'Window Size'] = heatmap_type
+        ht_scores_df.at[ht_last_index, 'Window Size'] = heatmap_type
         # reset column number to 1 for after each heatmap type
         col_ctr = 1
+
         # reset sum arrays including sum vars for each sta for after each heatmap type
         avg_prec_sum = np.zeros((len(seconds_to_anticipate)), dtype=float)
         avg_re_sum = np.zeros((len(seconds_to_anticipate)), dtype=float)
@@ -1636,14 +1637,14 @@ def heatmap_type_scores(hm_total_scores_paths, HEATMAP_TYPES, sim_idx, sim_name,
                         print(avg_re_sum[sta_idx]/(number_of_runs))
                         print(f3_scores_sum[sta_idx]/(number_of_runs))
                         print(avg_acc_sum[sta_idx]/(number_of_runs))
-                        print(last_index, col_ctr)
-                    ht_scores_df.iat[last_index, col_ctr] = avg_prec_sum[sta_idx]/(number_of_runs)
-                    ht_scores_df.iat[last_index, col_ctr+1] = avg_re_sum[sta_idx]/(number_of_runs)
-                    ht_scores_df.iat[last_index, col_ctr+2] = f3_scores_sum[sta_idx]/(number_of_runs)
-                    ht_scores_df.iat[last_index, col_ctr+3] = avg_acc_sum[sta_idx]/(number_of_runs)
+                        print(ht_last_index, col_ctr)
+                    ht_scores_df.iat[ht_last_index, col_ctr] = avg_prec_sum[sta_idx]/(number_of_runs)
+                    ht_scores_df.iat[ht_last_index, col_ctr+1] = avg_re_sum[sta_idx]/(number_of_runs)
+                    ht_scores_df.iat[ht_last_index, col_ctr+2] = f3_scores_sum[sta_idx]/(number_of_runs)
+                    ht_scores_df.iat[ht_last_index, col_ctr+3] = avg_acc_sum[sta_idx]/(number_of_runs)
                     col_ctr += 4
                     if print_results:
-                        print(last_index, col_ctr)
+                        print(ht_last_index, col_ctr)
                         print('------------------------------------')
                     
             # avg of all stas
@@ -1671,14 +1672,14 @@ def heatmap_type_scores(hm_total_scores_paths, HEATMAP_TYPES, sim_idx, sim_name,
                     print(avg_rec_all_sta_sum/(number_of_runs))
                     print(f3_score_all_sta_sum/(number_of_runs))
                     print(avg_acc_all_sta_sum/(number_of_runs))
-                    print(last_index, col_ctr)
-                ht_scores_df.iat[last_index, col_ctr] = avg_prec_all_sum/(number_of_runs)
-                ht_scores_df.iat[last_index, col_ctr+1] = avg_rec_all_sta_sum/(number_of_runs)
-                ht_scores_df.iat[last_index, col_ctr+2] = f3_score_all_sta_sum/(number_of_runs)
-                ht_scores_df.iat[last_index, col_ctr+3] = avg_acc_all_sta_sum/(number_of_runs)
+                    print(ht_last_index, col_ctr)
+                ht_scores_df.iat[ht_last_index, col_ctr] = avg_prec_all_sum/(number_of_runs)
+                ht_scores_df.iat[ht_last_index, col_ctr+1] = avg_rec_all_sta_sum/(number_of_runs)
+                ht_scores_df.iat[ht_last_index, col_ctr+2] = f3_score_all_sta_sum/(number_of_runs)
+                ht_scores_df.iat[ht_last_index, col_ctr+3] = avg_acc_all_sta_sum/(number_of_runs)
                 col_ctr += 4
                 if print_results:
-                    print(last_index, col_ctr)
+                    print(ht_last_index, col_ctr)
 
             if print_results:
                 print('run_number:' + str(run_idx))
@@ -1687,19 +1688,149 @@ def heatmap_type_scores(hm_total_scores_paths, HEATMAP_TYPES, sim_idx, sim_name,
                 cprintf(f'sta: f3_score_all_sta: all: {f3_score_all_sta*100}', 'l_red')
                 cprintf(f'sta: avg_accuracy_all_sta: all: {avg_accuracy_all_sta*100}', 'l_blue')
                 print('------------------------------')
-    last_index += 1
-    return ht_scores_df, last_index
+    ht_last_index += 1
+    return ht_scores_df, ht_last_index
 
-def create_result_df(hm_total_scores_paths, HEATMAP_TYPES, ANO_SIMULATIONS, sim_idx, number_of_runs, seconds_to_anticipate):
+def distance_type_scores(dt_total_scores_paths, DISTANCE_TYPES, sim_idx, sim_name, number_of_runs,
+                        seconds_to_anticipate, dt_scores_df, dt_last_index, print_results=False):
+    if dt_scores_df is None:
+        raise ValueError("Received None as dataframe")
+    
+    # add simulation name row
+    sim_name_row = ['Simulation']
+    for col_idx in range((len(seconds_to_anticipate)+1)*4):
+        if col_idx == 0:
+            sim_name_row.append(sim_name)
+        else:
+            sim_name_row.append('-')
+    dt_scores_df.iloc[dt_last_index] = sim_name_row
+
+    for distance_type in DISTANCE_TYPES:
+        dt_last_index += 1
+        if print_results:
+            print(distance_type)
+        # replace 0th column with heatmap names
+        dt_scores_df.at[dt_last_index, 'Window Size'] = distance_type
+        # reset column number to 1 for after each heatmap type
+        col_ctr = 1
+
+        # reset sum arrays including sum vars for each sta for after each heatmap type
+        avg_prec_sum = np.zeros((len(seconds_to_anticipate)), dtype=float)
+        avg_re_sum = np.zeros((len(seconds_to_anticipate)), dtype=float)
+        f3_scores_sum = np.zeros((len(seconds_to_anticipate)), dtype=float)
+        avg_acc_sum = np.zeros((len(seconds_to_anticipate)), dtype=float)
+        
+        avg_prec_all_sum = 0.0
+        avg_rec_all_sta_sum = 0.0
+        f3_score_all_sta_sum = 0.0
+        avg_acc_all_sta_sum = 0.0
+
+        for run_idx in range(number_of_runs):
+            for sta_idx, sta in enumerate(seconds_to_anticipate):
+                if print_results:
+                    print('sta:' + str(sta))
+
+                # read heatmap results csv file for this run_id and filter by heatmap type
+                dt_results_df = pd.read_csv(dt_total_scores_paths[sim_idx][run_idx])
+                filter_by_sta = dt_results_df[(dt_results_df['sta'] == sta) & (dt_results_df['distance_type'] == distance_type)]
+                # precision
+                precision = filter_by_sta['precision'].values
+                avg_precision = np.average(precision)
+                avg_prec_sum[sta_idx] += avg_precision
+                if print_results:
+                    print(f'avg_prec_sum[sta_idx:{sta_idx}]: {avg_prec_sum}')
+                # recall
+                recall = filter_by_sta['recall'].values
+                avg_recall = np.average(recall)
+                avg_re_sum[sta_idx] += avg_recall
+                if print_results:
+                    print(f'avg_re_sum[sta_idx:{sta_idx}]: {avg_re_sum}')
+                # f3
+                f3_score = f_beta_score(avg_precision, avg_recall, beta=3)
+                f3_scores_sum[sta_idx] += f3_score
+                if print_results:
+                    print(f'f3_scores_sum[sta_idx:{sta_idx}]: {f3_scores_sum}')
+                # accuracy
+                accuracy = filter_by_sta['accuracy'].values
+                avg_accuracy = np.average(accuracy)
+                avg_acc_sum[sta_idx] += avg_accuracy
+                if print_results:
+                    print(f'avg_acc_sum[sta_idx:{sta_idx}]: {avg_acc_sum}')
+
+                if print_results:
+                    print('run_number:' + str(run_idx))
+                    cprintf(f'sta: avg_precision: {sta}: {avg_precision*100}', 'l_green')
+                    cprintf(f'sta: avg_recall: {sta}: {avg_recall*100}', 'l_yellow')
+                    cprintf(f'sta: f3_score: {sta}: {f3_score*100}', 'l_red')    
+                    cprintf(f'sta: avg_accuracy: {sta}: {avg_accuracy*100}', 'l_blue')
+            
+                # save average scores between multiple runs to dataframe
+                if run_idx == number_of_runs-1:
+                    if print_results:
+                        print(avg_prec_sum[sta_idx]/(number_of_runs))
+                        print(avg_re_sum[sta_idx]/(number_of_runs))
+                        print(f3_scores_sum[sta_idx]/(number_of_runs))
+                        print(avg_acc_sum[sta_idx]/(number_of_runs))
+                        print(dt_last_index, col_ctr)
+                    dt_scores_df.iat[dt_last_index, col_ctr] = avg_prec_sum[sta_idx]/(number_of_runs)
+                    dt_scores_df.iat[dt_last_index, col_ctr+1] = avg_re_sum[sta_idx]/(number_of_runs)
+                    dt_scores_df.iat[dt_last_index, col_ctr+2] = f3_scores_sum[sta_idx]/(number_of_runs)
+                    dt_scores_df.iat[dt_last_index, col_ctr+3] = avg_acc_sum[sta_idx]/(number_of_runs)
+                    col_ctr += 4
+                    if print_results:
+                        print(dt_last_index, col_ctr)
+                        print('------------------------------------')
+                    
+            # avg of all stas
+            filter_by_sta = dt_results_df[(dt_results_df['sta'] == 1)] # the ..._all value for sta of 1, 2, or 3 is the same.
+            # precision
+            precision_all_sta = filter_by_sta['precision_all'].values
+            avg_precision_all_sta = np.average(precision_all_sta)
+            avg_prec_all_sum += avg_precision_all_sta
+
+            # recall
+            recall_all_sta = filter_by_sta['recall_all'].values
+            avg_recall_all_sta = np.average(recall_all_sta)
+            avg_rec_all_sta_sum += avg_recall_all_sta
+            # f3
+            f3_score_all_sta = f_beta_score(avg_precision_all_sta, avg_recall_all_sta, beta=3)
+            f3_score_all_sta_sum += f3_score_all_sta
+            # accuracy
+            accuracy_all_sta = filter_by_sta['accuracy_all'].values
+            avg_accuracy_all_sta = np.average(accuracy_all_sta)
+            avg_acc_all_sta_sum += avg_accuracy_all_sta
+
+            if run_idx == number_of_runs-1:
+                if print_results:
+                    print(avg_prec_all_sum/(number_of_runs))
+                    print(avg_rec_all_sta_sum/(number_of_runs))
+                    print(f3_score_all_sta_sum/(number_of_runs))
+                    print(avg_acc_all_sta_sum/(number_of_runs))
+                    print(dt_last_index, col_ctr)
+                dt_scores_df.iat[dt_last_index, col_ctr] = avg_prec_all_sum/(number_of_runs)
+                dt_scores_df.iat[dt_last_index, col_ctr+1] = avg_rec_all_sta_sum/(number_of_runs)
+                dt_scores_df.iat[dt_last_index, col_ctr+2] = f3_score_all_sta_sum/(number_of_runs)
+                dt_scores_df.iat[dt_last_index, col_ctr+3] = avg_acc_all_sta_sum/(number_of_runs)
+                col_ctr += 4
+                if print_results:
+                    print(dt_last_index, col_ctr)
+
+            if print_results:
+                print('run_number:' + str(run_idx))
+                cprintf(f'sta: avg_precision_all_sta: all: {avg_precision_all_sta*100}', 'l_green')
+                cprintf(f'sta: avg_recall_all_sta: all: {avg_recall_all_sta*100}', 'l_yellow')
+                cprintf(f'sta: f3_score_all_sta: all: {f3_score_all_sta*100}', 'l_red')
+                cprintf(f'sta: avg_accuracy_all_sta: all: {avg_accuracy_all_sta*100}', 'l_blue')
+                print('------------------------------')
+    dt_last_index += 1
+    return dt_scores_df, dt_last_index
+
+def create_result_df(total_scores_paths, DISTANCE_OR_HEATMAP_TYPES, ANO_SIMULATIONS, sim_idx, number_of_runs, seconds_to_anticipate_str):
     # test if the number of paths and runs are the same:
-    if not (len(hm_total_scores_paths[sim_idx]) == number_of_runs):
-            raise ValueError(Fore.RED + f"Mismatch in number of runs per simlation and number of heatmap result score csv paths: {len(hm_total_scores_paths[sim_idx])} != {number_of_runs}" + Fore.RESET)
+    if not (len(total_scores_paths[sim_idx]) == number_of_runs):
+            raise ValueError(Fore.RED + f"Mismatch in number of runs per simlation and number of heatmap result score csv paths: {len(total_scores_paths[sim_idx])} != {number_of_runs}" + Fore.RESET)
     # build the top rows of column names
-    seconds_to_anticipate_str = []
-    for sta in seconds_to_anticipate:
-        seconds_to_anticipate_str.append(str(sta)+'s')
-    seconds_to_anticipate_str.append('All')
-    scores_df = pd.DataFrame(np.zeros(((len(HEATMAP_TYPES)+1)*len(ANO_SIMULATIONS), 17)))
+    scores_df = pd.DataFrame(np.zeros(((len(DISTANCE_OR_HEATMAP_TYPES)+1)*len(ANO_SIMULATIONS), 17)))
     col_names_row_1 = ['Window Size']
     col_names_row_2 = ['Criteria']
     for sta_str in seconds_to_anticipate_str:
@@ -1723,3 +1854,44 @@ heatmap_type_colors = {
     'Gradient-Input' : ('darkseagreen', 'darkolivegreen'),
     'IntegGrad' : ('goldenrod', 'darkgoldenrod'),
     'Epsilon_LRP': ('salmon', 'maroon')}
+
+def heatmap_type_comparison_plot(ANO_SIMULATIONS, seconds_to_anticipate_str, STA_PLOT, HEATMAP_TYPES, criterion_vals, PLOTTING_CRITERION, FIG_SAVE_ADDRESS):
+    # Plotting
+    plt.figure(figsize=(10, 7))
+    x = ANO_SIMULATIONS
+    # for sim_idx, sim_name in enumerate(ANO_SIMULATIONS):
+    y = []
+    line_color_type = 0 # 0 or 1 for each heatmap type
+    for sta_idx, sta in enumerate(seconds_to_anticipate_str):
+        if not STA_PLOT[sta_idx]:
+            continue
+        for ht_idx, ht in enumerate(HEATMAP_TYPES):
+            for sim_idx, _ in enumerate(ANO_SIMULATIONS):
+                row_idx_for_current_sta_and_hm= sim_idx*len(HEATMAP_TYPES) + ht_idx
+                y.append(criterion_vals[row_idx_for_current_sta_and_hm][sta_idx])
+            plt.scatter(x, y, s=200, marker=r"$ {} $".format(sta), color=heatmap_type_colors[ht][line_color_type])
+            plt.plot(x, y, label=ht, color=heatmap_type_colors[ht][line_color_type])
+            for x,y in zip(x,y):
+                if not abs(y-1.00)<=0.0001:
+                    label = "{:.4f}".format(y)
+
+                    plt.annotate(label, # this is the text
+                                (x,y), # these are the coordinates to position the label
+                                textcoords="offset points", # how to position the text
+                                xytext=(0,10), # distance from text to points (x,y)
+                                ha='center',
+                                color=heatmap_type_colors[ht][line_color_type]) # horizontal alignment can be left, right or center
+            y = []
+            x = ANO_SIMULATIONS
+
+    # Customize plot
+    plt.xticks(rotation=45, ha='right')
+    plt.xlabel('Lighting/Weather Conditions')
+    plt.ylabel(PLOTTING_CRITERION)
+    plt.title('Performance Comparison of Different Heatmap Types')
+    plt.legend()
+    plt.grid(True)
+
+    # Show plot
+    plt.tight_layout()
+    plt.savefig(FIG_SAVE_ADDRESS)

@@ -662,20 +662,47 @@ if __name__ == '__main__':
             for sim in ANO_SIMULATIONS:
                 f.write(f"{sim}\n")
         
-        NUMBER_OF_RUNS = len(RUN_ID_NUMBERS[0])
-
+        seconds_to_anticipate_str = []
+        for sta in SECONDS_TO_ANTICIPATE:
+            seconds_to_anticipate_str.append(str(sta)+'s')
+        seconds_to_anticipate_str.append('All')
+        # What sta to plot and compare? [1s, 2s, 3s, all]
+        STA_PLOT = [False, False, False, True]
+        # what criterion to take into account
+        PLOTTING_CRITERIA = ['Precision','Recall','F3','Accuracy']
+        PLOTTING_CRITERION = 'Accuracy'
+        criterion_idx = PLOTTING_CRITERIA.index(PLOTTING_CRITERION) + 1
+        criterion_vals_ht = np.zeros((len(HEATMAP_TYPES)*len(ANO_SIMULATIONS), 4), dtype=float)
+        criterion_vals_dt = np.zeros((len(DISTANCE_TYPES)*len(ANO_SIMULATIONS), 4), dtype=float)
         # save scores based on heatmap types
-        last_index = 0
+        NUMBER_OF_RUNS = len(RUN_ID_NUMBERS[0])
+        ht_last_index = 0
+        dt_last_index = 0
         for sim_idx, sim_name in enumerate(ANO_SIMULATIONS):
             if sim_idx == 0:
-                ht_scores_df = create_result_df(hm_total_scores_paths, HEATMAP_TYPES, ANO_SIMULATIONS, sim_idx, NUMBER_OF_RUNS, SECONDS_TO_ANTICIPATE)
-            ht_scores_df, last_index = heatmap_type_scores(hm_total_scores_paths, HEATMAP_TYPES, sim_idx, sim_name, NUMBER_OF_RUNS, SECONDS_TO_ANTICIPATE, ht_scores_df, last_index, print_results=False)
+                ht_scores_df = create_result_df(hm_total_scores_paths, HEATMAP_TYPES, ANO_SIMULATIONS, sim_idx, NUMBER_OF_RUNS, seconds_to_anticipate_str)
+                dt_scores_df = create_result_df(dt_total_scores_paths, DISTANCE_TYPES, ANO_SIMULATIONS, sim_idx, NUMBER_OF_RUNS, seconds_to_anticipate_str)
+            ht_scores_df, ht_last_index = heatmap_type_scores(hm_total_scores_paths, HEATMAP_TYPES, sim_idx, sim_name, NUMBER_OF_RUNS, SECONDS_TO_ANTICIPATE, ht_scores_df, ht_last_index, print_results=False)
+            dt_scores_df, dt_last_index = distance_type_scores(dt_total_scores_paths, DISTANCE_TYPES, sim_idx, sim_name, NUMBER_OF_RUNS, SECONDS_TO_ANTICIPATE, dt_scores_df, dt_last_index, print_results=False)
+            for heatmap_type_idx in range(len(HEATMAP_TYPES)):
+                for sta_idx, sta in enumerate(seconds_to_anticipate_str):
+                    row_idx_in_df = (sim_idx*(len(HEATMAP_TYPES)+1))+(heatmap_type_idx+1)
+                    col_idx_in_df = (sta_idx+1)*criterion_idx
+                    row_idx_in_crit_vals = sim_idx*len(HEATMAP_TYPES) + heatmap_type_idx
+                    criterion_vals_ht[row_idx_in_crit_vals][sta_idx] = ht_scores_df.iloc[row_idx_in_df, col_idx_in_df]
+            for distance_type_idx in range(len(DISTANCE_TYPES)):
+                for sta_idx, sta in enumerate(seconds_to_anticipate_str):
+                    row_idx_in_df = (sim_idx*(len(DISTANCE_TYPES)+1))+(distance_type_idx+1)
+                    col_idx_in_df = (sta_idx+1)*criterion_idx
+                    row_idx_in_crit_vals = sim_idx*len(DISTANCE_TYPES) + distance_type_idx
+                    criterion_vals_dt[row_idx_in_crit_vals][sta_idx] = dt_scores_df.iloc[row_idx_in_df, col_idx_in_df]
         ht_scores_df.to_csv(os.path.join(RESULTS_DIR, 'heatmaps.csv'), index=False)
         ht_scores_df.to_excel(os.path.join(RESULTS_DIR, 'heatmaps.xlsx')) 
 
 
 
-
+        # plot comparison graph
+        heatmap_type_comparison_plot(ANO_SIMULATIONS, seconds_to_anticipate_str, STA_PLOT, HEATMAP_TYPES, criterion_vals, PLOTTING_CRITERION, FIG_SAVE_ADDRESS=os.path.join(RESULTS_DIR, 'heatmaps.png'))
 
 
 
