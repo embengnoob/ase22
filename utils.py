@@ -1414,7 +1414,156 @@ def fix_escape_sequences(img_addr):
 # EVALUATE ALL UTILS #
 ######################
 
+def get_paths(cfg, run_id, sim_name, attention_type, sim_type):
+    if type(run_id) != str:
+        run_id = str(run_id)
+    SIM_PATH = os.path.join(cfg.TESTING_DATA_DIR, cfg.TRACK, sim_type, sim_name)
+    RUN_RESULTS_PATH = os.path.join(SIM_PATH, 'results', run_id)
+    RUN_FIGS_PATH = os.path.join(RUN_RESULTS_PATH, 'FIGS')
+
+    if sim_type == 'nominal':
+        nominal = True
+        threshold = False
+    elif sim_type == 'anomalous':
+        nominal = False
+        threshold = False
+    elif sim_type == 'threshold':
+        nominal = False
+        threshold = True
+
+    if not (nominal or threshold):
+        MAIN_CSV_PATH = os.path.join(SIM_PATH, "src", run_id, "driving_log.csv")
+    else:
+        MAIN_CSV_PATH = os.path.join(SIM_PATH, "src", "driving_log.csv")
+
+    HEATMAP_PARENT_FOLDER_PATH = os.path.join(SIM_PATH, "heatmaps", "heatmaps-" + attention_type.lower())
+
+    if not nominal:
+        if cfg.SPARSE_ATTRIBUTION:
+            HEATMAP_FOLDER_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, f'{run_id}_SPARSE')
+            HEATMAP_CSV_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, f'{run_id}_SPARSE', "driving_log.csv")
+            HEATMAP_IMG_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, f'{run_id}_SPARSE', "IMG")
+            HEATMAP_IMG_GRADIENT_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, f'{run_id}_SPARSE', "IMG_GRADIENT")
+        else:
+            HEATMAP_FOLDER_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, run_id)
+            HEATMAP_CSV_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, run_id, "driving_log.csv")
+            HEATMAP_IMG_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, run_id, "IMG")
+            HEATMAP_IMG_GRADIENT_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, run_id, "IMG_GRADIENT")
+    else:
+        HEATMAP_FOLDER_PATH = HEATMAP_PARENT_FOLDER_PATH
+        if cfg.SPARSE_ATTRIBUTION:
+            HEATMAP_CSV_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, 'SPARSE', "driving_log.csv")
+            HEATMAP_IMG_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, 'SPARSE', "IMG")
+            HEATMAP_IMG_GRADIENT_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, 'SPARSE', "IMG_GRADIENT")
+        else:
+            HEATMAP_CSV_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, "driving_log.csv")
+            HEATMAP_IMG_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, "IMG")
+            HEATMAP_IMG_GRADIENT_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, "IMG_GRADIENT")
+
+    NUM_OF_FRAMES = get_num_frames(run_id, SIM_PATH, MAIN_CSV_PATH)
+    # check if img paths in the csv file need correcting (possible directory change of simulation data)
+    correct_img_paths_in_csv_files(MAIN_CSV_PATH)
+    PATHS = [SIM_PATH, MAIN_CSV_PATH, HEATMAP_PARENT_FOLDER_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH, RUN_RESULTS_PATH, RUN_FIGS_PATH]
+    result = {
+    'paths': PATHS,
+    'sim_type': [nominal, threshold],
+    "num_of_frames": NUM_OF_FRAMES   
+    }
+    return result
+
+
+def heatmap_calculation_modus(cfg, run_id, sim_name, attention_type, sim_type):
+    if type(run_id) != str:
+        run_id = str(run_id)
+    get_paths_result = get_paths(cfg, run_id, sim_name, attention_type, sim_type)
+    PATHS = get_paths_result['paths']
+    SIM_PATH, MAIN_CSV_PATH, HEATMAP_PARENT_FOLDER_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH, RUN_RESULTS_PATH, RUN_FIGS_PATH = PATHS
+    nominal, threshold = get_paths_result['sim_type']
+    NUM_OF_FRAMES = get_paths_result['num_of_frames']
+
+    if not os.path.exists(SIM_PATH):
+        raise ValueError(Fore.RED + f"The provided simulation path does not exist: {SIM_PATH}" + Fore.RESET)
+    else:
+        # 1- IMG & Gradient folders don't exist 
+        if (not os.path.exists(HEATMAP_IMG_PATH)) and (not os.path.exists(HEATMAP_IMG_GRADIENT_PATH)):
+            validation_warnings(False, sim_name, attention_type, run_id, nominal, threshold)
+            cprintf(f"Neither heatmap IMG folder nor gradient folder exist. Creating image folder at {HEATMAP_IMG_PATH} and {HEATMAP_IMG_GRADIENT_PATH}", 'l_blue')
+            os.makedirs(HEATMAP_IMG_PATH)
+            os.makedirs(HEATMAP_IMG_GRADIENT_PATH)
+            MODE = 'new_calc'
+
+        # 2- Heatmap IMG folder exists but gradient folder doesn't
+        elif (os.path.exists(HEATMAP_IMG_PATH)) and (not os.path.exists(HEATMAP_IMG_GRADIENT_PATH)):
+            validation_warnings(False, sim_name, attention_type, run_id, nominal, threshold)
+            if (len(os.listdir(HEATMAP_IMG_PATH)) < NUM_OF_FRAMES):
+                cprintf(f"Heatmap folder exists, but there are less heatmaps than there should be.", 'yellow')
+                cprintf(f"Deleting folder at {HEATMAP_IMG_GRADIENT_PATH}", 'yellow')
+                shutil.rmtree(HEATMAP_IMG_PATH)
+                cprintf(f"Switching to new_calc mode ...", 'yellow')
+                MODE = 'new_calc'
+            else:
+                cprintf(f"Heatmap IMG folder exists and is complete, but gradient folder doesn't. Creating image folder at {HEATMAP_IMG_GRADIENT_PATH}", 'l_blue')
+                os.makedirs(HEATMAP_IMG_GRADIENT_PATH)
+                MODE = 'gradient_calc'
+
+        # 3- Heatmap IMG folder doesn't exist but gradient folder does
+        elif (not os.path.exists(HEATMAP_IMG_PATH)) and (os.path.exists(HEATMAP_IMG_GRADIENT_PATH)):
+            validation_warnings(False, sim_name, attention_type, run_id, nominal, threshold)
+            if (len(os.listdir(HEATMAP_IMG_GRADIENT_PATH)) < NUM_OF_FRAMES-1):
+                cprintf(f"Gradient folder exists, but there are less gradients than there should be.", 'yellow')
+                cprintf(f"Deleting folder at {HEATMAP_IMG_GRADIENT_PATH}", 'yellow')
+                shutil.rmtree(HEATMAP_IMG_GRADIENT_PATH)
+                cprintf(f"Switching to new_calc mode ...", 'yellow')
+                MODE = 'new_calc'
+            else:
+                cprintf(f"Heatmap IMG folder doesn't exist but gradient folder exits and is complete. Creating image folder at {HEATMAP_IMG_PATH}", 'l_blue')
+                os.makedirs(HEATMAP_IMG_PATH)
+                MODE = 'heatmap_calc'
+
+        # 4- Both folders exist, but there are less heatmaps/gradients than there should be
+        elif (len(os.listdir(HEATMAP_IMG_PATH)) < NUM_OF_FRAMES) and (len(os.listdir(HEATMAP_IMG_GRADIENT_PATH)) < NUM_OF_FRAMES-1):
+            validation_warnings(False, sim_name, attention_type, run_id, nominal, threshold)
+            cprintf(f"Both folders exist, but there are less heatmaps/gradients than there should be.", 'yellow')
+            cprintf(f"Deleting folder at {HEATMAP_IMG_PATH} and {HEATMAP_IMG_GRADIENT_PATH}", 'yellow')
+            shutil.rmtree(HEATMAP_IMG_PATH)
+            shutil.rmtree(HEATMAP_IMG_GRADIENT_PATH)
+            MODE = 'new_calc'
+
+        # 5- both folders exist, but there are less heatmaps than there should be (gradients are the correct number)
+        elif (len(os.listdir(HEATMAP_IMG_PATH)) < NUM_OF_FRAMES) and (len(os.listdir(HEATMAP_IMG_GRADIENT_PATH)) == NUM_OF_FRAMES-1):
+            validation_warnings(False, sim_name, attention_type, run_id, nominal, threshold)
+            cprintf(f"Both folders exist, but there are less heatmaps than there should be (gradients are the correct number).", 'yellow')
+            cprintf(f"Deleting folder at {HEATMAP_IMG_PATH}", 'yellow')
+            shutil.rmtree(HEATMAP_IMG_PATH)
+            MODE = 'heatmap_calc'
+
+        # 6- gradient folder exists, but there are less gradients than there should be (heatmaps are the correct number)
+        elif (len(os.listdir(HEATMAP_IMG_PATH)) == NUM_OF_FRAMES) and (len(os.listdir(HEATMAP_IMG_GRADIENT_PATH)) < NUM_OF_FRAMES-1):
+            validation_warnings(False, sim_name, attention_type, run_id, nominal, threshold)
+            cprintf(f"Both folders exist, but there are less gradients than there should be (heatmaps are the correct number).", 'yellow')
+            cprintf(f"Deleting folder at {HEATMAP_IMG_GRADIENT_PATH}", 'yellow')
+            shutil.rmtree(HEATMAP_IMG_GRADIENT_PATH)
+            MODE = 'gradient_calc'
+
+        # 3- heatmap folder exists and correct number of heatmaps, but no csv file was generated.
+        elif not 'driving_log.csv' in os.listdir(HEATMAP_FOLDER_PATH):
+            validation_warnings(False, sim_name, attention_type, run_id, nominal, threshold)
+            cprintf(f"Correct number of heatmaps exist. CSV File doesn't.", 'yellow')
+            MODE = 'csv_missing'
+            
+        else:
+            MODE = None
+            validation_warnings(True, sim_name, attention_type, run_id, nominal, threshold)
+
+        if (MODE != 'csv_missing') and (MODE != 'heatmap_calc') and (MODE != 'new_calc'):
+            # check if img paths in the csv file need correcting (possible directory change of simulation data)
+            correct_img_paths_in_csv_files(HEATMAP_CSV_PATH)
+    return MODE
+
+
 def validation_warnings(valid, sim_name, attention_type, run_id, nominal, threshold):
+    if type(run_id) != str:
+        run_id = str(run_id)
     if valid:
         if nominal:
             cprintf(f"Heatmaps for nominal \u2713 \"{sim_name}\" of attention type \"{attention_type}\" exist.", 'l_green')
@@ -1486,6 +1635,8 @@ def correct_img_paths_in_csv_files(CSV_PATH):
 ######## In case of manual training data the simulator doesn't save the field names (column names) ########
 
 def correct_csv_field_names(SIM_PATH, MAIN_CSV_PATH, run_id):
+    if type(run_id) != str:
+        run_id = str(run_id)
     UPDATED_CSV_PATH = os.path.join(SIM_PATH, "src", run_id, "driving_log_updated.csv")
     try:
         # autonomous mode simulation data (is going to fail if manual, since manual has address string in first column)
@@ -1522,10 +1673,12 @@ def get_num_frames(run_id, SIM_PATH, MAIN_CSV_PATH):
 
 
 def copy_run_figs(cfg, SIM_PATH, run_id, run_figs):
+    if type(run_id) != str:
+        run_id = str(run_id)
     if cfg.SPARSE_ATTRIBUTION:
-        RUN_FIGS_FOLDER_PATH = os.path.join(SIM_PATH, 'results', str(run_id), 'FIGS_SPARSE')
+        RUN_FIGS_FOLDER_PATH = os.path.join(SIM_PATH, 'results', run_id, 'FIGS_SPARSE')
     else:
-        RUN_FIGS_FOLDER_PATH = os.path.join(SIM_PATH, 'results', str(run_id), 'FIGS')
+        RUN_FIGS_FOLDER_PATH = os.path.join(SIM_PATH, 'results', run_id, 'FIGS')
 
     if not os.path.exists(RUN_FIGS_FOLDER_PATH):
         cprintf(f'Run figure folder does not exist. Creating folder ...' ,'l_blue')
@@ -1557,9 +1710,9 @@ def f_beta_score(precision, recall, beta=3):
     f_beta_score = numerator / denominator
     return f_beta_score
 
-def heatmap_type_scores(hm_total_scores_paths, HEATMAP_TYPES, sim_idx, sim_name, number_of_runs,
-                        seconds_to_anticipate, ht_scores_df, ht_last_index, print_results=False):
-    if ht_scores_df is None:
+def heatmap_or_distance_type_scores(total_scores_paths, HEATMAP_OR_DISTANCE_TYPES, sim_idx, sim_name, number_of_runs,
+                        seconds_to_anticipate, scores_df, last_index, type = 'heatmap_type', print_results=False):
+    if scores_df is None:
         raise ValueError("Received None as dataframe")
     
     # add simulation name row
@@ -1569,266 +1722,114 @@ def heatmap_type_scores(hm_total_scores_paths, HEATMAP_TYPES, sim_idx, sim_name,
             sim_name_row.append(sim_name)
         else:
             sim_name_row.append('-')
-    ht_scores_df.iloc[ht_last_index] = sim_name_row
+    scores_df.iloc[last_index] = sim_name_row
 
-    for heatmap_type in HEATMAP_TYPES:
-        ht_last_index += 1
+    for heatmap_or_distance_type in HEATMAP_OR_DISTANCE_TYPES:
+        last_index += 1
         if print_results:
-            print(heatmap_type)
-        # replace 0th column with heatmap names
-        ht_scores_df.at[ht_last_index, 'Window Size'] = heatmap_type
-        # reset column number to 1 for after each heatmap type
+            cprintf(f'-------------------------------------------------------------------------------------------------------', 'l_cyan')
+            cprintf(f'{heatmap_or_distance_type}', 'l_cyan')
+        # replace 0th column with heatmap or distance names
+        scores_df.at[last_index, 'Window Size'] = heatmap_or_distance_type
+        # reset column number to 1 for after each heatmap or distance type
         col_ctr = 1
 
-        # reset sum arrays including sum vars for each sta for after each heatmap type
+        # reset sum arrays including sum vars for each sta for after each heatmap or distance type
         avg_prec_sum = np.zeros((len(seconds_to_anticipate)), dtype=float)
         avg_re_sum = np.zeros((len(seconds_to_anticipate)), dtype=float)
         f3_scores_sum = np.zeros((len(seconds_to_anticipate)), dtype=float)
         avg_acc_sum = np.zeros((len(seconds_to_anticipate)), dtype=float)
         
-        avg_prec_all_sum = 0.0
+        avg_prec_all_sta_sum = 0.0
         avg_rec_all_sta_sum = 0.0
         f3_score_all_sta_sum = 0.0
         avg_acc_all_sta_sum = 0.0
 
-        for run_idx in range(number_of_runs):
+        for run_idx, run_id in enumerate(number_of_runs[sim_idx]):
             for sta_idx, sta in enumerate(seconds_to_anticipate):
                 if print_results:
-                    print('sta:' + str(sta))
+                    cprintf(f'------------------------------------ STA: {str(sta)} --------- RUN_NUMBER: {str(run_id)} ------------------------------------', 'l_cyan')
+                    cprintf(f'SIM_NAME: {sim_name}', 'l_cyan')
+                    # cprintf(f'rows: {len(total_scores_paths)}, cols: {len(total_scores_paths[0])}', 'l_yellow')
+                    cprintf(f'SIM_IDX: {sim_idx}, RUN_IDX: {run_idx}', 'l_magenta')
+                    cprintf(f'{total_scores_paths[sim_idx][run_idx]}', 'l_green')
 
-                # read heatmap results csv file for this run_id and filter by heatmap type
-                ht_results_df = pd.read_csv(hm_total_scores_paths[sim_idx][run_idx])
-                filter_by_sta = ht_results_df[(ht_results_df['sta'] == sta) & (ht_results_df['heatmap_type'] == heatmap_type)]
+                # read heatmap or distance or  results csv file for this run_id and filter by heatmap or distance type
+                results_df = pd.read_csv(total_scores_paths[sim_idx][run_idx])
+                filter_by_sta = results_df[(results_df['sta'] == sta) & (results_df[type] == heatmap_or_distance_type)]
                 # precision
                 precision = filter_by_sta['precision'].values
-                avg_precision = np.average(precision)
-                avg_prec_sum[sta_idx] += avg_precision
+                avg_prec_sum[sta_idx] += precision
                 if print_results:
                     print(f'avg_prec_sum[sta_idx:{sta_idx}]: {avg_prec_sum}')
                 # recall
                 recall = filter_by_sta['recall'].values
-                avg_recall = np.average(recall)
-                avg_re_sum[sta_idx] += avg_recall
+                avg_re_sum[sta_idx] += recall
                 if print_results:
                     print(f'avg_re_sum[sta_idx:{sta_idx}]: {avg_re_sum}')
                 # f3
-                f3_score = f_beta_score(avg_precision, avg_recall, beta=3)
+                f3_score = f_beta_score(precision, recall, beta=3)
                 f3_scores_sum[sta_idx] += f3_score
                 if print_results:
                     print(f'f3_scores_sum[sta_idx:{sta_idx}]: {f3_scores_sum}')
                 # accuracy
                 accuracy = filter_by_sta['accuracy'].values
-                avg_accuracy = np.average(accuracy)
-                avg_acc_sum[sta_idx] += avg_accuracy
+                avg_acc_sum[sta_idx] += accuracy
                 if print_results:
                     print(f'avg_acc_sum[sta_idx:{sta_idx}]: {avg_acc_sum}')
 
                 if print_results:
-                    print('run_number:' + str(run_idx))
-                    cprintf(f'sta: avg_precision: {sta}: {avg_precision*100}', 'l_green')
-                    cprintf(f'sta: avg_recall: {sta}: {avg_recall*100}', 'l_yellow')
+                    cprintf(f'sta: avg_precision: {sta}: {precision*100}', 'l_green')
+                    cprintf(f'sta: avg_recall: {sta}: {recall*100}', 'l_yellow')
                     cprintf(f'sta: f3_score: {sta}: {f3_score*100}', 'l_red')    
-                    cprintf(f'sta: avg_accuracy: {sta}: {avg_accuracy*100}', 'l_blue')
+                    cprintf(f'sta: avg_accuracy: {sta}: {accuracy*100}', 'l_blue')
             
-                # save average scores between multiple runs to dataframe
-                if run_idx == number_of_runs-1:
+                # if last run then save average scores between multiple runs to dataframe
+                if run_id == number_of_runs[sim_idx][-1]:
+                    avg_prec = avg_prec_sum[sta_idx]/len(number_of_runs[sim_idx])
+                    avg_re = avg_re_sum[sta_idx]/len(number_of_runs[sim_idx])
+                    avg_f3 = f3_scores_sum[sta_idx]/len(number_of_runs[sim_idx])
+                    avg_acc = avg_acc_sum[sta_idx]/len(number_of_runs[sim_idx])
+
                     if print_results:
-                        print(avg_prec_sum[sta_idx]/(number_of_runs))
-                        print(avg_re_sum[sta_idx]/(number_of_runs))
-                        print(f3_scores_sum[sta_idx]/(number_of_runs))
-                        print(avg_acc_sum[sta_idx]/(number_of_runs))
-                        print(ht_last_index, col_ctr)
-                    ht_scores_df.iat[ht_last_index, col_ctr] = avg_prec_sum[sta_idx]/(number_of_runs)
-                    ht_scores_df.iat[ht_last_index, col_ctr+1] = avg_re_sum[sta_idx]/(number_of_runs)
-                    ht_scores_df.iat[ht_last_index, col_ctr+2] = f3_scores_sum[sta_idx]/(number_of_runs)
-                    ht_scores_df.iat[ht_last_index, col_ctr+3] = avg_acc_sum[sta_idx]/(number_of_runs)
+                        print(f'avg_prec: {avg_prec}')
+                        print(f'avg_re: {avg_re}')
+                        print(f'avg_f3: {avg_f3}')
+                        print(f'avg_acc: {avg_acc}')
+                        # print(last_index, col_ctr)
+                    scores_df.iat[last_index, col_ctr] = avg_prec
+                    scores_df.iat[last_index, col_ctr+1] = avg_re
+                    scores_df.iat[last_index, col_ctr+2] = avg_f3
+                    scores_df.iat[last_index, col_ctr+3] = avg_acc
                     col_ctr += 4
                     if print_results:
-                        print(ht_last_index, col_ctr)
-                        print('------------------------------------')
-                    
-            # avg of all stas
-            filter_by_sta = ht_results_df[(ht_results_df['sta'] == 1)] # the ..._all value for sta of 1, 2, or 3 is the same.
-            # precision
-            precision_all_sta = filter_by_sta['precision_all'].values
-            avg_precision_all_sta = np.average(precision_all_sta)
-            avg_prec_all_sum += avg_precision_all_sta
-
-            # recall
-            recall_all_sta = filter_by_sta['recall_all'].values
-            avg_recall_all_sta = np.average(recall_all_sta)
-            avg_rec_all_sta_sum += avg_recall_all_sta
-            # f3
-            f3_score_all_sta = f_beta_score(avg_precision_all_sta, avg_recall_all_sta, beta=3)
-            f3_score_all_sta_sum += f3_score_all_sta
-            # accuracy
-            accuracy_all_sta = filter_by_sta['accuracy_all'].values
-            avg_accuracy_all_sta = np.average(accuracy_all_sta)
-            avg_acc_all_sta_sum += avg_accuracy_all_sta
-
-            if run_idx == number_of_runs-1:
-                if print_results:
-                    print(avg_prec_all_sum/(number_of_runs))
-                    print(avg_rec_all_sta_sum/(number_of_runs))
-                    print(f3_score_all_sta_sum/(number_of_runs))
-                    print(avg_acc_all_sta_sum/(number_of_runs))
-                    print(ht_last_index, col_ctr)
-                ht_scores_df.iat[ht_last_index, col_ctr] = avg_prec_all_sum/(number_of_runs)
-                ht_scores_df.iat[ht_last_index, col_ctr+1] = avg_rec_all_sta_sum/(number_of_runs)
-                ht_scores_df.iat[ht_last_index, col_ctr+2] = f3_score_all_sta_sum/(number_of_runs)
-                ht_scores_df.iat[ht_last_index, col_ctr+3] = avg_acc_all_sta_sum/(number_of_runs)
-                col_ctr += 4
-                if print_results:
-                    print(ht_last_index, col_ctr)
-
-            if print_results:
-                print('run_number:' + str(run_idx))
-                cprintf(f'sta: avg_precision_all_sta: all: {avg_precision_all_sta*100}', 'l_green')
-                cprintf(f'sta: avg_recall_all_sta: all: {avg_recall_all_sta*100}', 'l_yellow')
-                cprintf(f'sta: f3_score_all_sta: all: {f3_score_all_sta*100}', 'l_red')
-                cprintf(f'sta: avg_accuracy_all_sta: all: {avg_accuracy_all_sta*100}', 'l_blue')
-                print('------------------------------')
-    ht_last_index += 1
-    return ht_scores_df, ht_last_index
-
-def distance_type_scores(dt_total_scores_paths, DISTANCE_TYPES, sim_idx, sim_name, number_of_runs,
-                        seconds_to_anticipate, dt_scores_df, dt_last_index, print_results=False):
-    if dt_scores_df is None:
-        raise ValueError("Received None as dataframe")
-    
-    # add simulation name row
-    sim_name_row = ['Simulation']
-    for col_idx in range((len(seconds_to_anticipate)+1)*4):
-        if col_idx == 0:
-            sim_name_row.append(sim_name)
-        else:
-            sim_name_row.append('-')
-    dt_scores_df.iloc[dt_last_index] = sim_name_row
-
-    for distance_type in DISTANCE_TYPES:
-        dt_last_index += 1
-        if print_results:
-            print(distance_type)
-        # replace 0th column with heatmap names
-        dt_scores_df.at[dt_last_index, 'Window Size'] = distance_type
-        # reset column number to 1 for after each heatmap type
-        col_ctr = 1
-
-        # reset sum arrays including sum vars for each sta for after each heatmap type
-        avg_prec_sum = np.zeros((len(seconds_to_anticipate)), dtype=float)
-        avg_re_sum = np.zeros((len(seconds_to_anticipate)), dtype=float)
-        f3_scores_sum = np.zeros((len(seconds_to_anticipate)), dtype=float)
-        avg_acc_sum = np.zeros((len(seconds_to_anticipate)), dtype=float)
-        
-        avg_prec_all_sum = 0.0
-        avg_rec_all_sta_sum = 0.0
-        f3_score_all_sta_sum = 0.0
-        avg_acc_all_sta_sum = 0.0
-
-        for run_idx in range(number_of_runs):
-            for sta_idx, sta in enumerate(seconds_to_anticipate):
-                if print_results:
-                    print('sta:' + str(sta))
-
-                # read heatmap results csv file for this run_id and filter by heatmap type
-                dt_results_df = pd.read_csv(dt_total_scores_paths[sim_idx][run_idx])
-                filter_by_sta = dt_results_df[(dt_results_df['sta'] == sta) & (dt_results_df['distance_type'] == distance_type)]
-                # precision
-                precision = filter_by_sta['precision'].values
-                avg_precision = np.average(precision)
-                avg_prec_sum[sta_idx] += avg_precision
-                if print_results:
-                    print(f'avg_prec_sum[sta_idx:{sta_idx}]: {avg_prec_sum}')
-                # recall
-                recall = filter_by_sta['recall'].values
-                avg_recall = np.average(recall)
-                avg_re_sum[sta_idx] += avg_recall
-                if print_results:
-                    print(f'avg_re_sum[sta_idx:{sta_idx}]: {avg_re_sum}')
-                # f3
-                f3_score = f_beta_score(avg_precision, avg_recall, beta=3)
-                f3_scores_sum[sta_idx] += f3_score
-                if print_results:
-                    print(f'f3_scores_sum[sta_idx:{sta_idx}]: {f3_scores_sum}')
-                # accuracy
-                accuracy = filter_by_sta['accuracy'].values
-                avg_accuracy = np.average(accuracy)
-                avg_acc_sum[sta_idx] += avg_accuracy
-                if print_results:
-                    print(f'avg_acc_sum[sta_idx:{sta_idx}]: {avg_acc_sum}')
-
-                if print_results:
-                    print('run_number:' + str(run_idx))
-                    cprintf(f'sta: avg_precision: {sta}: {avg_precision*100}', 'l_green')
-                    cprintf(f'sta: avg_recall: {sta}: {avg_recall*100}', 'l_yellow')
-                    cprintf(f'sta: f3_score: {sta}: {f3_score*100}', 'l_red')    
-                    cprintf(f'sta: avg_accuracy: {sta}: {avg_accuracy*100}', 'l_blue')
-            
-                # save average scores between multiple runs to dataframe
-                if run_idx == number_of_runs-1:
-                    if print_results:
-                        print(avg_prec_sum[sta_idx]/(number_of_runs))
-                        print(avg_re_sum[sta_idx]/(number_of_runs))
-                        print(f3_scores_sum[sta_idx]/(number_of_runs))
-                        print(avg_acc_sum[sta_idx]/(number_of_runs))
-                        print(dt_last_index, col_ctr)
-                    dt_scores_df.iat[dt_last_index, col_ctr] = avg_prec_sum[sta_idx]/(number_of_runs)
-                    dt_scores_df.iat[dt_last_index, col_ctr+1] = avg_re_sum[sta_idx]/(number_of_runs)
-                    dt_scores_df.iat[dt_last_index, col_ctr+2] = f3_scores_sum[sta_idx]/(number_of_runs)
-                    dt_scores_df.iat[dt_last_index, col_ctr+3] = avg_acc_sum[sta_idx]/(number_of_runs)
-                    col_ctr += 4
-                    if print_results:
-                        print(dt_last_index, col_ctr)
-                        print('------------------------------------')
-                    
-            # avg of all stas
-            filter_by_sta = dt_results_df[(dt_results_df['sta'] == 1)] # the ..._all value for sta of 1, 2, or 3 is the same.
-            # precision
-            precision_all_sta = filter_by_sta['precision_all'].values
-            avg_precision_all_sta = np.average(precision_all_sta)
-            avg_prec_all_sum += avg_precision_all_sta
-
-            # recall
-            recall_all_sta = filter_by_sta['recall_all'].values
-            avg_recall_all_sta = np.average(recall_all_sta)
-            avg_rec_all_sta_sum += avg_recall_all_sta
-            # f3
-            f3_score_all_sta = f_beta_score(avg_precision_all_sta, avg_recall_all_sta, beta=3)
-            f3_score_all_sta_sum += f3_score_all_sta
-            # accuracy
-            accuracy_all_sta = filter_by_sta['accuracy_all'].values
-            avg_accuracy_all_sta = np.average(accuracy_all_sta)
-            avg_acc_all_sta_sum += avg_accuracy_all_sta
-
-            if run_idx == number_of_runs-1:
-                if print_results:
-                    print(avg_prec_all_sum/(number_of_runs))
-                    print(avg_rec_all_sta_sum/(number_of_runs))
-                    print(f3_score_all_sta_sum/(number_of_runs))
-                    print(avg_acc_all_sta_sum/(number_of_runs))
-                    print(dt_last_index, col_ctr)
-                dt_scores_df.iat[dt_last_index, col_ctr] = avg_prec_all_sum/(number_of_runs)
-                dt_scores_df.iat[dt_last_index, col_ctr+1] = avg_rec_all_sta_sum/(number_of_runs)
-                dt_scores_df.iat[dt_last_index, col_ctr+2] = f3_score_all_sta_sum/(number_of_runs)
-                dt_scores_df.iat[dt_last_index, col_ctr+3] = avg_acc_all_sta_sum/(number_of_runs)
-                col_ctr += 4
-                if print_results:
-                    print(dt_last_index, col_ctr)
-
-            if print_results:
-                print('run_number:' + str(run_idx))
-                cprintf(f'sta: avg_precision_all_sta: all: {avg_precision_all_sta*100}', 'l_green')
-                cprintf(f'sta: avg_recall_all_sta: all: {avg_recall_all_sta*100}', 'l_yellow')
-                cprintf(f'sta: f3_score_all_sta: all: {f3_score_all_sta*100}', 'l_red')
-                cprintf(f'sta: avg_accuracy_all_sta: all: {avg_accuracy_all_sta*100}', 'l_blue')
-                print('------------------------------')
-    dt_last_index += 1
-    return dt_scores_df, dt_last_index
+                        # print(last_index, col_ctr)
+                        print(f'ALL RUNS FOR STA {str(sta)} DONE ######################################################')
+                    if sta == 3:
+                        all_sta_all_runs_avg_prec = np.average(avg_prec_sum)/len(number_of_runs[sim_idx])
+                        all_sta_all_runs_avg_re = np.average(avg_re_sum)/len(number_of_runs[sim_idx])
+                        all_sta_all_runs_avg_f3 = np.average(f3_scores_sum)/len(number_of_runs[sim_idx])
+                        all_sta_all_runs_avg_acc = np.average(avg_acc_sum)/len(number_of_runs[sim_idx])
+                        if print_results:
+                            print(f'all_sta_all_runs_avg_prec: {all_sta_all_runs_avg_prec}')
+                            print(f'all_sta_all_runs_avg_re: {all_sta_all_runs_avg_re}')
+                            print(f'all_sta_all_runs_avg_f3: {all_sta_all_runs_avg_f3}')
+                            print(f'all_sta_all_runs_avg_acc: {all_sta_all_runs_avg_acc}')
+                            # print(last_index, col_ctr)
+                        scores_df.iat[last_index, col_ctr] = all_sta_all_runs_avg_prec
+                        scores_df.iat[last_index, col_ctr+1] = all_sta_all_runs_avg_re
+                        scores_df.iat[last_index, col_ctr+2] = all_sta_all_runs_avg_f3
+                        scores_df.iat[last_index, col_ctr+3] = all_sta_all_runs_avg_acc
+                        col_ctr += 4
+                        if print_results:
+                            print(f'ALL RUNS FOR STA all DONE ######################################################')                    
+    last_index += 1
+    return scores_df, last_index
 
 def create_result_df(total_scores_paths, DISTANCE_OR_HEATMAP_TYPES, ANO_SIMULATIONS, sim_idx, number_of_runs, seconds_to_anticipate_str):
     # test if the number of paths and runs are the same:
-    if not (len(total_scores_paths[sim_idx]) == number_of_runs):
-            raise ValueError(Fore.RED + f"Mismatch in number of runs per simlation and number of heatmap result score csv paths: {len(total_scores_paths[sim_idx])} != {number_of_runs}" + Fore.RESET)
+    if not (len(total_scores_paths[sim_idx]) == len(number_of_runs[sim_idx])):
+            raise ValueError(Fore.RED + f"Mismatch in number of runs per simulation and number of heatmap result score csv paths: {len(total_scores_paths[sim_idx])} != {len(number_of_runs[sim_idx])}" + Fore.RESET)
     # build the top rows of column names
     scores_df = pd.DataFrame(np.zeros(((len(DISTANCE_OR_HEATMAP_TYPES)+1)*len(ANO_SIMULATIONS), 17)))
     col_names_row_1 = ['Window Size']
@@ -1845,9 +1846,9 @@ def create_result_df(total_scores_paths, DISTANCE_OR_HEATMAP_TYPES, ANO_SIMULATI
 
 
 heatmap_type_colors = {
-    'SmoothGrad' : ('deepskyblue', 'navy'),
+    'GradCam++' : ('deepskyblue', 'navy'),
     'RectGrad' : ('indianred', 'brown'),
-    'GradCam++' : ('mediumslateblue', 'darkslateblue'),
+    'SmoothGrad' : ('mediumslateblue', 'darkslateblue'),
     'RectGrad_PRR' : ('mediumseagreen', 'darkgreen'),
     'Saliency' :('lightslategrey', 'darkslategrey'),
     'Guided_BP' : ('wheat','orange'),
@@ -1855,7 +1856,19 @@ heatmap_type_colors = {
     'IntegGrad' : ('goldenrod', 'darkgoldenrod'),
     'Epsilon_LRP': ('salmon', 'maroon')}
 
-def heatmap_type_comparison_plot(ANO_SIMULATIONS, seconds_to_anticipate_str, STA_PLOT, HEATMAP_TYPES, criterion_vals, PLOTTING_CRITERION, FIG_SAVE_ADDRESS):
+distance_type_colors = {
+    'euclidean' : ('deepskyblue', 'navy'),
+    'manhattan' : ('indianred', 'brown'),
+    'cosine' : ('mediumslateblue', 'darkslateblue'),
+    'sobolev-norm' : ('mediumseagreen', 'darkgreen'),
+    'EMD' :('lightslategrey', 'darkslategrey'),
+    'pearson' : ('wheat','orange'),
+    'spearman' : ('darkseagreen', 'darkolivegreen'),
+    'moran' : ('goldenrod', 'darkgoldenrod'),
+    'kl-divergence': ('salmon', 'maroon'),
+    'mutual-info': ('salmon', 'maroon')}
+
+def ht_or_dt_comparison_plot(ANO_SIMULATIONS, seconds_to_anticipate_str, STA_PLOT, HEATMAP_OR_DISTANCE_TYPES, criterion_vals, PLOTTING_CRITERION, FIG_SAVE_ADDRESS, type):
     # Plotting
     plt.figure(figsize=(10, 7))
     x = ANO_SIMULATIONS
@@ -1865,12 +1878,18 @@ def heatmap_type_comparison_plot(ANO_SIMULATIONS, seconds_to_anticipate_str, STA
     for sta_idx, sta in enumerate(seconds_to_anticipate_str):
         if not STA_PLOT[sta_idx]:
             continue
-        for ht_idx, ht in enumerate(HEATMAP_TYPES):
+        for ht_or_dt_idx, ht_or_dt in enumerate(HEATMAP_OR_DISTANCE_TYPES):
             for sim_idx, _ in enumerate(ANO_SIMULATIONS):
-                row_idx_for_current_sta_and_hm= sim_idx*len(HEATMAP_TYPES) + ht_idx
+                row_idx_for_current_sta_and_hm= sim_idx*len(HEATMAP_OR_DISTANCE_TYPES) + ht_or_dt_idx
                 y.append(criterion_vals[row_idx_for_current_sta_and_hm][sta_idx])
-            plt.scatter(x, y, s=200, marker=r"$ {} $".format(sta), color=heatmap_type_colors[ht][line_color_type])
-            plt.plot(x, y, label=ht, color=heatmap_type_colors[ht][line_color_type])
+            if type == 'Heatmap':
+                color = heatmap_type_colors[ht_or_dt][line_color_type]
+            elif type == 'Distance':
+                color = distance_type_colors[ht_or_dt][line_color_type]
+            else:
+                raise ValueError(f"Unknown eval results comparison plot type: {type}")
+            plt.scatter(x, y, s=200, marker=r"$ {} $".format(sta), color=color)
+            plt.plot(x, y, label=ht_or_dt, color=color)
             for x,y in zip(x,y):
                 if not abs(y-1.00)<=0.0001:
                     label = "{:.4f}".format(y)
@@ -1880,7 +1899,7 @@ def heatmap_type_comparison_plot(ANO_SIMULATIONS, seconds_to_anticipate_str, STA
                                 textcoords="offset points", # how to position the text
                                 xytext=(0,10), # distance from text to points (x,y)
                                 ha='center',
-                                color=heatmap_type_colors[ht][line_color_type]) # horizontal alignment can be left, right or center
+                                color=color) # horizontal alignment can be left, right or center
             y = []
             x = ANO_SIMULATIONS
 
@@ -1888,8 +1907,10 @@ def heatmap_type_comparison_plot(ANO_SIMULATIONS, seconds_to_anticipate_str, STA
     plt.xticks(rotation=45, ha='right')
     plt.xlabel('Lighting/Weather Conditions')
     plt.ylabel(PLOTTING_CRITERION)
-    plt.title('Performance Comparison of Different Heatmap Types')
-    plt.legend()
+    plt.title(f'Performance Comparison of Different {type} Types')
+    handles, labels = plt.gca().get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    plt.legend(by_label.values(), by_label.keys())
     plt.grid(True)
 
     # Show plot

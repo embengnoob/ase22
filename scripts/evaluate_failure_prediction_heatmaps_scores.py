@@ -505,8 +505,12 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
     ANOMALOUS_HEATMAP_CSV_PATH = ANOMALOUS_PATHS[4]
     ANOMALOUS_HEATMAP_IMG_PATH = ANOMALOUS_PATHS[5]
     ANOMALOUS_HEATMAP_IMG_GRADIENT_PATH = ANOMALOUS_PATHS[6]
+
+    RUN_RESULTS_PATH = ANOMALOUS_PATHS[7]
+    RUN_FIGS_PATH = ANOMALOUS_PATHS[8]
+
     if not threshold_sim:
-        THRESHOLD_VECTORS_FOLDER_PATH = ANOMALOUS_PATHS[7]
+        THRESHOLD_VECTORS_FOLDER_PATH = ANOMALOUS_PATHS[-1]
     
     #################################### INPUT DATA PRE-PROCESSING #########################################
     if cfg.NOM_VS_NOM_TEST:
@@ -1110,6 +1114,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
     fig_img_name = f"{heatmap_type}_plots_{anomalous_simulation_name}_{nominal_simulation_name}.pdf"
     fig_img_address = os.path.join(FIGURES_FOLDER_PATH, fig_img_name)
     if cfg.PLOT_POINT_TO_POINT:
+        print(cfg.PLOT_POINT_TO_POINT)
         cprintf(f'\nSaving plotted figure to {FIGURES_FOLDER_PATH} ...', 'magenta')
         plt.savefig(fig_img_address, bbox_inches='tight', dpi=300)
 
@@ -1241,10 +1246,9 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                         true_negative_windows[d_type_index][sta-1] += number_of_predictable_windows
 
         # prepare CSV file to write the results in
-        results_folder_path = os.path.join(ANOMALOUS_SIM_PATH, 'results', str(run_id))
-        results_csv_path = os.path.join(results_folder_path, f'results_ano_{anomalous_simulation_name}_nom_{nominal_simulation_name}.csv')
-        if not os.path.exists(results_folder_path):
-            os.makedirs(results_folder_path)
+        results_csv_path = os.path.join(RUN_RESULTS_PATH, f'results_ano_{anomalous_simulation_name}_nom_{nominal_simulation_name}.csv')
+        if not os.path.exists(RUN_RESULTS_PATH):
+            os.makedirs(RUN_RESULTS_PATH)
         if not os.path.exists(results_csv_path):
             with open(results_csv_path, mode='w',
                         newline='') as result_file:
@@ -1352,7 +1356,7 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
                                     distance_vectors_avgs[d_type_index].max(),
                                     distance_vectors_avgs[d_type_index].min()])
     if not threshold_sim:
-        return fig_img_address, results_csv_path, results_folder_path
+        return fig_img_address, results_csv_path, RUN_RESULTS_PATH
 
 
 

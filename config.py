@@ -34,9 +34,10 @@ class Config:
         self.PLOT_NOMINAL_ALL = None
         self.PLOT_ANOMALOUS_ALL_WINDOWS = None
         self.PLOT_THIRDEYE = None
+        self.FORCE_REWRITE_SCORES_PLOTS = None
         self.PLOT_POINT_TO_POINT = None
         self.PLOT_POSITION_CLOUD = None
-        self.METHOD = None
+        self.METHODS = None
         self.IGNORE_WARNINGS = None
         self.CALCULATE_RESULTS = None
         self.THRESHOLD_ASSESSMENT = None

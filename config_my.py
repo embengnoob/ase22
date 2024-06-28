@@ -14,6 +14,9 @@ elif TRACK == "track3":
     SDC_MODEL_NAME = "-------track3-dave2-mc-maxspeed30-withES.h5"  # self-driving car model "dave2"|"chauffeur"|"epoch"|"commaai"
     BASE_NOMINAL_SUNNY_SIM = 'track3-sunny-nominal'
     BASE_THRESHOLD_SUNNY_SIM = 'track3-sunny-threshold'
+
+FORCE_REWRITE_SCORES_PLOTS = False
+METHODS = ['p2p'] # 'thirdeye', 'p2p', 'p2c'
 ##############################################################################################
 ##############################################################################################
 ##############################################################################################
@@ -68,7 +71,6 @@ CTE_TOLERANCE_LEVEL = 2.5
 IMPROVEMENT_RATIO = 1
 
 # evaluation settings
-METHOD = 'p2p' # 'thirdeye', 'p2p', 'p2c'
 IGNORE_WARNINGS = True
 CALCULATE_RESULTS = True
 # in case thresholds are to be compared between nominal sims between similar weather/lighting conditions as ano vs sunny conditions

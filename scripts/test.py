@@ -304,7 +304,7 @@ def distance_type_scores(dt_total_scores_paths, DISTANCE_TYPES, sim_idx, sim_nam
 def create_result_df(total_scores_paths, DISTANCE_OR_HEATMAP_TYPES, ANO_SIMULATIONS, sim_idx, number_of_runs, seconds_to_anticipate_str):
     # test if the number of paths and runs are the same:
     if not (len(total_scores_paths[sim_idx]) == number_of_runs):
-            raise ValueError(Fore.RED + f"Mismatch in number of runs per simlation and number of heatmap result score csv paths: {len(total_scores_paths[sim_idx])} != {number_of_runs}" + Fore.RESET)
+            raise ValueError(Fore.RED + f"Mismatch in number of runs per simulation and number of heatmap result score csv paths: {len(total_scores_paths[sim_idx])} != {number_of_runs}" + Fore.RESET)
     # build the top rows of column names
     scores_df = pd.DataFrame(np.zeros(((len(DISTANCE_OR_HEATMAP_TYPES)+1)*len(ANO_SIMULATIONS), 17)))
     col_names_row_1 = ['Window Size']
@@ -320,14 +320,63 @@ def create_result_df(total_scores_paths, DISTANCE_OR_HEATMAP_TYPES, ANO_SIMULATI
     return scores_df
 
 
+def ht_or_dt_comparison_plot(ANO_SIMULATIONS, seconds_to_anticipate_str, STA_PLOT, HEATMAP_OR_DISTANCE_TYPES, criterion_vals, PLOTTING_CRITERION, FIG_SAVE_ADDRESS, type):
+    # Plotting
+    plt.figure(figsize=(10, 7))
+    x = ANO_SIMULATIONS
+    # for sim_idx, sim_name in enumerate(ANO_SIMULATIONS):
+    y = []
+    line_color_type = 0 # 0 or 1 for each heatmap type
+    for sta_idx, sta in enumerate(seconds_to_anticipate_str):
+        if not STA_PLOT[sta_idx]:
+            continue
+        for ht_or_dt_idx, ht_or_dt in enumerate(HEATMAP_OR_DISTANCE_TYPES):
+            for sim_idx, _ in enumerate(ANO_SIMULATIONS):
+                row_idx_for_current_sta_and_hm= sim_idx*len(HEATMAP_OR_DISTANCE_TYPES) + ht_or_dt_idx
+                y.append(criterion_vals[row_idx_for_current_sta_and_hm][sta_idx])
+            if type == 'Heatmap':
+                color = heatmap_type_colors[ht_or_dt][line_color_type]
+            elif type == 'Distance':
+                color = distance_type_colors[ht_or_dt][line_color_type]
+            else:
+                raise ValueError(f"Unknown eval results comparison plot type: {type}")
+            plt.scatter(x, y, s=200, marker=r"$ {} $".format(sta), color=color)
+            plt.plot(x, y, label=ht_or_dt, color=color)
+            for x,y in zip(x,y):
+                if not abs(y-1.00)<=0.0001:
+                    label = "{:.4f}".format(y)
+
+                    plt.annotate(label, # this is the text
+                                (x,y), # these are the coordinates to position the label
+                                textcoords="offset points", # how to position the text
+                                xytext=(0,10), # distance from text to points (x,y)
+                                ha='center',
+                                color=color) # horizontal alignment can be left, right or center
+            y = []
+            x = ANO_SIMULATIONS
+
+    # Customize plot
+    plt.xticks(rotation=45, ha='right')
+    plt.xlabel('Lighting/Weather Conditions')
+    plt.ylabel(PLOTTING_CRITERION)
+    plt.title(f'Performance Comparison of Different {type} Types')
+    handles, labels = plt.gca().get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    plt.legend(by_label.values(), by_label.keys())
+    plt.grid(True)
+
+    # Show plot
+    plt.tight_layout()
+    plt.savefig(FIG_SAVE_ADDRESS)
+
 NUMBER_OF_RUNS = len(RUN_ID_NUMBERS[0])
 ht_last_index = 0
 dt_last_index = 0
 seconds_to_anticipate_str = []
 for sta in SECONDS_TO_ANTICIPATE:
     seconds_to_anticipate_str.append(str(sta)+'s')
-seconds_to_anticipate_str.append('All')
-STA_PLOT = [False, False, False, True]
+seconds_to_anticipate_str.append('all')
+STA_PLOT = [False, False, True, True]
 PLOTTING_CRITERIA = ['Precision','Recall','F3','Accuracy']
 PLOTTING_CRITERION = 'Accuracy'
 criterion_idx = PLOTTING_CRITERIA.index(PLOTTING_CRITERION) + 1
@@ -364,45 +413,77 @@ print(criterion_vals_dt)
 #*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************#*************
 # Plotting
 
-plt.figure(figsize=(10, 7))
-x = ANO_SIMULATIONS
-# for sim_idx, sim_name in enumerate(ANO_SIMULATIONS):
-y = []
-line_color_type = 0 # 0 or 1 for each heatmap type
-for sta_idx, sta in enumerate(seconds_to_anticipate_str):
-    if not STA_PLOT[sta_idx]:
-        continue
-    for ht_idx, ht in enumerate(HEATMAP_TYPES):
-        for sim_idx, sim_name in enumerate(ANO_SIMULATIONS):
-            row_idx_for_current_sta_and_hm= sim_idx*len(HEATMAP_TYPES) + ht_idx
-            y.append(criterion_vals[row_idx_for_current_sta_and_hm][sta_idx])
-        print(sta, ht_idx)
-        plt.scatter(x, y, s=200, marker=r"$ {} $".format(sta), color=heatmap_type_colors[ht][line_color_type])
-        plt.plot(x, y, label=ht, color=heatmap_type_colors[ht][line_color_type])
-        for x,y in zip(x,y):
-            if not abs(y-1.00)<=0.0001:
-                label = "{:.4f}".format(y)
+# plt.figure(figsize=(10, 7))
+# x = ANO_SIMULATIONS
+# # for sim_idx, sim_name in enumerate(ANO_SIMULATIONS):
+# y = []
+# line_color_type = 0 # 0 or 1 for each heatmap type
+# for sta_idx, sta in enumerate(seconds_to_anticipate_str):
+#     if not STA_PLOT[sta_idx]:
+#         continue
+#     for ht_idx, ht in enumerate(HEATMAP_TYPES):
+#         for sim_idx, sim_name in enumerate(ANO_SIMULATIONS):
+#             row_idx_for_current_sta_and_hm= sim_idx*len(HEATMAP_TYPES) + ht_idx
+#             y.append(criterion_vals[row_idx_for_current_sta_and_hm][sta_idx])
+#         print(sta, ht_idx)
+#         plt.scatter(x, y, s=200, marker=r"$ {} $".format(sta), color=heatmap_type_colors[ht][line_color_type])
+#         plt.plot(x, y, label=ht, color=heatmap_type_colors[ht][line_color_type])
+#         for x,y in zip(x,y):
+#             if not abs(y-1.00)<=0.0001:
+#                 label = "{:.4f}".format(y)
 
-                plt.annotate(label, # this is the text
-                            (x,y), # these are the coordinates to position the label
-                            textcoords="offset points", # how to position the text
-                            xytext=(0,10), # distance from text to points (x,y)
-                            ha='center',
-                            color=heatmap_type_colors[ht][line_color_type]) # horizontal alignment can be left, right or center
-        y = []
-        x = ANO_SIMULATIONS
+#                 plt.annotate(label, # this is the text
+#                             (x,y), # these are the coordinates to position the label
+#                             textcoords="offset points", # how to position the text
+#                             xytext=(0,10), # distance from text to points (x,y)
+#                             ha='center',
+#                             color=heatmap_type_colors[ht][line_color_type]) # horizontal alignment can be left, right or center
+#         y = []
+#         x = ANO_SIMULATIONS
 
-# Customize plot
-plt.xticks(rotation=45, ha='right')
-plt.xlabel('Lighting/Weather Conditions')
-plt.ylabel(PLOTTING_CRITERION)
-plt.title('Performance Comparison of Different Heatmap Types')
-plt.legend()
-plt.grid(True)
+# # Customize plot
+# plt.xticks(rotation=45, ha='right')
+# plt.xlabel('Lighting/Weather Conditions')
+# plt.ylabel(PLOTTING_CRITERION)
+# plt.title('Performance Comparison of Different Heatmap Types')
+# plt.legend()
+# plt.grid(True)
 
-# Show plot
-plt.tight_layout()
-plt.savefig('out.png')
+# # Show plot
+# plt.tight_layout()
+# plt.savefig('out.png')
+
+
+ht_or_dt_comparison_plot(ANO_SIMULATIONS, seconds_to_anticipate_str, STA_PLOT, DISTANCE_TYPES, criterion_vals_dt, PLOTTING_CRITERION, 'distances.png', type='Distance')
+ht_or_dt_comparison_plot(ANO_SIMULATIONS, seconds_to_anticipate_str, STA_PLOT, HEATMAP_TYPES, criterion_vals_ht, PLOTTING_CRITERION, 'heatmaps.png', type='Heatmap')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # # Heatmap based evaluation
