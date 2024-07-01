@@ -9,21 +9,21 @@ try:
 except:
     from config import Config
 
-from evaluate_failure_prediction_heatmaps_scores import evaluate_failure_prediction, evaluate_p2p_failure_prediction, get_OOT_frames
+from evaluate_failure_prediction_heatmaps_scores import evaluate_failure_prediction_thirdeye, evaluate_failure_prediction_p2p
 
 def simExists(cfg, run_id, sim_name, attention_type, sim_type, seconds_to_anticipate, threshold_extras=[]):
     if type(run_id) != str:
         run_id = str(run_id)
     get_paths_result = get_paths(cfg, run_id, sim_name, attention_type, sim_type)
     PATHS = get_paths_result['paths']
-    SIM_PATH, MAIN_CSV_PATH, HEATMAP_PARENT_FOLDER_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH, RUN_RESULTS_PATH, RUN_FIGS_PATH = PATHS
+    SIM_PATH, MAIN_CSV_PATH, HEATMAP_PARENT_FOLDER_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH, RUN_RESULTS_PATH, RUN_FIGS_PATH, NPY_SCORES_FOLDER_PATH = PATHS
     nominal, threshold = get_paths_result['sim_type']
     NUM_OF_FRAMES = get_paths_result['num_of_frames']
 
     MODE = heatmap_calculation_modus(cfg, run_id, sim_name, attention_type, sim_type)
 
     if MODE is not None:
-        compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH, MODE)
+        compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH, NPY_SCORES_FOLDER_PATH, MODE)
     # # check if img paths in the csv file need correcting (possible directory change of simulation data)
     # correct_img_paths_in_csv_files(HEATMAP_CSV_PATH)
     # PATHS = [SIM_PATH, MAIN_CSV_PATH, HEATMAP_PARENT_FOLDER_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH]
@@ -36,7 +36,7 @@ def simExists(cfg, run_id, sim_name, attention_type, sim_type, seconds_to_antici
                 cprintf(f"WARNING: Threshold sim distance data of distance type {distance_type} is unavailable. Calculating distances ...", "red")
                 calc_distances = True
         if calc_distances:
-            evaluate_p2p_failure_prediction(cfg,
+            evaluate_failure_prediction_p2p(cfg,
                                             NOMINAL_PATHS,
                                             PATHS,
                                             NUM_FRAMES_NOM,
@@ -245,19 +245,19 @@ if __name__ == '__main__':
                         ANOMALOUS_PATHS.append(THRESHOLD_VECTORS_FOLDER_PATH)
                         
                         if method == 'thirdeye':
-                            # get number of OOTs
-                            path = os.path.join(cfg.TESTING_DATA_DIR,
-                                            SIMULATION_NAME_ANOMALOUS,
-                                            'heatmaps-' + 'smoothgrad',
-                                            'driving_log.csv')
-                            data_df_anomalous = pd.read_csv(path)
-                            number_frames_anomalous = pd.Series.max(data_df_anomalous['frameId'])
-                            OOT_anomalous = data_df_anomalous['crashed']
-                            OOT_anomalous.is_copy = None
-                            OOT_anomalous_in_anomalous_conditions = OOT_anomalous.copy()
-                            all_first_frame_position_OOT_sequences = get_OOT_frames(data_df_anomalous, number_frames_anomalous)
-                            number_of_OOTs = len(all_first_frame_position_OOT_sequences)
-                            print("identified %d OOT(s)" % number_of_OOTs)
+                            # # get number of OOTs
+                            # path = os.path.join(cfg.TESTING_DATA_DIR,
+                            #                 SIMULATION_NAME_ANOMALOUS,
+                            #                 'heatmaps-' + 'smoothgrad',
+                            #                 'driving_log.csv')
+                            # data_df_anomalous = pd.read_csv(path)
+                            # number_frames_anomalous = pd.Series.max(data_df_anomalous['frameId'])
+                            # OOT_anomalous = data_df_anomalous['crashed']
+                            # OOT_anomalous.is_copy = None
+                            # OOT_anomalous_in_anomalous_conditions = OOT_anomalous.copy()
+                            # all_first_frame_position_OOT_sequences = get_OOT_frames(data_df_anomalous, number_frames_anomalous)
+                            # number_of_OOTs = len(all_first_frame_position_OOT_sequences)
+                            # print("identified %d OOT(s)" % number_of_OOTs)
 
                             if len(aggregation_methods) == 3:
                                 figsize = (15, 12)
@@ -279,18 +279,17 @@ if __name__ == '__main__':
                                     for am in aggregation_methods:
                                         run_counter += 1
                                         cprintf(f'\n########### using aggregation method >>{am}<< run number {run_counter} ########### {subplot_counter} ###########', 'yellow')
-                                        subplot_counter = evaluate_failure_prediction(cfg,
-                                                                                    heatmap_type=ht,
-                                                                                    anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
-                                                                                    nominal_simulation_name=SIMULATION_NAME_NOMINAL,
-                                                                                    summary_type=st,
-                                                                                    aggregation_method=am,
-                                                                                    condition='ood',
-                                                                                    fig=fig,
-                                                                                    axs=axs,
-                                                                                    subplot_counter=subplot_counter,
-                                                                                    number_of_OOTs=number_of_OOTs,
-                                                                                    run_counter=run_counter)
+                                        subplot_counter = evaluate_failure_prediction_thirdeye(cfg,
+                                                                                                NOMINAL_PATHS,
+                                                                                                ANOMALOUS_PATHS,
+                                                                                                heatmap_type=ht,
+                                                                                                summary_type=st,
+                                                                                                aggregation_method=am,
+                                                                                                condition='ood',
+                                                                                                fig=fig,
+                                                                                                axs=axs,
+                                                                                                subplot_counter=subplot_counter,
+                                                                                                run_counter=run_counter)
                             plt.show()
                             print(subplot_counter)
 
@@ -323,7 +322,7 @@ if __name__ == '__main__':
                             # else:
                             #     average_thresholds = {}
 
-                            fig_img_address, results_csv_path, results_folder_path = evaluate_p2p_failure_prediction(cfg,
+                            fig_img_address, results_csv_path, results_folder_path = evaluate_failure_prediction_p2p(cfg,
                                                                                                                     NOMINAL_PATHS,
                                                                                                                     ANOMALOUS_PATHS,
                                                                                                                     NUM_FRAMES_NOM,

@@ -7,42 +7,51 @@ from utils_models import *
 ######################################################################################
 
 
-def evaluate_failure_prediction(cfg, heatmap_type, anomalous_simulation_name, nominal_simulation_name, summary_type,
-                                aggregation_method, condition, fig,
-                                axs, subplot_counter, number_of_OOTs, run_counter):
+def evaluate_failure_prediction_thirdeye(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, heatmap_type, summary_type,
+                                        aggregation_method, condition, fig, axs, subplot_counter, run_counter):
     
     print("Using summarization average" if summary_type == '-avg' else "Using summarization gradient")
     print("Using aggregation mean" if aggregation_method == 'mean' else "Using aggregation max")
+    NOMINAL_SIM_PATH = NOMINAL_PATHS[0]
+    NOMINAL_MAIN_CSV_PATH = NOMINAL_PATHS[1]
+    NOMINAL_HEATMAP_PARENT_FOLDER_PATH = NOMINAL_PATHS[2]
+    NOMINAL_HEATMAP_FOLDER_PATH = NOMINAL_PATHS[3]
+    NOMINAL_HEATMAP_CSV_PATH = NOMINAL_PATHS[4]
+    NOMINAL_HEATMAP_IMG_PATH = NOMINAL_PATHS[5]
+    NOMINAL_HEATMAP_IMG_GRADIENT_PATH = NOMINAL_PATHS[6]
+    NOM_NPY_SCORES_FOLDER_PATH = NOMINAL_PATHS[9]
+
+    ANOMALOUS_SIM_PATH = ANOMALOUS_PATHS[0]
+    ANOMALOUS_MAIN_CSV_PATH = ANOMALOUS_PATHS[1]
+    ANOMALOUS_HEATMAP_PARENT_FOLDER_PATH = ANOMALOUS_PATHS[2]
+    ANOMALOUS_HEATMAP_FOLDER_PATH = ANOMALOUS_PATHS[3]
+    ANOMALOUS_HEATMAP_CSV_PATH = ANOMALOUS_PATHS[4]
+    ANOMALOUS_HEATMAP_IMG_PATH = ANOMALOUS_PATHS[5]
+    ANOMALOUS_HEATMAP_IMG_GRADIENT_PATH = ANOMALOUS_PATHS[6]
+
+    RUN_RESULTS_PATH = ANOMALOUS_PATHS[7]
+    RUN_FIGS_PATH = ANOMALOUS_PATHS[8]
+    ANO_NPY_SCORES_FOLDER_PATH = ANOMALOUS_PATHS[9]
 
     # 1. load heatmap scores in nominal conditions
-    path = os.path.join(cfg.TESTING_DATA_DIR,
-                        nominal_simulation_name,
+    nom_npy_scores_path = os.path.join(NOM_NPY_SCORES_FOLDER_PATH,
                         'htm-' + heatmap_type + '-scores' + summary_type + '.npy')
-    original_losses = np.load(path)
-    
-    path = os.path.join(cfg.TESTING_DATA_DIR,
-                        nominal_simulation_name,
-                        'heatmaps-' + heatmap_type,
-                        'driving_log.csv')
+    nominal_losses = np.load(nom_npy_scores_path)
 
-    print(f"Path for data_df_nominal: {path}")
-    data_df_nominal = pd.read_csv(path)
-
-    data_df_nominal['loss'] = original_losses
+    print(f"Path for data_df_nominal: {NOMINAL_HEATMAP_CSV_PATH}")
+    data_df_nominal_orig = pd.read_csv(NOMINAL_HEATMAP_CSV_PATH)
+    data_df_nominal = data_df_nominal_orig.copy()
+    data_df_nominal['loss'] = nominal_losses
 
     # 2. load heatmap scores in anomalous conditions
-    path = os.path.join(cfg.TESTING_DATA_DIR,
-                        anomalous_simulation_name,
+    ano_npy_scores_path = os.path.join(ANO_NPY_SCORES_FOLDER_PATH,
                         'htm-' + heatmap_type + '-scores' + summary_type + '.npy')
     
-    anomalous_losses = np.load(path)
-    path = os.path.join(cfg.TESTING_DATA_DIR,
-                        anomalous_simulation_name,
-                        'heatmaps-' + heatmap_type,
-                        'driving_log.csv')
+    anomalous_losses = np.load(ano_npy_scores_path)
 
-    print(f"Path for data_df_anomalous: {path}")
-    data_df_anomalous = pd.read_csv(path)
+    print(f"Path for data_df_anomalous: {ANOMALOUS_HEATMAP_CSV_PATH}")
+    data_df_anomalous_orig = pd.read_csv(ANOMALOUS_HEATMAP_CSV_PATH)
+    data_df_anomalous = data_df_anomalous_orig.copy()
     data_df_anomalous['loss'] = anomalous_losses
 
     # 3. compute a threshold from nominal conditions, and FP and TN
@@ -429,10 +438,6 @@ def compute_fp_and_tn(data_df_nominal, aggregation_method, condition,fig,axs,sub
                 aggregated_score = pd.Series(sma_nominal.iloc[idx - fps_nominal:idx]).mean()
             elif aggregation_method == "max":
                 aggregated_score = pd.Series(sma_nominal.iloc[idx - fps_nominal:idx]).max()
-            elif aggregation_method == "both":
-                aggregated_score_mean = pd.Series(sma_nominal.iloc[idx - fps_nominal:idx]).mean()
-                aggregated_score_max = pd.Series(sma_nominal.iloc[idx - fps_nominal:idx]).max()
-                aggregated_score = (aggregated_score_mean + aggregated_score_max)/2
 
             list_aggregated_indexes.append(idx)
             list_aggregated.append(aggregated_score)
@@ -444,10 +449,6 @@ def compute_fp_and_tn(data_df_nominal, aggregation_method, condition,fig,axs,sub
                 aggregated_score = pd.Series(sma_nominal.iloc[idx - fps_nominal:idx]).mean()
             elif aggregation_method == "max":
                 aggregated_score = pd.Series(sma_nominal.iloc[idx - fps_nominal:idx]).max()
-            elif aggregation_method == "both":
-                aggregated_score_mean = pd.Series(sma_nominal.iloc[idx - fps_nominal:idx]).mean()
-                aggregated_score_max = pd.Series(sma_nominal.iloc[idx - fps_nominal:idx]).max()
-                aggregated_score = (aggregated_score_mean + aggregated_score_max)//2.0
     
             list_aggregated_indexes.append(idx)
             list_aggregated.append(aggregated_score)
@@ -483,7 +484,7 @@ def compute_fp_and_tn(data_df_nominal, aggregation_method, condition,fig,axs,sub
 ############ EVALUATION FUNCTION FOR THE POINT TO POINT (P2P) METHOD #################
 ######################################################################################
 
-def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, heatmap_type,
+def evaluate_failure_prediction_p2p(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRAMES_NOM, NUM_FRAMES_ANO, heatmap_type,
                                     anomalous_simulation_name, nominal_simulation_name, distance_types, analyse_distance,
                                     run_id, threshold_sim, seconds_to_anticipate):  #,averaged_thresholds={}):
     
@@ -1114,7 +1115,6 @@ def evaluate_p2p_failure_prediction(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
     fig_img_name = f"{heatmap_type}_plots_{anomalous_simulation_name}_{nominal_simulation_name}.pdf"
     fig_img_address = os.path.join(FIGURES_FOLDER_PATH, fig_img_name)
     if cfg.PLOT_POINT_TO_POINT:
-        print(cfg.PLOT_POINT_TO_POINT)
         cprintf(f'\nSaving plotted figure to {FIGURES_FOLDER_PATH} ...', 'magenta')
         plt.savefig(fig_img_address, bbox_inches='tight', dpi=300)
 

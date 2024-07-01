@@ -804,9 +804,12 @@ def extract_time_from_str(first_img_path, last_img_path):
         end_time.append(last_img_name.split('_')[-i].split('.')[0])
     return start_time, end_time
 
-def get_threshold(score_file_path, distance_type, conf_level=0.95, text_file=True, min_log=True):
+def get_threshold(score_file_path, distance_type= None, conf_level=0.95, text_file=True, min_log=True):
     if not min_log:
-        print(f"Fitting \"{distance_type}\" scores using Gamma distribution")
+        if distance_type != None:
+            print(f"Fitting \"{distance_type}\" scores using Gamma distribution")
+        else:
+            print(f"Fitting \"thirdeye\" scores using Gamma distribution")
     if text_file:
         scores = np.loadtxt(score_file_path, dtype='float')
     else:
@@ -1463,7 +1466,8 @@ def get_paths(cfg, run_id, sim_name, attention_type, sim_type):
     NUM_OF_FRAMES = get_num_frames(run_id, SIM_PATH, MAIN_CSV_PATH)
     # check if img paths in the csv file need correcting (possible directory change of simulation data)
     correct_img_paths_in_csv_files(MAIN_CSV_PATH)
-    PATHS = [SIM_PATH, MAIN_CSV_PATH, HEATMAP_PARENT_FOLDER_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH, RUN_RESULTS_PATH, RUN_FIGS_PATH]
+    NPY_SCORES_FOLDER_PATH = os.path.join(HEATMAP_PARENT_FOLDER_PATH, "NPY_SCORES")
+    PATHS = [SIM_PATH, MAIN_CSV_PATH, HEATMAP_PARENT_FOLDER_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH, RUN_RESULTS_PATH, RUN_FIGS_PATH, NPY_SCORES_FOLDER_PATH]
     result = {
     'paths': PATHS,
     'sim_type': [nominal, threshold],
@@ -1477,7 +1481,7 @@ def heatmap_calculation_modus(cfg, run_id, sim_name, attention_type, sim_type):
         run_id = str(run_id)
     get_paths_result = get_paths(cfg, run_id, sim_name, attention_type, sim_type)
     PATHS = get_paths_result['paths']
-    SIM_PATH, MAIN_CSV_PATH, HEATMAP_PARENT_FOLDER_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH, RUN_RESULTS_PATH, RUN_FIGS_PATH = PATHS
+    SIM_PATH, MAIN_CSV_PATH, HEATMAP_PARENT_FOLDER_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH, RUN_RESULTS_PATH, RUN_FIGS_PATH, NPY_SCORES_FOLDER_PATH = PATHS
     nominal, threshold = get_paths_result['sim_type']
     NUM_OF_FRAMES = get_paths_result['num_of_frames']
 
@@ -1545,12 +1549,16 @@ def heatmap_calculation_modus(cfg, run_id, sim_name, attention_type, sim_type):
             shutil.rmtree(HEATMAP_IMG_GRADIENT_PATH)
             MODE = 'gradient_calc'
 
-        # 3- heatmap folder exists and correct number of heatmaps, but no csv file was generated.
+        # 7- heatmap folder exists and correct number of heatmaps, but no csv file was generated.
         elif not 'driving_log.csv' in os.listdir(HEATMAP_FOLDER_PATH):
             validation_warnings(False, sim_name, attention_type, run_id, nominal, threshold)
             cprintf(f"Correct number of heatmaps exist. CSV File doesn't.", 'yellow')
             MODE = 'csv_missing'
-            
+        
+        # 8- everything exists except for the .npy score files
+        elif (not os.path.exists(NPY_SCORES_FOLDER_PATH)) or (len(os.listdir(NPY_SCORES_FOLDER_PATH)) < 4):
+            cprintf(f"Incorrect number of .npy score files.", 'yellow')
+            MODE = 'score_calc'
         else:
             MODE = None
             validation_warnings(True, sim_name, attention_type, run_id, nominal, threshold)

@@ -68,7 +68,7 @@ def heatmap_generator(cfg, img_addr, attention_type, saliency, attribution_metho
     return saliency_map
             
 
-def compute_heatmap(cfg, nominal, simulation_name, NUM_OF_FRAMES, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH, MODE='new_calc'):
+def compute_heatmap(cfg, nominal, simulation_name, NUM_OF_FRAMES, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH, NPY_SCORES_FOLDER_PATH, MODE='new_calc'):
     """
     Given a simulation by Udacity, the script reads the corresponding image paths from the csv and creates a heatmap for
     each driving image. The heatmap is created with the SmoothGrad algorithm available from tf-keras-vis
@@ -154,26 +154,27 @@ def compute_heatmap(cfg, nominal, simulation_name, NUM_OF_FRAMES, run_id, attent
         elif MODE == 'heatmap_calc':
             if not (hm_name in os.listdir(HEATMAP_IMG_GRADIENT_PATH)):
                 missing_gradients += 1
-        
+
         # generate or load heatmap
         if  MODE == 'new_calc' or MODE == 'heatmap_calc':
             saliency_map = heatmap_generator(cfg, img_addr, attention_type, saliency, attribution_methods, self_driving_car_model)
-            if cfg.METHOD == 'thirdeye':
-                # compute average of the heatmap
-                average = np.average(saliency_map)
-        elif MODE == 'gradient_calc':
+        elif MODE == 'gradient_calc' or MODE == 'score_calc':
             # load already generated heatmap
             saliency_map = mpimg.imread(os.path.join(HEATMAP_IMG_PATH, hm_name))
 
+        if 'thirdeye' in cfg.METHODS:
+            # compute average of the heatmap
+            average = np.average(saliency_map)
+
         # compute gradient of the heatmap
-        if MODE == 'new_calc' or MODE == 'gradient_calc':
+        if not MODE == 'csv_missing':
             if idx == 0:
                 gradient = 0
             else:
                 gradient = abs(prev_hm - saliency_map)
             prev_hm = saliency_map
 
-            if cfg.METHOD == 'thirdeye':
+            if 'thirdeye' in cfg.METHODS:
                 average_gradient = np.average(gradient)
 
         # store the heatmaps
@@ -198,29 +199,25 @@ def compute_heatmap(cfg, nominal, simulation_name, NUM_OF_FRAMES, run_id, attent
         path_name = os.path.join(HEATMAP_IMG_PATH, hm_name)
         list_of_image_paths.append(path_name)
 
-        if cfg.METHOD == 'thirdeye':
+        if 'thirdeye' in cfg.METHODS:
             avg_heatmaps.append(average)
             avg_gradient_heatmaps.append(average_gradient)
 
-    if cfg.METHOD == 'thirdeye':
+    if 'thirdeye' in cfg.METHODS:
         # score and their plot paths
-        if not nominal:
-            SCORES_FOLDER_PATH = os.path.join(SIM_PATH, run_id)
-            if not os.path.exists(SCORES_FOLDER_PATH):
-                cprintf(f'Loss avg/avg-grad scores folder does not exist. Creating folder ...' ,'l_blue')
-                os.makedirs(SCORES_FOLDER_PATH)
-        else:
-            SCORES_FOLDER_PATH = SIM_PATH
+        if not os.path.exists(NPY_SCORES_FOLDER_PATH):
+            cprintf(f'Loss avg/avg-grad scores folder does not exist. Creating folder ...' ,'l_blue')
+            os.makedirs(NPY_SCORES_FOLDER_PATH)
 
-        cprintf(f'Saving loss avg/avg-grad scores and their plots to {SCORES_FOLDER_PATH}' ,'magenta')
+        cprintf(f'Saving loss avg/avg-grad scores and their plots to {NPY_SCORES_FOLDER_PATH}' ,'magenta')
         file_name = "htm-" + attention_type.lower() + '-scores'
-        AVG_SCORE_PATH = os.path.join(SCORES_FOLDER_PATH, file_name + '-avg')
-        AVG_PLOT_PATH = os.path.join(SCORES_FOLDER_PATH, 'plot-' + file_name + '-avg.png')
-        AVG_GRAD_SCORE_PATH = os.path.join(SCORES_FOLDER_PATH, file_name + '-avg-grad')
-        AVG_GRAD_PLOT_PATH = os.path.join(SCORES_FOLDER_PATH, 'plot-' + file_name + '-avg-grad.png')
+        AVG_SCORE_PATH = os.path.join(NPY_SCORES_FOLDER_PATH, file_name + '-avg')
+        AVG_PLOT_PATH = os.path.join(NPY_SCORES_FOLDER_PATH, 'plot-' + file_name + '-avg.png')
+        AVG_GRAD_SCORE_PATH = os.path.join(NPY_SCORES_FOLDER_PATH, file_name + '-avg-grad')
+        AVG_GRAD_PLOT_PATH = os.path.join(NPY_SCORES_FOLDER_PATH, 'plot-' + file_name + '-avg-grad.png')
 
     if MODE == 'new_calc':
-        if cfg.METHOD == 'thirdeye':
+        if 'thirdeye' in cfg.METHODS:
             # save scores as numpy arrays
             np.save(AVG_SCORE_PATH, avg_heatmaps)
             # plot scores as histograms
@@ -238,7 +235,7 @@ def compute_heatmap(cfg, nominal, simulation_name, NUM_OF_FRAMES, run_id, attent
             cprintf(f'{missing_heatmaps}', 'l_red')
             # remove hm folder
             shutil.rmtree(HEATMAP_FOLDER_PATH)
-            if cfg.METHOD == 'thirdeye':
+            if 'thirdeye' in cfg.METHODS:
                 # remove scores and plots
                 os.remove(AVG_SCORE_PATH)
                 os.remove(AVG_PLOT_PATH)
@@ -248,7 +245,7 @@ def compute_heatmap(cfg, nominal, simulation_name, NUM_OF_FRAMES, run_id, attent
         elif (missing_gradients > 0) and (missing_gradients != NUM_OF_FRAMES-1):
             # remove GRADIENT folder
             shutil.rmtree(HEATMAP_IMG_GRADIENT_PATH)
-            if cfg.METHOD == 'thirdeye':
+            if 'thirdeye' in cfg.METHODS:
                 # remove scores and plots
                 os.remove(AVG_SCORE_PATH)
                 os.remove(AVG_PLOT_PATH)
