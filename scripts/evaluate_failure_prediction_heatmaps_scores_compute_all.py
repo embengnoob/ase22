@@ -233,16 +233,16 @@ if __name__ == '__main__':
                         
                         NUM_FRAMES_ANO, ANOMALOUS_PATHS = simExists(cfg, str(run_id), sim_name=SIMULATION_NAME_ANOMALOUS, attention_type=heatmap_type, sim_type='anomalous', 
                                                                     seconds_to_anticipate=SECONDS_TO_ANTICIPATE)
-                        
-                        THRESHOLD_VECTORS_FOLDER_PATH = simExists(cfg, '1', sim_name=SIMULATION_NAME_THRESHOLD, attention_type=heatmap_type, sim_type='threshold',      
-                                                                seconds_to_anticipate=SECONDS_TO_ANTICIPATE,
-                                                                threshold_extras=[NOMINAL_PATHS,
-                                                                                    NUM_FRAMES_NOM,
-                                                                                    SIMULATION_NAME_ANOMALOUS,
-                                                                                    SIMULATION_NAME_NOMINAL,
-                                                                                    DISTANCE_TYPES,
-                                                                                    ANALYSE_DISTANCE])
-                        ANOMALOUS_PATHS.append(THRESHOLD_VECTORS_FOLDER_PATH)
+                        if method == 'p2p':
+                            THRESHOLD_VECTORS_FOLDER_PATH = simExists(cfg, '1', sim_name=SIMULATION_NAME_THRESHOLD, attention_type=heatmap_type, sim_type='threshold',      
+                                                                    seconds_to_anticipate=SECONDS_TO_ANTICIPATE,
+                                                                    threshold_extras=[NOMINAL_PATHS,
+                                                                                        NUM_FRAMES_NOM,
+                                                                                        SIMULATION_NAME_ANOMALOUS,
+                                                                                        SIMULATION_NAME_NOMINAL,
+                                                                                        DISTANCE_TYPES,
+                                                                                        ANALYSE_DISTANCE])
+                            ANOMALOUS_PATHS.append(THRESHOLD_VECTORS_FOLDER_PATH)
                         
                         if method == 'thirdeye':
                             # # get number of OOTs
@@ -282,6 +282,8 @@ if __name__ == '__main__':
                                         subplot_counter = evaluate_failure_prediction_thirdeye(cfg,
                                                                                                 NOMINAL_PATHS,
                                                                                                 ANOMALOUS_PATHS,
+                                                                                                anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
+                                                                                                nominal_simulation_name=SIMULATION_NAME_NOMINAL,
                                                                                                 heatmap_type=ht,
                                                                                                 summary_type=st,
                                                                                                 aggregation_method=am,

@@ -203,21 +203,20 @@ def compute_heatmap(cfg, nominal, simulation_name, NUM_OF_FRAMES, run_id, attent
             avg_heatmaps.append(average)
             avg_gradient_heatmaps.append(average_gradient)
 
-    if 'thirdeye' in cfg.METHODS:
-        # score and their plot paths
-        if not os.path.exists(NPY_SCORES_FOLDER_PATH):
-            cprintf(f'Loss avg/avg-grad scores folder does not exist. Creating folder ...' ,'l_blue')
-            os.makedirs(NPY_SCORES_FOLDER_PATH)
-
-        cprintf(f'Saving loss avg/avg-grad scores and their plots to {NPY_SCORES_FOLDER_PATH}' ,'magenta')
-        file_name = "htm-" + attention_type.lower() + '-scores'
-        AVG_SCORE_PATH = os.path.join(NPY_SCORES_FOLDER_PATH, file_name + '-avg')
-        AVG_PLOT_PATH = os.path.join(NPY_SCORES_FOLDER_PATH, 'plot-' + file_name + '-avg.png')
-        AVG_GRAD_SCORE_PATH = os.path.join(NPY_SCORES_FOLDER_PATH, file_name + '-avg-grad')
-        AVG_GRAD_PLOT_PATH = os.path.join(NPY_SCORES_FOLDER_PATH, 'plot-' + file_name + '-avg-grad.png')
-
-    if MODE == 'new_calc':
+    if MODE == 'new_calc' or MODE == 'score_calc':
         if 'thirdeye' in cfg.METHODS:
+            # score and their plot paths
+            if not os.path.exists(NPY_SCORES_FOLDER_PATH):
+                cprintf(f'Loss avg/avg-grad scores folder does not exist. Creating folder ...' ,'l_blue')
+                os.makedirs(NPY_SCORES_FOLDER_PATH)
+
+            cprintf(f'Saving loss avg/avg-grad scores and their plots to {NPY_SCORES_FOLDER_PATH}' ,'magenta')
+            file_name = "htm-" + attention_type.lower() + '-scores'
+            AVG_SCORE_PATH = os.path.join(NPY_SCORES_FOLDER_PATH, file_name + '-avg')
+            AVG_PLOT_PATH = os.path.join(NPY_SCORES_FOLDER_PATH, 'plot-' + file_name + '-avg.png')
+            AVG_GRAD_SCORE_PATH = os.path.join(NPY_SCORES_FOLDER_PATH, file_name + '-avg-grad')
+            AVG_GRAD_PLOT_PATH = os.path.join(NPY_SCORES_FOLDER_PATH, 'plot-' + file_name + '-avg-grad.png')
+
             # save scores as numpy arrays
             np.save(AVG_SCORE_PATH, avg_heatmaps)
             # plot scores as histograms
@@ -230,28 +229,28 @@ def compute_heatmap(cfg, nominal, simulation_name, NUM_OF_FRAMES, run_id, attent
             plt.title("average gradient attention heatmaps")
             plt.savefig(AVG_GRAD_PLOT_PATH)
             #plt.show()
-    else:
-        if (missing_heatmaps > 0) and (missing_heatmaps != NUM_OF_FRAMES):
-            cprintf(f'{missing_heatmaps}', 'l_red')
-            # remove hm folder
-            shutil.rmtree(HEATMAP_FOLDER_PATH)
-            if 'thirdeye' in cfg.METHODS:
-                # remove scores and plots
-                os.remove(AVG_SCORE_PATH)
-                os.remove(AVG_PLOT_PATH)
-                os.remove(AVG_GRAD_SCORE_PATH)
-                os.remove(AVG_GRAD_PLOT_PATH)
-            raise ValueError("Error in number of frames of saved heatmaps. Removing all the heatmaps! Please rerun the code.")
-        elif (missing_gradients > 0) and (missing_gradients != NUM_OF_FRAMES-1):
-            # remove GRADIENT folder
-            shutil.rmtree(HEATMAP_IMG_GRADIENT_PATH)
-            if 'thirdeye' in cfg.METHODS:
-                # remove scores and plots
-                os.remove(AVG_SCORE_PATH)
-                os.remove(AVG_PLOT_PATH)
-                os.remove(AVG_GRAD_SCORE_PATH)
-                os.remove(AVG_GRAD_PLOT_PATH)
-            raise ValueError("Error in number of frames of saved gradients. Removing all the gradients! Please rerun the code.")
+
+    if (missing_heatmaps > 0) and (missing_heatmaps != NUM_OF_FRAMES):
+        cprintf(f'{missing_heatmaps}', 'l_red')
+        # remove hm folder
+        shutil.rmtree(HEATMAP_FOLDER_PATH)
+        if 'thirdeye' in cfg.METHODS:
+            # remove scores and plots
+            os.remove(AVG_SCORE_PATH)
+            os.remove(AVG_PLOT_PATH)
+            os.remove(AVG_GRAD_SCORE_PATH)
+            os.remove(AVG_GRAD_PLOT_PATH)
+        raise ValueError("Error in number of frames of saved heatmaps. Removing all the heatmaps! Please rerun the code.")
+    elif (missing_gradients > 0) and (missing_gradients != NUM_OF_FRAMES-1):
+        # remove GRADIENT folder
+        shutil.rmtree(HEATMAP_IMG_GRADIENT_PATH)
+        if 'thirdeye' in cfg.METHODS:
+            # remove scores and plots
+            os.remove(AVG_SCORE_PATH)
+            os.remove(AVG_PLOT_PATH)
+            os.remove(AVG_GRAD_SCORE_PATH)
+            os.remove(AVG_GRAD_PLOT_PATH)
+        raise ValueError("Error in number of frames of saved gradients. Removing all the gradients! Please rerun the code.")
             
 
     # save as csv in heatmap folder

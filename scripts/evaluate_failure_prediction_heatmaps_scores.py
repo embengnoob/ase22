@@ -7,8 +7,8 @@ from utils_models import *
 ######################################################################################
 
 
-def evaluate_failure_prediction_thirdeye(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, heatmap_type, summary_type,
-                                        aggregation_method, condition, fig, axs, subplot_counter, run_counter):
+def evaluate_failure_prediction_thirdeye(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, anomalous_simulation_name, nominal_simulation_name,
+                                         heatmap_type, summary_type, aggregation_method, condition, fig, axs, subplot_counter, run_counter):
     
     print("Using summarization average" if summary_type == '-avg' else "Using summarization gradient")
     print("Using aggregation mean" if aggregation_method == 'mean' else "Using aggregation max")
@@ -67,14 +67,18 @@ def evaluate_failure_prediction_thirdeye(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, he
     
     # 4. compute TP and FN using different time to misbehaviour windows
     for seconds in range(1, 4):
-        true_positive_windows, false_negative_windows, undetectable_windows, subplot_counter = compute_tp_and_fn(data_df_anomalous,
+        true_positive_windows, false_negative_windows, undetectable_windows, subplot_counter = compute_tp_and_fn(cfg,
+                                                                                                                ANOMALOUS_MAIN_CSV_PATH,
+                                                                                                                ANOMALOUS_HEATMAP_FOLDER_PATH,
+                                                                                                                data_df_anomalous,
+                                                                                                                data_df_nominal,
+                                                                                                                nominal_simulation_name,
                                                                                                                 anomalous_losses,
                                                                                                                 threshold,
                                                                                                                 seconds,
                                                                                                                 fig,
                                                                                                                 axs,
                                                                                                                 subplot_counter,
-                                                                                                                number_of_OOTs,
                                                                                                                 run_counter,
                                                                                                                 summary_type,
                                                                                                                 cfg.PLOT_ANOMALOUS_ALL_WINDOWS,
@@ -164,9 +168,9 @@ def evaluate_failure_prediction_thirdeye(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, he
     return subplot_counter
 
 
-def compute_tp_and_fn(data_df_anomalous, losses_on_anomalous, threshold, seconds_to_anticipate, fig,
-                      axs, subplot_counter, number_of_OOTs, run_counter, summary_type, PLOT_ANOMALOUS_ALL_WINDOWS=True,
-                      PLOT_THIRDEYE=True, aggregation_method='mean', cond='ood'):
+def compute_tp_and_fn(cfg, ANOMALOUS_MAIN_CSV_PATH, ANOMALOUS_HEATMAP_FOLDER_PATH, data_df_anomalous, data_df_nominal, nominal_simulation_name,
+                      losses_on_anomalous, threshold, seconds_to_anticipate, fig, axs, subplot_counter, run_counter, summary_type,
+                      PLOT_ANOMALOUS_ALL_WINDOWS=True, PLOT_THIRDEYE=True, aggregation_method='mean', cond='ood'):
     
     print("\n&&&&&&&&&&&&&&&&&&&&&&&&&&&& time to misbehaviour (s): %d &&&&&&&&&&&&&&&&&&&&&&&&&&&&" % seconds_to_anticipate)
     # only occurring when conditions == unexpected
@@ -177,18 +181,89 @@ def compute_tp_and_fn(data_df_anomalous, losses_on_anomalous, threshold, seconds
     '''
         prepare dataset to get TP and FN from unexpected
     '''
-    if cond == "icse20":
-        number_frames_anomalous = pd.Series.max(data_df_anomalous['frameId'])
-        fps_anomalous = 15  # only for icse20 configurations
-    else:
-        number_frames_anomalous = pd.Series.max(data_df_anomalous['frameId'])
+
+    number_frames_anomalous = pd.Series.max(data_df_anomalous['frameId'])
+
+    try:
         simulation_time_anomalous = pd.Series.max(data_df_anomalous['time'])
         fps_anomalous = number_frames_anomalous // simulation_time_anomalous
+    except:
+        # get total simulation time
+        main_csv_anomalous = pd.read_csv(ANOMALOUS_MAIN_CSV_PATH)
+        main_csv = pd.DataFrame(main_csv_anomalous['center'].copy(), columns=['center'])
 
-    # creates the ground truth
-    all_first_frame_position_OOT_sequences, OOT_anomalous_in_anomalous_conditions = get_OOT_frames(data_df_anomalous, number_frames_anomalous)
-    print("identified %d OOT(s)" % len(all_first_frame_position_OOT_sequences))
-    print(all_first_frame_position_OOT_sequences)
+        first_img_path = main_csv['center'].iloc[0]
+        last_img_path = main_csv['center'].iloc[-1]
+
+        start_time, end_time = extract_time_from_str(first_img_path, last_img_path)
+        start_time = f"{start_time[0]}:{start_time[1]}:{start_time[2]}.{start_time[3]}"
+        end_time = f"{end_time[0]}:{end_time[1]}:{end_time[2]}.{end_time[3]}"
+
+
+        # convert time string to datetime
+        t1 = datetime.strptime(start_time, "%H:%M:%S.%f")
+        t2 = datetime.strptime(end_time, "%H:%M:%S.%f")
+        # get difference
+        simulation_time_anomalous = t2 - t1
+        number_frames_anomalous = len(data_df_anomalous['center'])
+        # ano FPS
+        fps_anomalous = number_frames_anomalous // simulation_time_anomalous.total_seconds()
+
+    # # creates the ground truth
+    # all_first_frame_position_OOT_sequences, OOT_anomalous_in_anomalous_conditions = get_OOT_frames(data_df_anomalous, number_frames_anomalous)
+    # print("identified %d OOT(s)" % len(all_first_frame_position_OOT_sequences))
+    # print(all_first_frame_position_OOT_sequences)
+
+    # anomalous cross track errors
+    cte_anomalous = data_df_anomalous['cte']
+    cte_diff = np.zeros((number_frames_anomalous))
+    closest_nom_cte_all_frames = np.zeros((number_frames_anomalous))
+    # car speed in anomaluos mode
+    speed_anomalous = data_df_anomalous['speed']
+    POSITIONAL_MAPPING_PATH = os.path.join(ANOMALOUS_HEATMAP_FOLDER_PATH, f'pos_mappings_{nominal_simulation_name}.csv')
+
+    cprintf(f"Positional mapping and point distances list exist.", 'l_green')
+
+    # load list of mapped positions
+    if os.path.exists(POSITIONAL_MAPPING_PATH):
+        if not cfg.MINIMAL_LOGGING:
+            cprintf(f"Loading CSV file from {POSITIONAL_MAPPING_PATH} ...", 'l_yellow')
+        pos_mappings = np.loadtxt(POSITIONAL_MAPPING_PATH, dtype='int')
+    else:
+        raise ValueError(Fore.RED + f"Positional mapping list doesn't exist. Run p2p for this simulation first." + Fore.RESET)
+
+    for anomalous_frame in tqdm(range(number_frames_anomalous)):
+        # load the centeral camera heatmaps of this anomalous frame and the closest nominal frame in terms of position
+        _, _, closest_nom_cte = get_heatmaps(anomalous_frame, data_df_anomalous, data_df_nominal,
+                                                                          pos_mappings, return_size=False, return_IMAGE=False,
+                                                                          return_cte=True)
+        closest_nom_cte_all_frames[anomalous_frame] = closest_nom_cte
+
+    # cte difference between anomalous and nominal conditions
+    for cte_idx, cte_ano in enumerate(cte_anomalous):
+        abs_diff = abs(cte_ano) - abs(closest_nom_cte_all_frames[cte_idx])
+        if np.sign(cte_ano) != np.sign(abs_diff):
+            abs_diff = -abs_diff
+        cte_diff[cte_idx] = abs_diff
+    
+    red_frames, orange_frames, yellow_frames, collision_frames = colored_ranges(speed_anomalous, cte_anomalous, cte_diff,
+                                                                                alpha=0.2, YELLOW_BORDER = 3.6,
+                                                                                ORANGE_BORDER = 5.0, RED_BORDER = 7.0)
+    all_crash_frames = sorted(red_frames + orange_frames + yellow_frames + collision_frames)
+
+    print(f"Identified %d crash(es): {len(all_crash_frames)}")
+    print(all_crash_frames)
+    print(f"Simulation FPS: {fps_anomalous}")
+    # initializing arrays
+    # threshold_too_low = {}
+    # threshold_too_high = {}
+    true_positive_windows = np.zeros((len(distance_types), 3))
+    false_negative_windows = np.zeros((len(distance_types), 3))
+    false_positive_windows = np.zeros((len(distance_types), 3))
+    true_negative_windows = np.zeros((len(distance_types), 3))
+
+
+
     frames_to_reassign = fps_anomalous * seconds_to_anticipate  # start of the sequence / length of time window (seconds to anticipate) in terms of number of frames
 
     # first frame n seconds before the failure / length of time window one second shorter
@@ -456,7 +531,7 @@ def compute_fp_and_tn(data_df_nominal, aggregation_method, condition,fig,axs,sub
     assert len(list_aggregated) == num_windows_nominal
 
     # calculate threshold
-    threshold = get_threshold(list_aggregated, conf_level=0.95)
+    threshold = get_threshold(list_aggregated, conf_level=0.95, text_file=False)
 
     false_positive_windows = len([i for i in list_aggregated if i > threshold])
     true_negative_windows = len([i for i in list_aggregated if i <= threshold])
@@ -1154,6 +1229,7 @@ def evaluate_failure_prediction_p2p(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
         print(f"Identified %d crash(es): {len(all_crash_frames)}")
         print(all_crash_frames)
         print(f"Simulation FPS: {fps_anomalous}")
+
         # initializing arrays
         # threshold_too_low = {}
         # threshold_too_high = {}

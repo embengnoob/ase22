@@ -995,7 +995,7 @@ def get_alarm_frames(distance_vector_avg, threshold):
     all_ranges = get_all_ranges(alarm_condition)
     return alarm_ranges, no_alarm_ranges, all_ranges
 
-def colored_ranges(speed_anomalous, cte_anomalous, cte_diff, alpha=0.2, YELLOW_BORDER = 3.6,ORANGE_BORDER = 5.0, RED_BORDER = 7.0):
+def colored_ranges(speed_anomalous, cte_anomalous, cte_diff, alpha=0.2, YELLOW_BORDER = 3.6, ORANGE_BORDER = 5.0, RED_BORDER = 7.0):
     # plot cross track error values: 
     # yellow_condition: reaching the borders of the track: yellow
     # orange_condition: on the borders of the track (partial crossing): orange
