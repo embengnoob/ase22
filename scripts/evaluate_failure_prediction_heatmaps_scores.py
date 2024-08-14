@@ -3,7 +3,7 @@ from utils import *
 from utils_models import *
 
 ######################################################################################
-############ EVALUATION FUNCTION FOR THE THIRDEYE METHOD #################
+################### EVALUATION FUNCTION FOR THE THIRDEYE METHOD ######################
 ######################################################################################
 
 

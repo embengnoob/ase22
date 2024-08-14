@@ -147,7 +147,7 @@ if __name__ == '__main__':
     ##################### Heatmap and Distance Types / Seconds to Anticipate #####################
 
         # P2P Settings
-        HEATMAP_TYPES = ['SmoothGrad', 'RectGrad'] #, 'GradCam++', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP']
+        HEATMAP_TYPES = ['smoothgrad', 'rectgrad'] #, 'GradCam++', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP']
         DISTANCE_TYPES = ['sobolev-norm', 'euclidean'] #['euclidean', 'manhattan', 'cosine', 'EMD', 'pearson', 'spearman', 'kendall', 'moran', 'kl-divergence', 'mutual-info', 'sobolev-norm']
         ANALYSE_DISTANCE = {
             'euclidean' : (True, 0.99),
