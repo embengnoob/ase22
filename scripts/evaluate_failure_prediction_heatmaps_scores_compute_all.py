@@ -75,60 +75,60 @@ if __name__ == '__main__':
     ##################### Simulation Selection #####################       
                  
         ANO_SIMULATIONS = [
-                            'track1-night-moon',
-                            'track1-day-fog-100',
-                            'track1-day-rain-100',
-                            # 'track1-day-snow-100',
-                            'track1-day-sunny',
-                            'track1-night-rain-100',
-                            'track1-night-fog-100',
-                            'track1-night-snow-100'
+                            'track1-night-moon'
+                            # 'track1-day-fog-100',
+                            # 'track1-day-rain-100',
+                            # # 'track1-day-snow-100',
+                            # 'track1-day-sunny',
+                            # 'track1-night-rain-100',
+                            # 'track1-night-fog-100',
+                            # 'track1-night-snow-100'
                         ]
 
         
         NOM_SIMULATIONS = [
-                            cfg.BASE_NOMINAL_SUNNY_SIM,
-                            cfg.BASE_NOMINAL_SUNNY_SIM,
-                            cfg.BASE_NOMINAL_SUNNY_SIM,
-                            # cfg.BASE_NOMINAL_SUNNY_SIM,
-                            cfg.BASE_NOMINAL_SUNNY_SIM,
-                            cfg.BASE_NOMINAL_SUNNY_SIM,
-                            cfg.BASE_NOMINAL_SUNNY_SIM,
                             cfg.BASE_NOMINAL_SUNNY_SIM
+                            # cfg.BASE_NOMINAL_SUNNY_SIM,
+                            # cfg.BASE_NOMINAL_SUNNY_SIM,
+                            # # cfg.BASE_NOMINAL_SUNNY_SIM,
+                            # cfg.BASE_NOMINAL_SUNNY_SIM,
+                            # cfg.BASE_NOMINAL_SUNNY_SIM,
+                            # cfg.BASE_NOMINAL_SUNNY_SIM,
+                            # cfg.BASE_NOMINAL_SUNNY_SIM
                         ]
 
 
         THRESHOLD_SIMULATIONS = [
-                                    cfg.BASE_THRESHOLD_SUNNY_SIM,
-                                    cfg.BASE_THRESHOLD_SUNNY_SIM,
-                                    cfg.BASE_THRESHOLD_SUNNY_SIM,
-                                    # cfg.BASE_THRESHOLD_SUNNY_SIM,
-                                    cfg.BASE_THRESHOLD_SUNNY_SIM,
-                                    cfg.BASE_THRESHOLD_SUNNY_SIM,
-                                    cfg.BASE_THRESHOLD_SUNNY_SIM,
                                     cfg.BASE_THRESHOLD_SUNNY_SIM
+                                    # cfg.BASE_THRESHOLD_SUNNY_SIM,
+                                    # cfg.BASE_THRESHOLD_SUNNY_SIM,
+                                    # # cfg.BASE_THRESHOLD_SUNNY_SIM,
+                                    # cfg.BASE_THRESHOLD_SUNNY_SIM,
+                                    # cfg.BASE_THRESHOLD_SUNNY_SIM,
+                                    # cfg.BASE_THRESHOLD_SUNNY_SIM,
+                                    # cfg.BASE_THRESHOLD_SUNNY_SIM
                                 ]
         
         RUN_ID_NUMBERS = [
-                            [1, 2],
-                            [1],
-                            [1],
+                            [2]  # [1, 2]
                             # [1],
-                            [1],
-                            [1, 2],
-                            [1, 2],
-                            [1, 2]
+                            # [1],
+                            # # [1],
+                            # [1],
+                            # [1, 2],
+                            # [1, 2],
+                            # [1, 2]
                             ]
         
         SUMMARY_COLLAGES = [
-                            [False, False],
-                            [False],
-                            [False],
+                            [False]
                             # [False],
-                            [False],
-                            [False, False],
-                            [False, False],
-                            [False, False]
+                            # [False],
+                            # # [False],
+                            # [False],
+                            # [False, False],
+                            # [False, False],
+                            # [False, False]
                             ]
 
         if len(ANO_SIMULATIONS) != len(NOM_SIMULATIONS):
@@ -147,7 +147,7 @@ if __name__ == '__main__':
     ##################### Heatmap and Distance Types / Seconds to Anticipate #####################
 
         # P2P Settings
-        HEATMAP_TYPES = ['smoothgrad', 'rectgrad'] #, 'GradCam++', 'RectGrad', 'RectGrad_PRR', 'Saliency', 'Guided_BP', 'Gradient-Input', 'IntegGrad', 'Epsilon_LRP']
+        HEATMAP_TYPES = ['smoothgrad'] #, 'gradcam++', 'rectgrad', 'rectgrad_prr', 'saliency', 'guided_bp', 'gradient-input', 'integgrad', 'epsilon_lrp']
         DISTANCE_TYPES = ['sobolev-norm', 'euclidean'] #['euclidean', 'manhattan', 'cosine', 'EMD', 'pearson', 'spearman', 'kendall', 'moran', 'kl-divergence', 'mutual-info', 'sobolev-norm']
         ANALYSE_DISTANCE = {
             'euclidean' : (True, 0.99),
@@ -220,12 +220,13 @@ if __name__ == '__main__':
                             cfg.PLOT_POINT_TO_POINT = False
                     # check whether nominal and anomalous simulation and the corresponding heatmaps are already generated, generate them otherwise
                     for heatmap_type in HEATMAP_TYPES:
+                        cprintb(f'\n########### Prediction Method: {method} ###########', 'l_yellow')
 
-                        cprintb(f'\n########### Simulation {sim_name} ({sim_idx + 1} of {len(ANO_SIMULATIONS)}) ###########', 'l_red')
+                        cprintb(f'\n########### Simulation: {sim_name} ({sim_idx + 1} of {len(ANO_SIMULATIONS)}) ###########', 'l_red')
                         cprintb(f'########### Nominal Sim: {SIMULATION_NAME_NOMINAL}  ###########', 'l_red')
                         if method == 'p2p':
                             cprintb(f'########### Threshold Sim: {SIMULATION_NAME_THRESHOLD}  ###########', 'l_red')
-                        cprintb(f'\n############## run number {run_id} of {len(RUN_ID_NUMBERS[sim_idx])} ##############', 'l_blue')
+                        cprintb(f'\n############## run number {run_id} ({RUN_ID_NUMBERS[sim_idx].index(run_id) + 1} of {len(RUN_ID_NUMBERS[sim_idx])}) ##############', 'l_blue')
                         cprintb(f'########### Using Heatmap Type: {heatmap_type} ({HEATMAP_TYPES.index(heatmap_type) + 1} of {len(HEATMAP_TYPES)}) ###########', 'l_blue')
 
                         NUM_FRAMES_NOM, NOMINAL_PATHS = simExists(cfg, str(run_id), sim_name=SIMULATION_NAME_NOMINAL, attention_type=heatmap_type, sim_type='nominal', 
@@ -259,41 +260,34 @@ if __name__ == '__main__':
                             # number_of_OOTs = len(all_first_frame_position_OOT_sequences)
                             # print("identified %d OOT(s)" % number_of_OOTs)
 
-                            if len(aggregation_methods) == 3:
-                                figsize = (15, 12)
-                                hspace = 0.69
-                            elif len(aggregation_methods) == 2:
-                                figsize = (15, 10)
-                                hspace = 0.44
-                            else:
-                                raise ValueError("No predefined settings for this number of aggregation methods.")
+                            # if len(aggregation_methods) == 3:
+                            #     figsize = (15, 12)
+                            #     hspace = 0.69
+                            # elif len(aggregation_methods) == 2:
+                            #     figsize = (15, 10)
+                            #     hspace = 0.44
+                            # else:
+                            #     raise ValueError("No predefined settings for this number of aggregation methods.")
                             
-                            fig, axs = plt.subplots(len(aggregation_methods)*2, 1, figsize=figsize)
-                            plt.subplots_adjust(hspace=hspace)
-                            plt.suptitle("Heatmap scores and thresholds", fontsize=15, y=0.95)
+                            # fig, axs = plt.subplots(len(aggregation_methods)*2, 1, figsize=figsize)
+                            # plt.subplots_adjust(hspace=hspace)
+                            # plt.suptitle("Heatmap scores and thresholds", fontsize=15, y=0.95)
 
-                            run_counter = 0
-                            subplot_counter = 0
-                            for ht in HEATMAP_TYPES:
-                                for st in summary_types:
-                                    for am in aggregation_methods:
-                                        run_counter += 1
-                                        cprintf(f'\n########### using aggregation method >>{am}<< run number {run_counter} ########### {subplot_counter} ###########', 'yellow')
-                                        subplot_counter = evaluate_failure_prediction_thirdeye(cfg,
-                                                                                                NOMINAL_PATHS,
-                                                                                                ANOMALOUS_PATHS,
-                                                                                                anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
-                                                                                                nominal_simulation_name=SIMULATION_NAME_NOMINAL,
-                                                                                                heatmap_type=ht,
-                                                                                                summary_type=st,
-                                                                                                aggregation_method=am,
-                                                                                                condition='ood',
-                                                                                                fig=fig,
-                                                                                                axs=axs,
-                                                                                                subplot_counter=subplot_counter,
-                                                                                                run_counter=run_counter)
-                            plt.show()
-                            print(subplot_counter)
+                            for st in summary_types:
+                                for am in aggregation_methods:
+                                    cprintf(f'\n########### using agg_method:{am}, summary type:{st} ###########', 'yellow')
+                                    evaluate_failure_prediction_thirdeye(cfg,
+                                                                        NOMINAL_PATHS,
+                                                                        ANOMALOUS_PATHS,
+                                                                        seconds_to_anticipate=SECONDS_TO_ANTICIPATE,
+                                                                        anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
+                                                                        nominal_simulation_name=SIMULATION_NAME_NOMINAL,
+                                                                        heatmap_type=heatmap_type,
+                                                                        summary_type=st,
+                                                                        aggregation_method=am,
+                                                                        condition='ood')
+                            # plt.show()
+                            # print(subplot_counter)
 
                         elif method == 'p2p':
                                 
@@ -542,6 +536,8 @@ if __name__ == '__main__':
                     print(results_csv_path)
                     hm_total_scores_paths[sim_idx].append(total_scores_hm)
                     dt_total_scores_paths[sim_idx].append(total_scores_dt)
+
+                    cprintf(f'{hm_total_scores_paths}', 'l_red')
                 prev_sim = sim_name
 
 

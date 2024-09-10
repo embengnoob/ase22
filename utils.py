@@ -804,6 +804,19 @@ def extract_time_from_str(first_img_path, last_img_path):
         end_time.append(last_img_name.split('_')[-i].split('.')[0])
     return start_time, end_time
 
+def get_threshold_thirdeye(losses, conf_level=0.95):
+    print("Fitting reconstruction error distribution using Gamma distribution")
+
+    # removing zeros
+    losses = np.array(losses)
+    losses_copy = losses[losses != 0]
+    shape, loc, scale = gamma.fit(losses_copy, floc=0)
+
+    print("Creating threshold using the confidence intervals: %s" % conf_level)
+    t = gamma.ppf(conf_level, shape, loc=loc, scale=scale)
+    print('threshold: ' + str(t))
+    return t
+
 def get_threshold(score_file_path, distance_type= None, conf_level=0.95, text_file=True, min_log=True):
     if not min_log:
         if distance_type != None:
@@ -1001,14 +1014,19 @@ def colored_ranges(speed_anomalous, cte_anomalous, cte_diff, alpha=0.2, YELLOW_B
     # orange_condition: on the borders of the track (partial crossing): orange
     # red_condition: out of track (full crossing): red
 
-    yellow_condition = (
-        ((abs(cte_diff)>YELLOW_BORDER)&(abs(cte_diff)<ORANGE_BORDER)) |
-        ((abs(cte_anomalous) > YELLOW_BORDER) & (abs(cte_anomalous) < ORANGE_BORDER)))
-    orange_condition = (
-        ((abs(cte_anomalous) > ORANGE_BORDER) & (abs(cte_anomalous) < RED_BORDER)) |
-        ((abs(cte_diff) > ORANGE_BORDER) & (abs(cte_diff) < RED_BORDER))
-    )
-    red_condition = (abs(cte_anomalous)>RED_BORDER) | (abs(cte_diff)>RED_BORDER)
+    if cte_diff is not None:
+        yellow_condition = (
+            ((abs(cte_diff)>YELLOW_BORDER)&(abs(cte_diff)<ORANGE_BORDER)) |
+            ((abs(cte_anomalous) > YELLOW_BORDER) & (abs(cte_anomalous) < ORANGE_BORDER)))
+        orange_condition = (
+            ((abs(cte_anomalous) > ORANGE_BORDER) & (abs(cte_anomalous) < RED_BORDER)) |
+            ((abs(cte_diff) > ORANGE_BORDER) & (abs(cte_diff) < RED_BORDER))
+        )
+        red_condition = (abs(cte_anomalous)>RED_BORDER) | (abs(cte_diff)>RED_BORDER)
+    else:
+        yellow_condition = ((abs(cte_anomalous) > YELLOW_BORDER) & (abs(cte_anomalous) < ORANGE_BORDER))
+        orange_condition = ((abs(cte_anomalous) > ORANGE_BORDER) & (abs(cte_anomalous) < RED_BORDER))
+        red_condition = (abs(cte_anomalous)>RED_BORDER)
 
     yellow_ranges = get_ranges(yellow_condition)
     orange_ranges = get_ranges(orange_condition)
@@ -1852,17 +1870,16 @@ def create_result_df(total_scores_paths, DISTANCE_OR_HEATMAP_TYPES, ANO_SIMULATI
     scores_df.columns = pd.MultiIndex.from_arrays([col_names_row_1, col_names_row_2])
     return scores_df
 
-
 heatmap_type_colors = {
-    'GradCam++' : ('deepskyblue', 'navy'),
-    'RectGrad' : ('indianred', 'brown'),
-    'SmoothGrad' : ('mediumslateblue', 'darkslateblue'),
-    'RectGrad_PRR' : ('mediumseagreen', 'darkgreen'),
-    'Saliency' :('lightslategrey', 'darkslategrey'),
-    'Guided_BP' : ('wheat','orange'),
-    'Gradient-Input' : ('darkseagreen', 'darkolivegreen'),
-    'IntegGrad' : ('goldenrod', 'darkgoldenrod'),
-    'Epsilon_LRP': ('salmon', 'maroon')}
+    'gradcam++' : ('deepskyblue', 'navy'),
+    'rectgrad' : ('indianred', 'brown'),
+    'smoothgrad' : ('mediumslateblue', 'darkslateblue'),
+    'rectgrad_prr' : ('mediumseagreen', 'darkgreen'),
+    'saliency' :('lightslategrey', 'darkslategrey'),
+    'guided_bp' : ('wheat','orange'),
+    'gradient-input' : ('darkseagreen', 'darkolivegreen'),
+    'integgrad' : ('goldenrod', 'darkgoldenrod'),
+    'epsilon_lrp': ('salmon', 'maroon')}
 
 distance_type_colors = {
     'euclidean' : ('deepskyblue', 'navy'),
