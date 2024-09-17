@@ -2,329 +2,7 @@ import utils
 from utils import *
 from utils_models import *
 
-######################################################################################
-################### EVALUATION FUNCTION FOR THE THIRDEYE METHOD ######################
-######################################################################################
-
-
-def evaluate_failure_prediction_thirdeye(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, seconds_to_anticipate, anomalous_simulation_name, nominal_simulation_name,
-                                         heatmap_type, summary_type, aggregation_method, condition):
-    
-    print("Using summarization average" if summary_type == '-avg' else "Using summarization gradient")
-    print("Using aggregation mean" if aggregation_method == 'mean' else "Using aggregation max")
-    NOMINAL_SIM_PATH = NOMINAL_PATHS[0]
-    NOMINAL_MAIN_CSV_PATH = NOMINAL_PATHS[1]
-    NOMINAL_HEATMAP_PARENT_FOLDER_PATH = NOMINAL_PATHS[2]
-    NOMINAL_HEATMAP_FOLDER_PATH = NOMINAL_PATHS[3]
-    NOMINAL_HEATMAP_CSV_PATH = NOMINAL_PATHS[4]
-    NOMINAL_HEATMAP_IMG_PATH = NOMINAL_PATHS[5]
-    NOMINAL_HEATMAP_IMG_GRADIENT_PATH = NOMINAL_PATHS[6]
-    NOM_NPY_SCORES_FOLDER_PATH = NOMINAL_PATHS[9]
-
-    ANOMALOUS_SIM_PATH = ANOMALOUS_PATHS[0]
-    ANOMALOUS_MAIN_CSV_PATH = ANOMALOUS_PATHS[1]
-    ANOMALOUS_HEATMAP_PARENT_FOLDER_PATH = ANOMALOUS_PATHS[2]
-    ANOMALOUS_HEATMAP_FOLDER_PATH = ANOMALOUS_PATHS[3]
-    ANOMALOUS_HEATMAP_CSV_PATH = ANOMALOUS_PATHS[4]
-    ANOMALOUS_HEATMAP_IMG_PATH = ANOMALOUS_PATHS[5]
-    ANOMALOUS_HEATMAP_IMG_GRADIENT_PATH = ANOMALOUS_PATHS[6]
-
-    RUN_RESULTS_PATH = ANOMALOUS_PATHS[7]
-    RUN_FIGS_PATH = ANOMALOUS_PATHS[8]
-    ANO_NPY_SCORES_FOLDER_PATH = ANOMALOUS_PATHS[9]
-
-
-    # 1. load heatmap scores in nominal conditions
-    nom_npy_losses_path = os.path.join(NOM_NPY_SCORES_FOLDER_PATH,
-                        'htm-' + heatmap_type + '-scores' + summary_type + '.npy')
-    nominal_losses = np.load(nom_npy_losses_path)
-
-    print(f"Path for data_df_nominal: {NOMINAL_HEATMAP_CSV_PATH}")
-    data_df_nominal_orig = pd.read_csv(NOMINAL_HEATMAP_CSV_PATH)
-    data_df_nominal = data_df_nominal_orig.copy()
-    data_df_nominal['loss'] = nominal_losses
-
-
-    # 2. load heatmap scores in anomalous conditions
-    ano_npy_losses_path = os.path.join(ANO_NPY_SCORES_FOLDER_PATH,
-                        'htm-' + heatmap_type + '-scores' + summary_type + '.npy')
-    anomalous_losses = np.load(ano_npy_losses_path)
-
-    print(f"Path for data_df_anomalous: {ANOMALOUS_HEATMAP_CSV_PATH}")
-    data_df_anomalous_orig = pd.read_csv(ANOMALOUS_HEATMAP_CSV_PATH)
-    data_df_anomalous = data_df_anomalous_orig.copy()
-    data_df_anomalous['loss'] = anomalous_losses
-
-
-    # 3. compute a threshold from nominal conditions
-    number_frames_nominal = pd.Series.max(data_df_nominal['frameId'])
-    simulation_time_nominal = pd.Series.max(data_df_nominal['time'])
-    fps_nominal = number_frames_nominal // simulation_time_nominal
-
-    num_windows_nominal = len(data_df_nominal) // fps_nominal
-    if len(data_df_nominal) % fps_nominal != 0:
-        num_to_delete = len(data_df_nominal) - (num_windows_nominal * fps_nominal) - 1
-        data_df_nominal = data_df_nominal[:-num_to_delete]
-
-    losses = pd.Series(data_df_nominal['loss'])
-    sma_nominal = losses.rolling(fps_nominal, min_periods=1).mean()
-
-    list_aggregated = []
-
-    for idx, loss in enumerate(sma_nominal):
-
-        if idx > 0 and idx % fps_nominal == 0:
-
-            aggregated_score = None
-            if aggregation_method == "mean":
-                aggregated_score = pd.Series(sma_nominal.iloc[idx - fps_nominal:idx]).mean()
-
-            elif aggregation_method == "max":
-                aggregated_score = pd.Series(sma_nominal.iloc[idx - fps_nominal:idx]).max()
-
-            list_aggregated.append(aggregated_score)
-
-        elif idx == len(sma_nominal) - 1:
-
-            aggregated_score = None
-            if aggregation_method == "mean":
-                aggregated_score = pd.Series(sma_nominal.iloc[idx - fps_nominal:idx]).mean()
-            elif aggregation_method == "max":
-                aggregated_score = pd.Series(sma_nominal.iloc[idx - fps_nominal:idx]).max()
-
-            list_aggregated.append(aggregated_score)
-
-    assert len(list_aggregated) == num_windows_nominal
-
-    threshold = get_threshold_thirdeye(list_aggregated, conf_level=0.95)
-
-################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################
-################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################
-################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################
-    if cfg.CALCULATE_RESULTS:
-        # get total simulation time
-        main_csv_anomalous = pd.read_csv(ANOMALOUS_MAIN_CSV_PATH)
-        main_csv = pd.DataFrame(main_csv_anomalous['center'].copy(), columns=['center'])
-        first_img_path = main_csv['center'].iloc[0]
-        last_img_path = main_csv['center'].iloc[-1]
-
-        start_time, end_time = extract_time_from_str(first_img_path, last_img_path)
-        start_time = f"{start_time[0]}:{start_time[1]}:{start_time[2]}.{start_time[3]}"
-        end_time = f"{end_time[0]}:{end_time[1]}:{end_time[2]}.{end_time[3]}"
-
-        # convert time string to datetime
-        t1 = datetime.strptime(start_time, "%H:%M:%S.%f")
-        t2 = datetime.strptime(end_time, "%H:%M:%S.%f")
-        # get difference
-        simulation_time_anomalous = t2 - t1
-
-
-        anomalous = pd.DataFrame(data_df_anomalous['frameId'].copy(), columns=['frameId'])
-        number_frames_anomalous = len( anomalous['frameId'])
-        # anomalous cross track errors
-        anomalous['cte'] = data_df_anomalous['cte'].copy()
-        # car speed in anomalous mode
-        anomalous['speed'] = data_df_anomalous['speed'].copy()
-        
-        # ano FPS
-        fps_anomalous = number_frames_anomalous // simulation_time_anomalous.total_seconds()
-        # Every thing that is considered crash
-        red_frames, orange_frames, yellow_frames, collision_frames = colored_ranges(anomalous['speed'], anomalous['cte'], cte_diff=None,
-                                                                                    alpha=0.2, YELLOW_BORDER=3.6,ORANGE_BORDER=5.0, RED_BORDER=7.0)
-        all_crash_frames = sorted(red_frames + orange_frames + yellow_frames + collision_frames)
-
-        print(f"Identified %d crash(es): {len(all_crash_frames)}")
-        print(all_crash_frames)
-        print(f"Simulation FPS: {fps_anomalous}")
-
-        # initializing arrays
-        # threshold_too_low = {}
-        # threshold_too_high = {}
-        true_positive_windows = np.zeros(3)
-        false_negative_windows = np.zeros(3)
-        false_positive_windows = np.zeros(3)
-        true_negative_windows = np.zeros(3)
-        
-        for sta in seconds_to_anticipate:
-            _, no_alarm_ranges, all_ranges = get_alarm_frames(data_df_anomalous['loss'], threshold)
-            discarded_alarms = []
-            discarded_no_alarms = []
-
-            window_size = int(sta * fps_anomalous)
-            boolean_ranges = np.zeros((len(all_ranges)), dtype=bool)
-            # create a boolean array following the same pattern as all ranges.
-            # Set true if no_alarm_range is bigger than window size; otherwise set false
-            for rng_idx, rng in enumerate(all_ranges):
-                if isinstance(rng, list):
-                    rng_length = rng[-1] - rng[0]
-                else:
-                    rng_length = 1
-                if rng in no_alarm_ranges:
-                    if rng_length < window_size:
-                        boolean_ranges[rng_idx] = False
-                    else:
-                        boolean_ranges[rng_idx] = True
-            # merge smaller no_alarm range into surrounding alarm ranges
-            merged_ranges = merge_ranges(all_ranges, boolean_ranges)
-
-            ################ Calculate True and False Positives ################
-            for alarm_range in merged_ranges[False]:
-                if not isinstance(alarm_range, list):
-                    discarded_alarms.append(alarm_range)
-                    continue
-                alarm_range_start = alarm_range[0]
-                alarm_range_end = alarm_range[-1]
-                
-                # check if any crashes happend inside the alarm range
-                # or inside the window starting from the end of alarm range
-                # + window size (yes? TP per crash instance no? FP per alarm range)
-                alarm_rng_is_tp = False
-                if not cfg.MINIMAL_LOGGING:
-                    cprintf(f'Assessing alarm range: {alarm_range}', 'l_yellow')
-                for crash_frame in all_crash_frames:
-                    if (alarm_range_start <= crash_frame <= alarm_range_end) or (alarm_range_end <= crash_frame <= (alarm_range_end + window_size)):
-                        alarm_rng_is_tp = True
-                        true_positive_windows[sta-1] += 1
-                        # cprintf(f'crash is predicted: {alarm_range_start} <= {crash_frame} <= {alarm_range_end} or {alarm_range_end} <= {crash_frame} <= {alarm_range_end + window_size}', 'l_green')
-                if not alarm_rng_is_tp:
-                    # number_of_predictable_windows = round((alarm_range_end - alarm_range_start)/(window_size))
-                    false_positive_windows[sta-1] += 1
-
-
-            ################ Calculate True and False Negatives ################
-            for no_alarm_range in merged_ranges[True]:
-                if not isinstance(no_alarm_range, list):
-                    discarded_no_alarms.append(no_alarm_range)
-                    continue
-                no_alarm_range_start = no_alarm_range[0]
-                no_alarm_range_end = no_alarm_range[-1]
-                
-                # check if any crashes happend inside the NO alarm range
-                # or inside the window starting from the end of NO alarm range
-                # + window size (yes? FN per crash instance no? FP per no alarm range: changed that to windows inside no alarm range. Reason: very low accuracy for correct predictions(FNs) if threshold is mostly above the distance curve). 
-                no_alarm_rng_is_fn = False
-                # cprintf(f'Assessing NO alarm range: {no_alarm_range}', 'l_yellow')
-                for crash_frame in all_crash_frames:
-                    if (no_alarm_range_start <= crash_frame <= no_alarm_range_end) or (no_alarm_range_end <= crash_frame <= (no_alarm_range_end + window_size)):
-                        no_alarm_rng_is_fn = True
-                        false_negative_windows[sta-1] += 1
-                        # cprintf(f'crash in no_alarm_area: {no_alarm_range_start} <= {crash_frame} <= {no_alarm_range_end} or {no_alarm_range_end} <= {crash_frame} <= {no_alarm_range_end + window_size}', 'l_red')
-                if not no_alarm_rng_is_fn:
-                    number_of_predictable_windows = round((no_alarm_range_end - no_alarm_range_start)/(window_size))
-                    true_negative_windows[sta-1] += number_of_predictable_windows
-
-        # prepare CSV file to write the results in
-        results_csv_path = os.path.join(RUN_RESULTS_PATH, f'thirdeye_total_results_ano_{anomalous_simulation_name}_nom_{nominal_simulation_name}.csv')
-        if not os.path.exists(RUN_RESULTS_PATH):
-            os.makedirs(RUN_RESULTS_PATH)
-        if not os.path.exists(results_csv_path):
-            with open(results_csv_path, mode='w',
-                        newline='') as result_file:
-                writer = csv.writer(result_file,
-                                    delimiter=',',
-                                    quotechar='"',
-                                    quoting=csv.QUOTE_MINIMAL,
-                                    lineterminator='\n')
-                writer.writerow(
-                    ["time_stamp","heatmap_type", "aggregation_method", "summary_type", "threshold", "crashes", "sta", "TP", "FP", "TN", "FN", "accuracy", "fpr", "precision", "recall", "f3", "max_val", "min_val"])
-
-        for sta in seconds_to_anticipate:
-
-                if not cfg.MINIMAL_LOGGING:
-                    cprintb(f'ThirdEye results for {sta} seconds windows', 'l_green')
-                    print('TP: ' + f'{true_positive_windows[sta-1]}')
-                    print('FP: ' + f'{false_positive_windows[sta-1]}')
-                    print('TN: ' + f'{true_negative_windows[sta-1]}')
-                    print('FN: ' + f'{false_negative_windows[sta-1]}')
-
-                if true_positive_windows[sta-1] != 0:
-                    precision = true_positive_windows[sta-1] / (true_positive_windows[sta-1] + false_positive_windows[sta-1])
-                    recall = true_positive_windows[sta-1] / (true_positive_windows[sta-1] + false_negative_windows[sta-1])
-                    accuracy = (true_positive_windows[sta-1] + true_negative_windows[sta-1]) / (
-                            true_positive_windows[sta-1] + true_negative_windows[sta-1] + false_positive_windows[sta-1] + false_negative_windows[sta-1])
-                    fpr = false_positive_windows[sta-1] / (false_positive_windows[sta-1] + true_negative_windows[sta-1])
-
-                    if precision != 0 or recall != 0:
-                        f3 = true_positive_windows[sta-1] / (
-                                true_positive_windows[sta-1] + 0.1 * false_positive_windows[sta-1] + 0.9 * false_negative_windows[sta-1])
-                        try:
-                            accuracy_percent = str(round(accuracy * 100))
-                        except:
-                            accuracy_percent = str(accuracy)
-
-                        try:
-                            fpr_percent = str(round(fpr * 100))
-                        except:
-                            fpr_percent = str(fpr)
-
-                        try:
-                            precision_percent = str(round(precision * 100))
-                        except:
-                            precision_percent = str(precision)
-
-                        try:
-                            recall_percent = str(round(recall * 100))
-                        except:
-                            recall_percent = str(recall)
-
-                        try:
-                            f3_percent = str(round(f3 * 100))
-                        except:
-                            f3_percent = str(f3)
-                        if not cfg.MINIMAL_LOGGING:
-                            print("Accuracy: " + accuracy_percent + "%")
-                            print("False Positive Rate: " + fpr_percent + "%")
-                            print("Precision: " + precision_percent + "%")
-                            print("Recall: " + recall_percent + "%")
-                            print("F-3: " + f3_percent + "%\n")
-                    else:
-                        precision = recall = f3 = accuracy = fpr = precision_percent = recall_percent = f3_percent = accuracy_percent = fpr_percent = 0
-                        if not cfg.MINIMAL_LOGGING:
-                            print("Accuracy: undefined")
-                            print("False Positive Rate: undefined")
-                            print("Precision: undefined")
-                            print("Recall: undefined")
-                            print("F-3: undefined\n")
-                else:
-                    precision = recall = f3 = accuracy = fpr = precision_percent = recall_percent = f3_percent = accuracy_percent = fpr_percent = 0
-                    if not cfg.MINIMAL_LOGGING:
-                        print("Accuracy: undefined")
-                        print("False Positive Rate: undefined")
-                        print("Precision: undefined")
-                        print("Recall: undefined")
-                        print("F-1: undefined")
-                        print("F-3: undefined\n")
-                cprintf(f'Saving results in {results_csv_path}', 'l_blue')
-                with open(results_csv_path, mode='a',
-                            newline='') as result_file:
-                    writer = csv.writer(result_file,
-                                        delimiter=',',
-                                        quotechar='"',
-                                        quoting=csv.QUOTE_MINIMAL,
-                                        lineterminator='\n')
-                    writer.writerow([datetime.now().strftime("%Y_%m_%d_%H_%M_%S"),
-                                    summary_type,
-                                    aggregation_method,
-                                    heatmap_type,
-                                    threshold,
-                                    str(len(all_crash_frames)),
-                                    str(sta),
-                                    str(true_positive_windows[sta-1]),
-                                    str(false_positive_windows[sta-1]),
-                                    str(true_negative_windows[sta-1]),
-                                    str(false_negative_windows[sta-1]),
-                                    accuracy_percent,
-                                    fpr_percent,
-                                    precision_percent,
-                                    recall_percent,
-                                    f3_percent,
-                                    data_df_anomalous['loss'].max(),
-                                    data_df_anomalous['loss'].min()])
-
-    return results_csv_path
-
-
-######################################################################################
+#####################################################################################
 ############ EVALUATION FUNCTION FOR THE POINT TO POINT (P2P) METHOD #################
 ######################################################################################
 
@@ -824,9 +502,9 @@ def evaluate_failure_prediction_p2p(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
             if (analyse_distance[distance_type][0]) and (not threshold_sim):
                     threshold = thresholds[distance_type]
                     ano_threshold = ano_thresholds[distance_type]
-                    lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg, eval_vars=[threshold], eval_method='threshold')
+                    p2p_lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg, eval_vars=[threshold], eval_method='threshold')
             else:
-                lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg)
+                p2p_lineplot(ax, distance_vector, distance_vector_avg, distance_type, heatmap_type, color, color_avg)
 
         # plot positional point distances between nominal and anomalous sims
         ax = fig.add_subplot(spec[num_of_axes-2, :])
@@ -952,11 +630,11 @@ def evaluate_failure_prediction_p2p(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
     
     # path to plotted figure images folder
     FIGURES_FOLDER_PATH = os.path.join(ANOMALOUS_HEATMAP_FOLDER_PATH,
-                                       f"figures_{anomalous_simulation_name}_{nominal_simulation_name}")
+                                       f"figures_{anomalous_simulation_name}_{nominal_simulation_name}", 'p2p')
     if not os.path.exists(FIGURES_FOLDER_PATH):
         os.makedirs(FIGURES_FOLDER_PATH)
 
-    fig_img_name = f"{heatmap_type}_plots_{anomalous_simulation_name}_{nominal_simulation_name}.pdf"
+    fig_img_name = f"p2p_{heatmap_type}_plots_{anomalous_simulation_name}_{nominal_simulation_name}.pdf"
     fig_img_address = os.path.join(FIGURES_FOLDER_PATH, fig_img_name)
     if cfg.PLOT_POINT_TO_POINT:
         cprintf(f'\nSaving plotted figure to {FIGURES_FOLDER_PATH} ...', 'magenta')
@@ -987,7 +665,7 @@ def evaluate_failure_prediction_p2p(cfg, NOMINAL_PATHS, ANOMALOUS_PATHS, NUM_FRA
         t2 = datetime.strptime(end_time, "%H:%M:%S.%f")
         # get difference
         simulation_time_anomalous = t2 - t1
-        number_frames_anomalous = len( anomalous['center'])
+        number_frames_anomalous = len(anomalous['center'])
         # ano FPS
         fps_anomalous = number_frames_anomalous // simulation_time_anomalous.total_seconds()
         # Every thing that is considered crash

@@ -16,7 +16,8 @@ elif TRACK == "track3":
     BASE_THRESHOLD_SUNNY_SIM = 'track3-sunny-threshold'
 
 FORCE_REWRITE_SCORES_PLOTS = False
-METHODS = ['p2p', 'thirdeye'] # 'thirdeye', 'p2p'
+METHODS = ['thirdeye',
+           'p2p'] # 'thirdeye', 'p2p'
 ##############################################################################################
 ##############################################################################################
 ##############################################################################################
@@ -77,10 +78,7 @@ CALCULATE_RESULTS = True
 THRESHOLD_ASSESSMENT = False
 THRESHOLD_CORRECTION = True
 # plotting settings
-PLOT_NOMINAL = True
-PLOT_NOMINAL_ALL = False
-PLOT_ANOMALOUS_ALL_WINDOWS = True
-PLOT_THIRDEYE = False
+PLOT_THIRDEYE = True
 PLOT_POINT_TO_POINT = False
 PLOT_POSITION_CLOUD = False
 # logging settings

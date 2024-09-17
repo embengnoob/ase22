@@ -9,18 +9,19 @@ try:
 except:
     from config import Config
 
-from evaluate_failure_prediction_heatmaps_scores import evaluate_failure_prediction_thirdeye, evaluate_failure_prediction_p2p
+from evaluate_failure_prediction_p2p import evaluate_failure_prediction_p2p
+from evaluate_failure_prediction_thirdeye import evaluate_failure_prediction_thirdeye
 
-def simExists(cfg, run_id, sim_name, attention_type, sim_type, seconds_to_anticipate, threshold_extras=[]):
+def simExists(cfg, method, run_id, sim_name, attention_type, sim_type, seconds_to_anticipate, threshold_extras=[]):
     if type(run_id) != str:
         run_id = str(run_id)
-    get_paths_result = get_paths(cfg, run_id, sim_name, attention_type, sim_type)
+    get_paths_result = get_paths(cfg, run_id, sim_name, attention_type, sim_type, method)
     PATHS = get_paths_result['paths']
     SIM_PATH, MAIN_CSV_PATH, HEATMAP_PARENT_FOLDER_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH, RUN_RESULTS_PATH, RUN_FIGS_PATH, NPY_SCORES_FOLDER_PATH = PATHS
     nominal, threshold = get_paths_result['sim_type']
     NUM_OF_FRAMES = get_paths_result['num_of_frames']
 
-    MODE = heatmap_calculation_modus(cfg, run_id, sim_name, attention_type, sim_type)
+    MODE = heatmap_calculation_modus(cfg, run_id, sim_name, attention_type, sim_type, method)
 
     if MODE is not None:
         compute_heatmap(cfg, nominal, sim_name, NUM_OF_FRAMES, run_id, attention_type, SIM_PATH, MAIN_CSV_PATH, HEATMAP_FOLDER_PATH, HEATMAP_CSV_PATH, HEATMAP_IMG_PATH, HEATMAP_IMG_GRADIENT_PATH, NPY_SCORES_FOLDER_PATH, MODE)
@@ -148,7 +149,7 @@ if __name__ == '__main__':
 
         # P2P Settings
         HEATMAP_TYPES = ['smoothgrad'] #, 'gradcam++', 'rectgrad', 'rectgrad_prr', 'saliency', 'guided_bp', 'gradient-input', 'integgrad', 'epsilon_lrp']
-        DISTANCE_TYPES = ['sobolev-norm', 'euclidean'] #['euclidean', 'manhattan', 'cosine', 'EMD', 'pearson', 'spearman', 'kendall', 'moran', 'kl-divergence', 'mutual-info', 'sobolev-norm']
+        DISTANCE_TYPES = ['sobolev-norm'] #['euclidean', 'manhattan', 'cosine', 'EMD', 'pearson', 'spearman', 'kendall', 'moran', 'kl-divergence', 'mutual-info', 'sobolev-norm']
         ANALYSE_DISTANCE = {
             'euclidean' : (True, 0.99),
             'manhattan' : (False, 0.99),
@@ -165,7 +166,7 @@ if __name__ == '__main__':
         # ThirdEye Settings
         summary_types = ['-avg', '-avg-grad']
         aggregation_methods = ['mean', 'max']
-        abstraction_methods = ['avg', 'variance']
+        # abstraction_methods = ['avg', 'variance']
 
     ##################### Result CSV Path Lists #####################
 
@@ -197,10 +198,11 @@ if __name__ == '__main__':
                     cfg.SIMULATION_NAME_NOMINAL = SIMULATION_NAME_NOMINAL
                     cfg.GENERATE_SUMMARY_COLLAGES = SUMMARY_COLLAGES[sim_idx][run_number]
 
-                    run_figs = []
+                    run_figs_p2p = []
+                    run_figs_thirdeye = []
                     if sim_name != prev_sim:
                         # clear previous result CSVs:
-                        path_res = get_paths(cfg, str(run_id), sim_name, attention_type='none', sim_type='anomalous')
+                        path_res = get_paths(cfg, str(run_id), sim_name, attention_type='none', sim_type='anomalous', method=method)
                         results_folder_path = path_res['paths'][7]
                         figs_dir =  path_res['paths'][8]
                         print(figs_dir)
@@ -218,7 +220,9 @@ if __name__ == '__main__':
                             cfg.PLOT_POINT_TO_POINT = True
                         else:
                             cfg.PLOT_POINT_TO_POINT = False
-                    # check whether nominal and anomalous simulation and the corresponding heatmaps are already generated, generate them otherwise
+
+
+
                     for heatmap_type in HEATMAP_TYPES:
                         cprintb(f'\n########### Prediction Method: {method} ###########', 'l_yellow')
 
@@ -229,13 +233,18 @@ if __name__ == '__main__':
                         cprintb(f'\n############## run number {run_id} ({RUN_ID_NUMBERS[sim_idx].index(run_id) + 1} of {len(RUN_ID_NUMBERS[sim_idx])}) ##############', 'l_blue')
                         cprintb(f'########### Using Heatmap Type: {heatmap_type} ({HEATMAP_TYPES.index(heatmap_type) + 1} of {len(HEATMAP_TYPES)}) ###########', 'l_blue')
 
-                        NUM_FRAMES_NOM, NOMINAL_PATHS = simExists(cfg, str(run_id), sim_name=SIMULATION_NAME_NOMINAL, attention_type=heatmap_type, sim_type='nominal', 
+###############################################################################################################################################################
+################# check whether nominal and anomalous simulation and the corresponding heatmaps are already generated, generate them otherwise ################
+########################################################################## get paths ##########################################################################
+###############################################################################################################################################################
+
+                        NUM_FRAMES_NOM, NOMINAL_PATHS = simExists(cfg, method, str(run_id), sim_name=SIMULATION_NAME_NOMINAL, attention_type=heatmap_type, sim_type='nominal', 
                                                                 seconds_to_anticipate=SECONDS_TO_ANTICIPATE)
                         
-                        NUM_FRAMES_ANO, ANOMALOUS_PATHS = simExists(cfg, str(run_id), sim_name=SIMULATION_NAME_ANOMALOUS, attention_type=heatmap_type, sim_type='anomalous', 
+                        NUM_FRAMES_ANO, ANOMALOUS_PATHS = simExists(cfg, method, str(run_id), sim_name=SIMULATION_NAME_ANOMALOUS, attention_type=heatmap_type, sim_type='anomalous', 
                                                                     seconds_to_anticipate=SECONDS_TO_ANTICIPATE)
                         if method == 'p2p':
-                            THRESHOLD_VECTORS_FOLDER_PATH = simExists(cfg, '1', sim_name=SIMULATION_NAME_THRESHOLD, attention_type=heatmap_type, sim_type='threshold',      
+                            THRESHOLD_VECTORS_FOLDER_PATH = simExists(cfg, method, '1', sim_name=SIMULATION_NAME_THRESHOLD, attention_type=heatmap_type, sim_type='threshold',      
                                                                     seconds_to_anticipate=SECONDS_TO_ANTICIPATE,
                                                                     threshold_extras=[NOMINAL_PATHS,
                                                                                         NUM_FRAMES_NOM,
@@ -244,36 +253,20 @@ if __name__ == '__main__':
                                                                                         DISTANCE_TYPES,
                                                                                         ANALYSE_DISTANCE])
                             ANOMALOUS_PATHS.append(THRESHOLD_VECTORS_FOLDER_PATH)
-                        
+###############################################################################################################################################################
+########################################### Run the methods, calculate results and get figs and total results paths ###########################################
+###############################################################################################################################################################                        
                         if method == 'thirdeye':
-                            # if len(aggregation_methods) == 3:
-                            #     figsize = (15, 12)
-                            #     hspace = 0.69
-                            # elif len(aggregation_methods) == 2:
-                            #     figsize = (15, 10)
-                            #     hspace = 0.44
-                            # else:
-                            #     raise ValueError("No predefined settings for this number of aggregation methods.")
-                            
-                            # fig, axs = plt.subplots(len(aggregation_methods)*2, 1, figsize=figsize)
-                            # plt.subplots_adjust(hspace=hspace)
-                            # plt.suptitle("Heatmap scores and thresholds", fontsize=15, y=0.95)
-
-                            for st in summary_types:
-                                for am in aggregation_methods:
-                                    cprintf(f'\n########### using agg_method:{am}, summary type:{st} ###########', 'yellow')
-                                    results_csv_path = evaluate_failure_prediction_thirdeye(cfg,
-                                                                                            NOMINAL_PATHS,
-                                                                                            ANOMALOUS_PATHS,
-                                                                                            seconds_to_anticipate=SECONDS_TO_ANTICIPATE,
-                                                                                            anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
-                                                                                            nominal_simulation_name=SIMULATION_NAME_NOMINAL,
-                                                                                            heatmap_type=heatmap_type,
-                                                                                            summary_type=st,
-                                                                                            aggregation_method=am,
-                                                                                            condition='ood')
-                            # plt.show()
-                            # print(subplot_counter)
+                            fig_img_address = evaluate_failure_prediction_thirdeye(cfg,
+                                                                                                                        NOMINAL_PATHS,
+                                                                                                                        ANOMALOUS_PATHS,
+                                                                                                                        seconds_to_anticipate=SECONDS_TO_ANTICIPATE,
+                                                                                                                        anomalous_simulation_name=SIMULATION_NAME_ANOMALOUS,
+                                                                                                                        nominal_simulation_name=SIMULATION_NAME_NOMINAL,
+                                                                                                                        heatmap_type=heatmap_type,
+                                                                                                                        summary_types=summary_types,
+                                                                                                                        aggregation_methods=aggregation_methods)
+                            run_figs_thirdeye.append(fig_img_address)
 
                         elif method == 'p2p':
                             fig_img_address, results_csv_path, results_folder_path = evaluate_failure_prediction_p2p(cfg,
@@ -289,15 +282,18 @@ if __name__ == '__main__':
                                                                                                                     run_id=run_id,
                                                                                                                     threshold_sim = False,
                                                                                                                     seconds_to_anticipate = SECONDS_TO_ANTICIPATE)
-                            run_figs.append(fig_img_address)
+                            run_figs_p2p.append(fig_img_address)
 
                     # copy all figs of a run to a single folder
-                    if cfg.PLOT_POINT_TO_POINT:
-                        copy_run_figs(cfg, ANOMALOUS_PATHS[0], run_id, run_figs)
+                    if method == 'p2p' and cfg.PLOT_POINT_TO_POINT:
+                        copy_run_figs(cfg, ANOMALOUS_PATHS[0], run_id, run_figs_p2p, ANOMALOUS_PATHS[8])
+                    if method == 'thirdeye' and cfg.PLOT_THIRDEYE:
+                        copy_run_figs(cfg, ANOMALOUS_PATHS[0], run_id, run_figs_thirdeye, ANOMALOUS_PATHS[8])
 
 
-
-                    ##################### Simulation Evaluation #####################
+###############################################################################################################################################################
+#################################################################### Simulation Evaluation ####################################################################
+###############################################################################################################################################################  
                     if cfg.CALCULATE_RESULTS:
                         # calcuate scores + get number of invalid thresholds
                         cprintf(f'{results_csv_path}', 'l_red')
@@ -481,9 +477,11 @@ if __name__ == '__main__':
 
 
             # plot comparison graph
-            ht_or_dt_comparison_plot(ANO_SIMULATIONS, seconds_to_anticipate_str, STA_PLOT, DISTANCE_TYPES, criterion_vals_dt, PLOTTING_CRITERION, FIG_SAVE_ADDRESS=os.path.join(RESULTS_DIR, 'distances.png'), type='Distance')
-            ht_or_dt_comparison_plot(ANO_SIMULATIONS, seconds_to_anticipate_str, STA_PLOT, HEATMAP_TYPES, criterion_vals_ht, PLOTTING_CRITERION, FIG_SAVE_ADDRESS=os.path.join(RESULTS_DIR, 'heatmaps.png'), type='Heatmap')
+            ht_or_dt_comparison_plot(ANO_SIMULATIONS, seconds_to_anticipate_str, STA_PLOT, DISTANCE_TYPES,
+            criterion_vals_dt, PLOTTING_CRITERION, FIG_SAVE_ADDRESS=os.path.join(RESULTS_DIR, 'distances.png'), type='Distance')
 
+            ht_or_dt_comparison_plot(ANO_SIMULATIONS, seconds_to_anticipate_str, STA_PLOT, HEATMAP_TYPES,
+            criterion_vals_ht, PLOTTING_CRITERION, FIG_SAVE_ADDRESS=os.path.join(RESULTS_DIR, 'heatmaps.png'), type='Heatmap')
 
 
         end_time = time.monotonic()

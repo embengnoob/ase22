@@ -30,9 +30,6 @@ class Config:
         self.SDC_MODEL_NAME = None
         self.TRACK = None
         self.LOSS_SAO_MODEL = None
-        self.PLOT_NOMINAL = None
-        self.PLOT_NOMINAL_ALL = None
-        self.PLOT_ANOMALOUS_ALL_WINDOWS = None
         self.PLOT_THIRDEYE = None
         self.FORCE_REWRITE_SCORES_PLOTS = None
         self.PLOT_POINT_TO_POINT = None
