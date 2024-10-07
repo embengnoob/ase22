@@ -257,7 +257,7 @@ if __name__ == '__main__':
 ########################################### Run the methods, calculate results and get figs and total results paths ###########################################
 ###############################################################################################################################################################                        
                         if method == 'thirdeye':
-                            fig_img_address = evaluate_failure_prediction_thirdeye(cfg,
+                            fig_img_address, results_csv_path, results_folder_path = evaluate_failure_prediction_thirdeye(cfg,
                                                                                                                         NOMINAL_PATHS,
                                                                                                                         ANOMALOUS_PATHS,
                                                                                                                         seconds_to_anticipate=SECONDS_TO_ANTICIPATE,

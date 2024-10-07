@@ -11,6 +11,7 @@ import csv
 import numpy as np
 import pandas as pd
 from collections import defaultdict
+from itertools import product
 
 import tensorflow as tf
 # from tensorflow.keras import backend as K
@@ -905,7 +906,7 @@ def get_ano_window_scores(heatmap_type, summary_types, aggregation_methods, ano_
 
     for summary_type in summary_types:
         for aggregation_method in aggregation_methods: 
-            cprintf(f'\n########### ANO sim using agg_method:{aggregation_method}, summary type:{summary_type} ###########', 'yellow')
+            # cprintf(f'\n########### ANO sim using agg_method:{aggregation_method}, summary type:{summary_type} ###########', 'yellow')
 
             # # # creates the ground truth
             # # all_first_frame_position_OOT_sequences, OOT_anomalous_in_anomalous_conditions = get_OOT_frames(data_df_anomalous, number_frames_anomalous)
@@ -974,7 +975,7 @@ def get_ano_window_scores(heatmap_type, summary_types, aggregation_methods, ano_
             
             loss_scores[summary_type] = data_df_anomalous['loss']
             sma_anomalous = pd.Series(data_df_anomalous['loss'])
-
+            
             # calculate mean or max of windows the length of fps_anomalous starting from idx-fps_anomalous to idx
             for idx, loss in enumerate(sma_anomalous):
                 if idx > 0 and idx % fps_anomalous == 0:
@@ -1003,246 +1004,6 @@ def get_ano_window_scores(heatmap_type, summary_types, aggregation_methods, ano_
 
     return window_scores, window_indices, loss_scores, data_df_anomalous, simulation_time_anomalous, fps_anomalous
 
-# def calculate_thirdeye_tp_fp_tn_fn(cfg, ):
-    
-#             # sma_anomalous_cut = sma_anomalous.iloc[reaction_window.index.to_list()]
-#             # assert len(reaction_window) == len(sma_anomalous_cut)
-#             # # print(type(sma_anomalous_cut))
-#             # # print(sma_anomalous_cut)
-#             # print('>>>>>>>>>>>>>>> aggregation_method: ' + aggregation_method + ' <<<<<<<<<<<<<<<<<')
-#             # # print(sma_anomalous_cut.idxmax(axis=0))
-#             # # print(type(sma_anomalous_cut.index[-1]))
-
-#             # aggregated_score = None
-#             # if aggregation_method == "mean":
-#             #     aggregated_score = sma_anomalous_cut.mean()
-#             # elif aggregation_method == "max":
-#             #     aggregated_score = sma_anomalous_cut.max()
-#             # elif aggregation_method == "both":
-#             #     aggregated_score = (sma_anomalous_cut.mean() + sma_anomalous_cut.max())/2
-
-#             # print("threshold %s\tmean: %s\tmax: %s" % (
-#             #     str(threshold), str(sma_anomalous_cut.mean()), str(sma_anomalous_cut.max())))
-
-#             # print(f"aggregated_score >= threshold: {aggregated_score} >= {threshold}")
-#             # if aggregated_score >= threshold:
-#             #     true_positive_windows += 1
-#             # elif aggregated_score < threshold:
-#             #     false_negative_windows += 1
-####################################################################################################################################################################################################################
-#     for summary_type in summary_types:
-#         for aggregation_method in aggregation_methods: 
-#             if cfg.CALCULATE_RESULTS:
-#                 # get total simulation time
-#                 main_csv_anomalous = pd.read_csv(ANOMALOUS_MAIN_CSV_PATH)
-#                 main_csv = pd.DataFrame(main_csv_anomalous['center'].copy(), columns=['center'])
-#                 first_img_path = main_csv['center'].iloc[0]
-#                 last_img_path = main_csv['center'].iloc[-1]
-
-#                 start_time, end_time = extract_time_from_str(first_img_path, last_img_path)
-#                 start_time = f"{start_time[0]}:{start_time[1]}:{start_time[2]}.{start_time[3]}"
-#                 end_time = f"{end_time[0]}:{end_time[1]}:{end_time[2]}.{end_time[3]}"
-
-#                 # convert time string to datetime
-#                 t1 = datetime.strptime(start_time, "%H:%M:%S.%f")
-#                 t2 = datetime.strptime(end_time, "%H:%M:%S.%f")
-#                 # get difference
-#                 simulation_time_anomalous = t2 - t1
-                
-#                 # ano FPS
-#                 fps_anomalous = number_frames_anomalous // simulation_time_anomalous.total_seconds()
-#                 # Every thing that is considered crash
-#                 red_frames, orange_frames, yellow_frames, collision_frames = colored_ranges(anomalous['speed'], anomalous['cte'], cte_diff=None,
-#                                                                                             alpha=0.2, YELLOW_BORDER=3.6,ORANGE_BORDER=5.0, RED_BORDER=7.0)
-#                 all_crash_frames = sorted(red_frames + orange_frames + yellow_frames + collision_frames)
-
-#                 print(f"Identified %d crash(es): {len(all_crash_frames)}")
-#                 print(all_crash_frames)
-#                 print(f"Simulation FPS: {fps_anomalous}")
-
-#                 # initializing arrays
-#                 # threshold_too_low = {}
-#                 # threshold_too_high = {}
-#                 true_positive_windows = np.zeros(3)
-#                 false_negative_windows = np.zeros(3)
-#                 false_positive_windows = np.zeros(3)
-#                 true_negative_windows = np.zeros(3)
-
-#                 for sta in seconds_to_anticipate:
-#                     _, no_alarm_ranges, all_ranges = get_alarm_frames(data_df_anomalous['loss'], threshold)
-#                     discarded_alarms = []
-#                     discarded_no_alarms = []
-
-#                     window_size = int(sta * fps_anomalous)
-#                     boolean_ranges = np.zeros((len(all_ranges)), dtype=bool)
-#                     # create a boolean array following the same pattern as all ranges.
-#                     # Set true if no_alarm_range is bigger than window size; otherwise set false
-#                     for rng_idx, rng in enumerate(all_ranges):
-#                         if isinstance(rng, list):
-#                             rng_length = rng[-1] - rng[0]
-#                         else:
-#                             rng_length = 1
-#                         if rng in no_alarm_ranges:
-#                             if rng_length < window_size:
-#                                 boolean_ranges[rng_idx] = False
-#                             else:
-#                                 boolean_ranges[rng_idx] = True
-#                     # merge smaller no_alarm range into surrounding alarm ranges
-#                     merged_ranges = merge_ranges(all_ranges, boolean_ranges)
-
-#                     ################ Calculate True and False Positives ################
-#                     for alarm_range in merged_ranges[False]:
-#                         if not isinstance(alarm_range, list):
-#                             discarded_alarms.append(alarm_range)
-#                             continue
-#                         alarm_range_start = alarm_range[0]
-#                         alarm_range_end = alarm_range[-1]
-                        
-#                         # check if any crashes happend inside the alarm range
-#                         # or inside the window starting from the end of alarm range
-#                         # + window size (yes? TP per crash instance no? FP per alarm range)
-#                         alarm_rng_is_tp = False
-#                         if not cfg.MINIMAL_LOGGING:
-#                             cprintf(f'Assessing alarm range: {alarm_range}', 'l_yellow')
-#                         for crash_frame in all_crash_frames:
-#                             if (alarm_range_start <= crash_frame <= alarm_range_end) or (alarm_range_end <= crash_frame <= (alarm_range_end + window_size)):
-#                                 alarm_rng_is_tp = True
-#                                 true_positive_windows[sta-1] += 1
-#                                 # cprintf(f'crash is predicted: {alarm_range_start} <= {crash_frame} <= {alarm_range_end} or {alarm_range_end} <= {crash_frame} <= {alarm_range_end + window_size}', 'l_green')
-#                         if not alarm_rng_is_tp:
-#                             # number_of_predictable_windows = round((alarm_range_end - alarm_range_start)/(window_size))
-#                             false_positive_windows[sta-1] += 1
-
-
-#                     ################ Calculate True and False Negatives ################
-#                     for no_alarm_range in merged_ranges[True]:
-#                         if not isinstance(no_alarm_range, list):
-#                             discarded_no_alarms.append(no_alarm_range)
-#                             continue
-#                         no_alarm_range_start = no_alarm_range[0]
-#                         no_alarm_range_end = no_alarm_range[-1]
-                        
-#                         # check if any crashes happend inside the NO alarm range
-#                         # or inside the window starting from the end of NO alarm range
-#                         # + window size (yes? FN per crash instance no? FP per no alarm range: changed that to windows inside no alarm range. Reason: very low accuracy for correct predictions(FNs) if threshold is mostly above the distance curve). 
-#                         no_alarm_rng_is_fn = False
-#                         # cprintf(f'Assessing NO alarm range: {no_alarm_range}', 'l_yellow')
-#                         for crash_frame in all_crash_frames:
-#                             if (no_alarm_range_start <= crash_frame <= no_alarm_range_end) or (no_alarm_range_end <= crash_frame <= (no_alarm_range_end + window_size)):
-#                                 no_alarm_rng_is_fn = True
-#                                 false_negative_windows[sta-1] += 1
-#                                 # cprintf(f'crash in no_alarm_area: {no_alarm_range_start} <= {crash_frame} <= {no_alarm_range_end} or {no_alarm_range_end} <= {crash_frame} <= {no_alarm_range_end + window_size}', 'l_red')
-#                         if not no_alarm_rng_is_fn:
-#                             number_of_predictable_windows = round((no_alarm_range_end - no_alarm_range_start)/(window_size))
-#                             true_negative_windows[sta-1] += number_of_predictable_windows
-
-#                 # prepare CSV file to write the results in
-#                 results_csv_path = os.path.join(RUN_RESULTS_PATH, f'thirdeye_total_results_ano_{anomalous_simulation_name}_nom_{nominal_simulation_name}.csv')
-#                 if not os.path.exists(RUN_RESULTS_PATH):
-#                     os.makedirs(RUN_RESULTS_PATH)
-#                 if not os.path.exists(results_csv_path):
-#                     with open(results_csv_path, mode='w',
-#                                 newline='') as result_file:
-#                         writer = csv.writer(result_file,
-#                                             delimiter=',',
-#                                             quotechar='"',
-#                                             quoting=csv.QUOTE_MINIMAL,
-#                                             lineterminator='\n')
-#                         writer.writerow(
-#                             ["time_stamp","heatmap_type", "aggregation_method", "summary_type", "threshold", "crashes", "sta", "TP", "FP", "TN", "FN", "accuracy", "fpr", "precision", "recall", "f3", "max_val", "min_val"])
-
-#                 for sta in seconds_to_anticipate:
-
-#                         if not cfg.MINIMAL_LOGGING:
-#                             cprintb(f'ThirdEye results for {sta} seconds windows', 'l_green')
-#                             print('TP: ' + f'{true_positive_windows[sta-1]}')
-#                             print('FP: ' + f'{false_positive_windows[sta-1]}')
-#                             print('TN: ' + f'{true_negative_windows[sta-1]}')
-#                             print('FN: ' + f'{false_negative_windows[sta-1]}')
-
-#                         if true_positive_windows[sta-1] != 0:
-#                             precision = true_positive_windows[sta-1] / (true_positive_windows[sta-1] + false_positive_windows[sta-1])
-#                             recall = true_positive_windows[sta-1] / (true_positive_windows[sta-1] + false_negative_windows[sta-1])
-#                             accuracy = (true_positive_windows[sta-1] + true_negative_windows[sta-1]) / (
-#                                     true_positive_windows[sta-1] + true_negative_windows[sta-1] + false_positive_windows[sta-1] + false_negative_windows[sta-1])
-#                             fpr = false_positive_windows[sta-1] / (false_positive_windows[sta-1] + true_negative_windows[sta-1])
-
-#                             if precision != 0 or recall != 0:
-#                                 f3 = true_positive_windows[sta-1] / (
-#                                         true_positive_windows[sta-1] + 0.1 * false_positive_windows[sta-1] + 0.9 * false_negative_windows[sta-1])
-#                                 try:
-#                                     accuracy_percent = str(round(accuracy * 100))
-#                                 except:
-#                                     accuracy_percent = str(accuracy)
-
-#                                 try:
-#                                     fpr_percent = str(round(fpr * 100))
-#                                 except:
-#                                     fpr_percent = str(fpr)
-
-#                                 try:
-#                                     precision_percent = str(round(precision * 100))
-#                                 except:
-#                                     precision_percent = str(precision)
-
-#                                 try:
-#                                     recall_percent = str(round(recall * 100))
-#                                 except:
-#                                     recall_percent = str(recall)
-
-#                                 try:
-#                                     f3_percent = str(round(f3 * 100))
-#                                 except:
-#                                     f3_percent = str(f3)
-#                                 if not cfg.MINIMAL_LOGGING:
-#                                     print("Accuracy: " + accuracy_percent + "%")
-#                                     print("False Positive Rate: " + fpr_percent + "%")
-#                                     print("Precision: " + precision_percent + "%")
-#                                     print("Recall: " + recall_percent + "%")
-#                                     print("F-3: " + f3_percent + "%\n")
-#                             else:
-#                                 precision = recall = f3 = accuracy = fpr = precision_percent = recall_percent = f3_percent = accuracy_percent = fpr_percent = 0
-#                                 if not cfg.MINIMAL_LOGGING:
-#                                     print("Accuracy: undefined")
-#                                     print("False Positive Rate: undefined")
-#                                     print("Precision: undefined")
-#                                     print("Recall: undefined")
-#                                     print("F-3: undefined\n")
-#                         else:
-#                             precision = recall = f3 = accuracy = fpr = precision_percent = recall_percent = f3_percent = accuracy_percent = fpr_percent = 0
-#                             if not cfg.MINIMAL_LOGGING:
-#                                 print("Accuracy: undefined")
-#                                 print("False Positive Rate: undefined")
-#                                 print("Precision: undefined")
-#                                 print("Recall: undefined")
-#                                 print("F-1: undefined")
-#                                 print("F-3: undefined\n")
-#                         cprintf(f'Saving results in {results_csv_path}', 'l_blue')
-#                         with open(results_csv_path, mode='a',
-#                                     newline='') as result_file:
-#                             writer = csv.writer(result_file,
-#                                                 delimiter=',',
-#                                                 quotechar='"',
-#                                                 quoting=csv.QUOTE_MINIMAL,
-#                                                 lineterminator='\n')
-#                             writer.writerow([datetime.now().strftime("%Y_%m_%d_%H_%M_%S"),
-#                                             summary_type,
-#                                             aggregation_method,
-#                                             heatmap_type,
-#                                             threshold,
-#                                             str(len(all_crash_frames)),
-#                                             str(sta),
-#                                             str(true_positive_windows[sta-1]),
-#                                             str(false_positive_windows[sta-1]),
-#                                             str(true_negative_windows[sta-1]),
-#                                             str(false_negative_windows[sta-1]),
-#                                             accuracy_percent,
-#                                             fpr_percent,
-#                                             precision_percent,
-#                                             recall_percent,
-#                                             f3_percent,
-#                                             data_df_anomalous['loss'].max(),
-#                                             data_df_anomalous['loss'].min()])
 
 def get_threshold(score_file_path, distance_type= None, conf_level=0.95, text_file=True, min_log=True):
     if not min_log:
@@ -1303,7 +1064,7 @@ def get_ranges(boolean_cte_array):
                     list_of_ranges.append([rng_min,rng_max])
                 counting_range = False
                 rng_min = -1
-                rng_max = -1
+                rng_max = -1 
     return list_of_ranges
 
 def get_all_ranges(boolean_cte_array):
@@ -1426,6 +1187,29 @@ def merge_ranges(all_ranges, boolean_array):
                 else:
                     dict_of_ranges[False].append([false_rng_min,false_rng_max])
     return dict_of_ranges
+
+def get_alarm_frames_thirdeye(window_scores, window_indices, threshold, num_anomalous_frames):
+    # cprintf(f'{window_scores}', 'l_green')
+    # print(window_indices)
+    window_scores_for_all_frames = np.zeros(num_anomalous_frames)
+    current_window_idx = 0
+    for idx, _ in enumerate(window_scores_for_all_frames):
+        if idx <= window_indices[current_window_idx]:
+            window_scores_for_all_frames[idx] = window_scores[current_window_idx]
+        else:
+            current_window_idx += 1
+            window_scores_for_all_frames[idx] = window_scores[current_window_idx]
+    cprintf(f'window_scores_for_all_frames', 'white')
+    highlight(window_scores_for_all_frames)
+    alarm_condition = (window_scores_for_all_frames>=threshold)
+    no_alarm_condition = (window_scores_for_all_frames<threshold)
+    highlight(no_alarm_condition, 'green')
+    highlight(len(no_alarm_condition), 'green')
+    highlight(np.sum(no_alarm_condition == True), 'green')
+    alarm_ranges = get_ranges(alarm_condition)
+    no_alarm_ranges = get_ranges(no_alarm_condition)
+    all_ranges = get_all_ranges(alarm_condition)
+    return alarm_ranges, no_alarm_ranges, all_ranges
 
 def get_alarm_frames(distance_vector_avg, threshold):
     alarm_condition = (distance_vector_avg>=threshold)

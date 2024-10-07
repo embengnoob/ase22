@@ -4,7 +4,7 @@
 /udacity-simulator
 /models
 /simulations
-# /scripts/test.py
+/scripts/test2.py
 smoothgrad-ood.csv
 /png_results
 /results
